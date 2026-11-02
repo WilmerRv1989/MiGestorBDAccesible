@@ -1,0 +1,628 @@
+@using MiGestorBDAccesible.Core.Edicion
+@using MiGestorBDAccesible.Core.Definicion
+@implements IAsyncDisposable
+@inject ProveedoresService proveedores
+@inject AnunciadorService anunciador
+@inject IJSRuntime js
+
+<section class="editor-filas" aria-labelledby="titulo-editar-filas">
+    <h2 id="titulo-editar-filas" tabindex="-1">Editar filas de @Tabla.NombreCompleto</h2>
+
+    @if (_detalle is null)
+    {
+        <p>@(_error ?? "Revisando la tabla…")</p>
+    }
+    else if (_clave is null)
+    {
+        <p>@Tabla.NombreCompleto no tiene clave principal ni un valor único sin NULL, así que no hay forma segura de decir «esta fila y no otra». Se puede consultar, pero no editar desde aquí. Para editarla, agrégale una clave principal con «Modificar tabla…» en el menú de la tabla.</p>
+    }
+    else
+    {
+        @if (_sesion?.CambiosPendientes > 0)
+        {
+            <div class="aviso-transaccion" role="group" aria-labelledby="aviso-cambios-filas">
+                <p id="aviso-cambios-filas">Cambios sin confirmar: @_sesion.CambiosPendientes. Se guardan en la base de datos al confirmarlos.@(Proveedor.Capacidades.LectoresEsperanCambios ? $" Mientras tanto, las consultas de otras pestañas sobre {Tabla.NombreCorto()} esperan." : "")</p>
+                <div class="acciones">
+                    <button id="boton-confirmar-filas" class="principal" disabled="@_trabajando" @onclick="() => TerminarAsync(true)">Confirmar los cambios (COMMIT)</button>
+                    <button disabled="@_trabajando" @onclick="() => TerminarAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+                </div>
+            </div>
+        }
+
+        <fieldset>
+            <legend>Buscar filas</legend>
+            <div class="campo">
+                <label for="filas-buscar">Buscar</label>
+                <input id="filas-buscar" autocomplete="off" value="@_buscar" aria-describedby="ayuda-filas-buscar"
+                       @oninput="e => _buscar = e.Value?.ToString() ?? string.Empty" @onkeydown="BuscarConIntroAsync" />
+                <span id="ayuda-filas-buscar" class="ayuda">Busca el texto en las columnas de texto, y si es un número, también en las numéricas.</span>
+            </div>
+            <div class="campo">
+                <label for="filas-filtro">Condición (WHERE), opcional</label>
+                <input id="filas-filtro" autocomplete="off" value="@_filtro" aria-describedby="ayuda-filas-filtro"
+                       @oninput="e => _filtro = e.Value?.ToString() ?? string.Empty" @onkeydown="BuscarConIntroAsync" />
+                <span id="ayuda-filas-filtro" class="ayuda">Como en SQL, por ejemplo: @EjemploFiltro()</span>
+            </div>
+            <button disabled="@_trabajando" @onclick="() => BuscarAsync(true)">Buscar</button>
+        </fieldset>
+
+        <h3 id="titulo-lista-filas" tabindex="-1">@TituloLista()</h3>
+        <div class="acciones">
+            <button id="boton-nueva-fila" disabled="@(_trabajando || _valores is not null)" @onclick="NuevaFila">Nueva fila</button>
+        </div>
+
+        @if (_filas.Count > 0)
+        {
+            <p class="ayuda" id="ayuda-lista-filas">Intro edita la fila; Supr la elimina.</p>
+            <ul class="lista-filas" aria-describedby="ayuda-lista-filas">
+                @for (var i = 0; i < _filas.Count; i++)
+                {
+                    var indice = i;
+                    <li>
+                        <button id="@($"fila-{indice}")" class="enlace" aria-keyshortcuts="Delete"
+                                @onclick="() => EditarFila(indice)" @onkeydown="e => TeclaFilaAsync(e, indice)">@EdicionFilasService.Resumen(_columnas, _clave, _filas[indice])</button>
+                    </li>
+                }
+            </ul>
+        }
+
+        <div class="acciones">
+            @if (_desde > 0)
+            {
+                <button disabled="@_trabajando" @onclick="() => CambiarPaginaAsync(-1)">Anteriores @EdicionFilasService.TamanoPagina</button>
+            }
+            @if (_desde + _filas.Count < _total)
+            {
+                <button disabled="@_trabajando" @onclick="() => CambiarPaginaAsync(1)">Siguientes @EdicionFilasService.TamanoPagina</button>
+            }
+        </div>
+
+        @if (_valores is not null)
+        {
+            <fieldset class="editor-columna">
+                <legend id="titulo-fila">@(_original is null ? "Nueva fila" : $"Editar {EdicionFilasService.Resumen(_columnas, _clave, _filas[_indiceEditado!.Value])}")</legend>
+
+                @for (var i = 0; i < _columnas.Count; i++)
+                {
+                    var indice = i;
+                    var columna = _columnas[i];
+                    var usaPredeterminado = _original is null && _predeterminados.Contains(columna.Nombre);
+                    var esNulo = !usaPredeterminado && _valores.TryGetValue(columna.Nombre, out var actual) && actual is null;
+
+                    @if (columna.SoloLectura)
+                    {
+                        <div class="campo">
+                            <label for="@($"campo-{indice}")">@columna.Etiqueta</label>
+                            <input id="@($"campo-{indice}")" readonly value="@(_original is null ? "lo pone la base de datos" : _original[columna.Nombre] ?? "vacío (NULL)")" />
+                        </div>
+                        continue;
+                    }
+
+                    @if (_original is null && columna.TienePredeterminado)
+                    {
+                        <div class="campo casilla">
+                            <input id="@($"predeterminado-{indice}")" type="checkbox" checked="@usaPredeterminado" @onchange="e => CambiarPredeterminado(columna, (bool)e.Value!)" />
+                            <label for="@($"predeterminado-{indice}")">@columna.Nombre: usar el valor predeterminado (DEFAULT @ComparadorPredeterminado(columna))</label>
+                        </div>
+                    }
+
+                    @if (columna.Clase == ClaseValor.Logico && columna.Llave is null)
+                    {
+                        <div class="campo casilla">
+                            <input id="@($"campo-{indice}")" type="checkbox" disabled="@(usaPredeterminado || esNulo)"
+                                   checked="@(_valores.GetValueOrDefault(columna.Nombre) == "1")"
+                                   @onchange="e => CambiarLogico(columna, (bool)e.Value!)" />
+                            <label for="@($"campo-{indice}")">@columna.Etiqueta, marcada es sí</label>
+                        </div>
+                    }
+                    else if (columna.Llave is { } llave && _opciones.TryGetValue(columna.Nombre, out var opciones) && opciones is not null)
+                    {
+                        <div class="campo">
+                            <label for="@($"campo-{indice}")">@columna.Etiqueta, apunta a @llave.TablaDestino.NombreCorto()</label>
+                            <select id="@($"campo-{indice}")" disabled="@(usaPredeterminado || esNulo)" value="@(_valores.GetValueOrDefault(columna.Nombre) ?? string.Empty)"
+                                    @onchange="e => _valores[columna.Nombre] = e.Value?.ToString() is { Length: > 0 } valor ? valor : null">
+                                <option value="">Elige una…</option>
+                                @foreach (var (valor, texto) in opciones)
+                                {
+                                    <option value="@valor">@texto</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="campo">
+                            <label for="@($"campo-{indice}")">@columna.Etiqueta@(columna.Llave is { } destino ? $", valor de {destino.TablaDestino.NombreCorto()}.{destino.ColumnasDestino[0]}" : "")</label>
+                            <input id="@($"campo-{indice}")" autocomplete="off" disabled="@(usaPredeterminado || esNulo)"
+                                   value="@(_valores.GetValueOrDefault(columna.Nombre) ?? string.Empty)"
+                                   aria-describedby="@(AyudaCampo(columna) is null ? null : $"ayuda-campo-{indice}")"
+                                   @oninput="e => _valores[columna.Nombre] = e.Value?.ToString() ?? string.Empty" />
+                            @if (AyudaCampo(columna) is { } ayuda)
+                            {
+                                <span id="@($"ayuda-campo-{indice}")" class="ayuda">@ayuda</span>
+                            }
+                        </div>
+                    }
+
+                    @if (!columna.Obligatoria && !usaPredeterminado)
+                    {
+                        <div class="campo casilla">
+                            <input id="@($"nulo-{indice}")" type="checkbox" checked="@esNulo" @onchange="e => CambiarNulo(columna, (bool)e.Value!)" />
+                            <label for="@($"nulo-{indice}")">@columna.Nombre: vacío (NULL)</label>
+                        </div>
+                    }
+                }
+
+                @if (_problemas.Count > 0)
+                {
+                    <h4 id="titulo-problemas-fila" tabindex="-1">Problemas (@_problemas.Count)</h4>
+                    <ul class="lista-mensajes">
+                        @foreach (var problema in _problemas)
+                        {
+                            <li class="error">@problema</li>
+                        }
+                    </ul>
+                }
+
+                <p class="ayuda">Se ejecutará este SQL, dentro de la transacción del panel:</p>
+                <pre><code>@(SqlFila() ?? "Sin cambios todavía.")</code></pre>
+                <ErrorDialogo Mensaje="@_error" />
+                <div class="acciones">
+                    <button class="principal" disabled="@_trabajando" @onclick="GuardarFilaAsync">Guardar fila</button>
+                    <button @onclick="CancelarFila">Cancelar</button>
+                </div>
+            </fieldset>
+        }
+    }
+
+    <div class="acciones">
+        <button id="boton-cerrar-filas" @onclick="CerrarAsync">Cerrar el panel</button>
+    </div>
+</section>
+
+@if (_eliminar is int filaEliminar)
+{
+    <DialogoAccion Titulo="Eliminar la fila" EsAlerta="true" AlCancelar="() => CancelarEliminar(filaEliminar)">
+        <p>Se eliminará la @EdicionFilasService.Resumen(_columnas, _clave!, _filas[filaEliminar]). Quedará pendiente hasta que confirmes los cambios.</p>
+        <p class="ayuda">Se ejecutará este SQL, dentro de la transacción del panel:</p>
+        <pre><code>@EdicionFilasService.Eliminar(Proveedor.Dialecto, _detalle!, _columnas, _clave!, Valores(_filas[filaEliminar]))</code></pre>
+        <ErrorDialogo Mensaje="@_error" />
+        <div class="acciones">
+            <button class="peligro" disabled="@_trabajando" @onclick="() => EliminarAsync(filaEliminar)">Sí, eliminar la fila</button>
+            <button data-foco-inicial @onclick="() => CancelarEliminar(filaEliminar)">Cancelar</button>
+        </div>
+    </DialogoAccion>
+}
+
+@if (_preguntarCierre)
+{
+    <DialogoAccion Titulo="Hay cambios sin confirmar" EsAlerta="true" AlCancelar="SeguirEditando">
+        <p>En este panel hay @(_sesion!.CambiosPendientes == 1 ? "1 cambio que todavía no se guardó" : $"{_sesion.CambiosPendientes} cambios que todavía no se guardaron") en la base de datos. ¿Qué hago con ellos antes de cerrar?</p>
+        <div class="acciones">
+            <button class="principal" @onclick="() => CerrarConAsync(true)">Confirmar los cambios (COMMIT)</button>
+            <button class="peligro" @onclick="() => CerrarConAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial @onclick="SeguirEditando">Seguir editando</button>
+        </div>
+    </DialogoAccion>
+}
+
+@code {
+    [Parameter, EditorRequired] public ConexionActiva Conexion { get; set; } = default!;
+    [Parameter, EditorRequired] public string BaseDatos { get; set; } = "";
+    [Parameter, EditorRequired] public TablaModelo Tabla { get; set; } = default!;
+    [Parameter] public EventCallback AlCerrar { get; set; }
+
+    private DetalleTablaModelo? _detalle;
+    private List<ColumnaEdicionModelo> _columnas = [];
+    private List<string>? _clave;
+    private ISesionEdicion? _sesion;
+    private List<string?[]> _filas = [];
+    private long _total;
+    private int _desde;
+    private string _buscar = "";
+    private string _filtro = "";
+    private string _condicion = "";
+    private Dictionary<string, string?>? _valores;
+    private Dictionary<string, string?>? _original;
+    private int? _indiceEditado;
+    private readonly HashSet<string> _predeterminados = [];
+    private readonly Dictionary<string, List<(string Valor, string Texto)>?> _opciones = [];
+    private List<string> _problemas = [];
+    private string? _error;
+    private bool _trabajando;
+    private int? _eliminar;
+    private bool _preguntarCierre;
+    private string? _enfocar = "titulo-editar-filas";
+
+    private IProveedorBaseDatos Proveedor => proveedores.Obtener(Conexion.Conexion.Motor);
+
+    public int CambiosPendientes => _sesion?.CambiosPendientes ?? 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _detalle = await Proveedor.ObtenerDetalleTablaAsync(Conexion, BaseDatos, Tabla);
+            _columnas = EdicionFilasService.Columnas(_detalle, Proveedor.Dialecto);
+            _clave = EdicionFilasService.Clave(_detalle);
+
+            if (_clave is null)
+            {
+                return;
+            }
+
+            _sesion = await Proveedor.AbrirSesionEdicionAsync(Conexion, BaseDatos);
+            await CargarOpcionesAsync();
+            await CargarPaginaAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = $"No se pudo abrir la tabla. {ex.Message}";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocar is not null)
+        {
+            var id = _enfocar;
+            _enfocar = null;
+            await js.InvokeVoidAsync("miGestor.enfocar", id);
+        }
+
+        if (firstRender)
+        {
+            await Task.Delay(600);
+            await anunciador.AnunciarAsync(_clave is null || _detalle is null ? _error ?? "" : $"Panel de edición abierto. {TituloLista()}.");
+        }
+    }
+
+    private string TituloLista() =>
+        _total == 0
+            ? _condicion.Length > 0 ? "No hay filas que coincidan." : "La tabla no tiene filas."
+            : $"Filas {_desde + 1} a {_desde + _filas.Count} de {_total:N0}";
+
+    private string EjemploFiltro()
+    {
+        var numero = _columnas.FirstOrDefault(c => c.Clase == ClaseValor.Numero && !c.EsClave && c.Llave is null);
+        return numero is null ? "Nombre = 'Ana'." : $"{Proveedor.Dialecto.Columna(numero.Nombre)} > 10.";
+    }
+
+    private string? AyudaCampo(ColumnaEdicionModelo columna) => columna.Clase switch
+    {
+        ClaseValor.Fecha => "Formato AAAA-MM-DD, y la hora si hace falta: 2026-01-31 14:30.",
+        ClaseValor.Numero => "Usa punto o coma para los decimales.",
+        ClaseValor.Texto when Conexion.Conexion.Motor == TipoMotor.Oracle && !columna.Obligatoria => "En Oracle, un texto vacío se guarda como NULL.",
+        ClaseValor.Texto when columna.Longitud is int maximo => $"Hasta {maximo} caracteres.",
+        _ => null
+    };
+
+    private static string ComparadorPredeterminado(ColumnaEdicionModelo columna) =>
+        columna.Columna.EsIdentidad ? "número automático" : ComparadorTablaService.Predeterminado(columna.Columna.ValorPredeterminado) ?? "";
+
+    private Dictionary<string, string?> Valores(string?[] fila) =>
+        _columnas.Select((c, i) => (c.Nombre, fila[i])).ToDictionary(x => x.Nombre, x => x.Item2);
+
+    private async Task CargarOpcionesAsync()
+    {
+        foreach (var columna in _columnas.Where(c => c.Llave is not null && !c.SoloLectura))
+        {
+            try
+            {
+                var llave = columna.Llave!;
+                var destino = await Proveedor.ObtenerDetalleTablaAsync(Conexion, BaseDatos, llave.TablaDestino);
+                var texto = destino.Columnas.FirstOrDefault(c => c.Nombre != llave.ColumnasDestino[0] && EdicionFilasService.Clasificar(c.TipoDatos) == ClaseValor.Texto)?.Nombre;
+                var filas = await _sesion!.LeerAsync(EdicionFilasService.ConsultaOpciones(Proveedor.Dialecto, llave, texto, null));
+
+                _opciones[columna.Nombre] = filas.Filas.Count > EdicionFilasService.MaximoOpciones
+                    ? null
+                    : filas.Filas.Select(f => (f[0] ?? "", texto is null ? f[0] ?? "" : $"{f[0]}: {f[1]}")).ToList();
+            }
+            catch (Exception)
+            {
+                _opciones[columna.Nombre] = null;
+            }
+        }
+    }
+
+    private async Task CargarPaginaAsync()
+    {
+        var d = Proveedor.Dialecto;
+        var conteo = await _sesion!.LeerAsync(EdicionFilasService.ConsultaConteo(d, _detalle!, _condicion));
+        _total = long.Parse(conteo.Filas[0][0] ?? "0", System.Globalization.CultureInfo.InvariantCulture);
+        _desde = Math.Max(0, Math.Min(_desde, (int)Math.Max(0, (_total - 1) / EdicionFilasService.TamanoPagina * EdicionFilasService.TamanoPagina)));
+        _filas = (await _sesion.LeerAsync(EdicionFilasService.ConsultaPagina(d, _detalle!, _columnas, _clave!, _condicion, _desde))).Filas;
+    }
+
+    private async Task BuscarConIntroAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await BuscarAsync(true);
+        }
+    }
+
+    private async Task BuscarAsync(bool anunciar)
+    {
+        _trabajando = true;
+        _error = null;
+
+        try
+        {
+            _condicion = EdicionFilasService.Condicion(Proveedor.Dialecto, _columnas, _buscar, _filtro);
+            _desde = 0;
+            await CargarPaginaAsync();
+        }
+        catch (Exception ex)
+        {
+            _trabajando = false;
+            await anunciador.AnunciarUrgenteAsync($"No se pudo buscar. {ex.Message}");
+            return;
+        }
+
+        _trabajando = false;
+
+        if (anunciar)
+        {
+            await AnunciarTrasFocoAsync(_filas.Count > 0 ? "fila-0" : "titulo-lista-filas", $"{TituloLista()}.");
+        }
+    }
+
+    private async Task CambiarPaginaAsync(int direccion)
+    {
+        _desde += direccion * EdicionFilasService.TamanoPagina;
+        await CargarPaginaAsync();
+        await AnunciarTrasFocoAsync(_filas.Count > 0 ? "fila-0" : "titulo-lista-filas", $"{TituloLista()}.");
+    }
+
+    private void NuevaFila()
+    {
+        _original = null;
+        _indiceEditado = null;
+        _problemas = [];
+        _error = null;
+        _predeterminados.Clear();
+        _valores = [];
+
+        foreach (var columna in _columnas.Where(c => !c.SoloLectura))
+        {
+            if (columna.TienePredeterminado)
+            {
+                _predeterminados.Add(columna.Nombre);
+            }
+
+            _valores[columna.Nombre] = columna.Obligatoria ? (columna.Clase == ClaseValor.Logico ? "0" : "") : null;
+        }
+
+        _enfocar = PrimerCampo();
+    }
+
+    private void EditarFila(int indice)
+    {
+        _original = Valores(_filas[indice]);
+        _valores = new Dictionary<string, string?>(_original);
+        _indiceEditado = indice;
+        _problemas = [];
+        _error = null;
+        _enfocar = PrimerCampo();
+    }
+
+    private string PrimerCampo()
+    {
+        var indice = _columnas.FindIndex(c => !c.SoloLectura && !(_original is null && _predeterminados.Contains(c.Nombre)));
+        return indice < 0 ? "titulo-fila" : $"campo-{indice}";
+    }
+
+    private void CambiarLogico(ColumnaEdicionModelo columna, bool marcada)
+    {
+        _valores![columna.Nombre] = marcada ? "1" : "0";
+    }
+
+    private void CambiarNulo(ColumnaEdicionModelo columna, bool nulo)
+    {
+        _valores![columna.Nombre] = nulo ? null : columna.Clase == ClaseValor.Logico ? "0" : "";
+    }
+
+    private void CambiarPredeterminado(ColumnaEdicionModelo columna, bool usar)
+    {
+        if (usar)
+        {
+            _predeterminados.Add(columna.Nombre);
+        }
+        else
+        {
+            _predeterminados.Remove(columna.Nombre);
+            _valores![columna.Nombre] = columna.Obligatoria ? (columna.Clase == ClaseValor.Logico ? "0" : "") : null;
+        }
+    }
+
+    private Dictionary<string, string?> ValoresAGuardar() =>
+        _valores!.Where(v => _original is not null || !_predeterminados.Contains(v.Key)).ToDictionary(v => v.Key, v => v.Value);
+
+    private string? SqlFila()
+    {
+        if (_valores is null)
+        {
+            return null;
+        }
+
+        var d = Proveedor.Dialecto;
+        return _original is null
+            ? EdicionFilasService.Insertar(d, _detalle!, _columnas, ValoresAGuardar())
+            : EdicionFilasService.Actualizar(d, _detalle!, _columnas, _clave!, _original, _valores);
+    }
+
+    private async Task GuardarFilaAsync()
+    {
+        _error = null;
+        _problemas = EdicionFilasService.Validar(_columnas, ValoresAGuardar(), _original is null);
+
+        if (_problemas.Count > 0)
+        {
+            await AnunciarTrasFocoAsync("titulo-problemas-fila", $"No se puede guardar: {_problemas[0]}", true);
+            return;
+        }
+
+        var sql = SqlFila();
+
+        if (sql is null)
+        {
+            await anunciador.AnunciarAsync("No cambiaste ningún valor.");
+            return;
+        }
+
+        _trabajando = true;
+        var resultado = await _sesion!.CambiarAsync(sql);
+        _trabajando = false;
+
+        if (!resultado.Correcto)
+        {
+            _error = $"{Conexion.Conexion.Motor.Nombre()} no aceptó la fila. {resultado.Error}";
+            await anunciador.AnunciarUrgenteAsync(_error);
+            return;
+        }
+
+        if (resultado.FilasAfectadas == 0)
+        {
+            _error = "La fila ya no existe o alguien cambió su clave: no se modificó nada. Busca de nuevo para ver los datos actuales.";
+            await anunciador.AnunciarUrgenteAsync(_error);
+            return;
+        }
+
+        var nueva = _original is null;
+        var indice = _indiceEditado;
+        _valores = null;
+        _original = null;
+        await CargarPaginaAsync();
+
+        var destino = nueva ? "boton-nueva-fila" : indice is int i && i < _filas.Count ? $"fila-{i}" : "titulo-lista-filas";
+        await AnunciarTrasFocoAsync(destino, $"{(nueva ? "Fila agregada" : "Fila guardada")}. Cambios sin confirmar: {_sesion.CambiosPendientes}.");
+    }
+
+    private async Task CancelarFila()
+    {
+        var indice = _indiceEditado;
+        _valores = null;
+        _original = null;
+        _problemas = [];
+        _error = null;
+        await AnunciarTrasFocoAsync(indice is int i ? $"fila-{i}" : "boton-nueva-fila", "Edición cancelada.");
+    }
+
+    private async Task TeclaFilaAsync(KeyboardEventArgs e, int indice)
+    {
+        if (e.Key == "Delete" && _valores is null)
+        {
+            _error = null;
+            _eliminar = indice;
+            await Task.CompletedTask;
+        }
+    }
+
+    private void CancelarEliminar(int indice)
+    {
+        _eliminar = null;
+        _error = null;
+        _enfocar = $"fila-{indice}";
+    }
+
+    private async Task EliminarAsync(int indice)
+    {
+        _trabajando = true;
+        var resultado = await _sesion!.CambiarAsync(EdicionFilasService.Eliminar(Proveedor.Dialecto, _detalle!, _columnas, _clave!, Valores(_filas[indice])));
+        _trabajando = false;
+
+        if (!resultado.Correcto)
+        {
+            _error = $"{Conexion.Conexion.Motor.Nombre()} no dejó eliminarla. {resultado.Error}";
+            await anunciador.AnunciarUrgenteAsync(_error);
+            return;
+        }
+
+        _eliminar = null;
+        await CargarPaginaAsync();
+        var destino = _filas.Count == 0 ? "titulo-lista-filas" : $"fila-{Math.Min(indice, _filas.Count - 1)}";
+        await AnunciarTrasFocoAsync(destino, resultado.FilasAfectadas == 0
+            ? "La fila ya no existía."
+            : $"Fila eliminada. Cambios sin confirmar: {_sesion.CambiosPendientes}.");
+    }
+
+    public async Task<string?> TerminarSinAnunciarAsync(bool confirmar) =>
+        _sesion is null ? null : confirmar ? await _sesion.ConfirmarAsync() : await _sesion.DeshacerAsync();
+
+    private async Task TerminarAsync(bool confirmar)
+    {
+        _trabajando = true;
+        var error = await TerminarSinAnunciarAsync(confirmar);
+        _trabajando = false;
+
+        if (error is not null)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {error}");
+            return;
+        }
+
+        _valores = null;
+        _original = null;
+        await CargarPaginaAsync();
+        await AnunciarTrasFocoAsync("titulo-lista-filas", confirmar
+            ? $"Cambios confirmados (COMMIT). {TituloLista()}."
+            : $"Cambios deshechos (ROLLBACK). {TituloLista()}.");
+    }
+
+    private async Task CerrarAsync()
+    {
+        if (CambiosPendientes > 0)
+        {
+            _preguntarCierre = true;
+            return;
+        }
+
+        await AlCerrar.InvokeAsync();
+    }
+
+    private void SeguirEditando()
+    {
+        _preguntarCierre = false;
+        _enfocar = "boton-cerrar-filas";
+    }
+
+    private async Task CerrarConAsync(bool confirmar)
+    {
+        var error = await TerminarSinAnunciarAsync(confirmar);
+        _preguntarCierre = false;
+
+        if (error is not null)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {error}");
+            return;
+        }
+
+        await AlCerrar.InvokeAsync();
+        await anunciador.AnunciarAsync(confirmar ? "Cambios confirmados (COMMIT). Panel cerrado." : "Cambios deshechos (ROLLBACK). Panel cerrado.");
+    }
+
+    private async Task AnunciarTrasFocoAsync(string id, string mensaje, bool urgente = false)
+    {
+        _enfocar = id;
+        StateHasChanged();
+        await Task.Delay(500);
+
+        if (urgente)
+        {
+            await anunciador.AnunciarUrgenteAsync(mensaje);
+        }
+        else
+        {
+            await anunciador.AnunciarAsync(mensaje);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_sesion is not null)
+        {
+            await _sesion.DisposeAsync();
+        }
+    }
+}

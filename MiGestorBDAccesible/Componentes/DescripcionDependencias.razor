@@ -1,0 +1,61 @@
+@using MiGestorBDAccesible.Core.Estructura
+
+<h2 id="titulo-detalle" tabindex="-1" @ref="_titulo">Dependencias de @Nombre</h2>
+
+@Seccion("Qué usa", Dependencias.Usa, $"{Nombre} no usa otros objetos, según el catálogo.")
+@Seccion(QuienUsa, Dependencias.UsadoPor, $"Ningún objeto usa {Nombre}, según el catálogo.")
+
+@if (Dependencias.Usa.Concat(Dependencias.UsadoPor).Any(d => d.Posible))
+{
+    <p class="ayuda">«Posible uso» significa que el nombre aparece en el código de una función. PostgreSQL no registra esas dependencias, así que puede haber falsos avisos, por ejemplo si el nombre está en un comentario.</p>
+}
+
+<p class="ayuda">Activa un objeto para ir a él en el explorador. Pulsa F8 para volver al explorador.</p>
+
+@code {
+    [Parameter, EditorRequired] public string Nombre { get; set; } = "";
+    [Parameter, EditorRequired] public DependenciasModelo Dependencias { get; set; } = default!;
+    [Parameter] public string QuienUsa { get; set; } = "Quién lo usa";
+    [Parameter] public string DisparadoresBase { get; set; } = "de la base";
+    [Parameter] public EventCallback<ResultadoBusquedaObjetoModelo> AlIr { get; set; }
+
+    private ElementReference _titulo;
+    private DependenciasModelo? _ultimaEnfocada;
+
+    private RenderFragment Seccion(string titulo, List<DependenciaModelo> lista, string vacio) => __builder =>
+    {
+        <h3>@titulo (@lista.Count)</h3>
+        @if (lista.Count == 0)
+        {
+            <p>@vacio</p>
+        }
+        else
+        {
+            <ul class="frases">
+                @foreach (var dependencia in lista)
+                {
+                    var texto = DependenciasService.Describir(dependencia, DisparadoresBase);
+                    <li>
+                        @if (dependencia.Objeto is { } objeto && !dependencia.OtroEsquema)
+                        {
+                            <button class="enlace" @onclick="() => AlIr.InvokeAsync(objeto)">@texto</button>
+                        }
+                        else
+                        {
+                            @(dependencia.OtroEsquema ? $"{texto}, de otro esquema" : texto)
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_ultimaEnfocada != Dependencias)
+        {
+            _ultimaEnfocada = Dependencias;
+            await _titulo.FocusAsync();
+        }
+    }
+}

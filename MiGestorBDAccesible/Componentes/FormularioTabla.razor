@@ -1,0 +1,820 @@
+@using MiGestorBDAccesible.Core.Definicion
+@using MiGestorBDAccesible.Core.Descripcion
+@using MiGestorBDAccesible.Core.Estructura
+@inject ProveedoresService proveedores
+@inject NarradorTablaService narrador
+@inject ValidadorTablaService validador
+@inject AnunciadorService anunciador
+@inject ComprobadorModificacionService comprobador
+@inject IJSRuntime js
+
+<section class="formulario-tabla" aria-labelledby="titulo-nueva-tabla">
+    <h2 id="titulo-nueva-tabla" tabindex="-1">@(Original is null ? $"Nueva tabla en {BaseDatos}" : $"Modificar la tabla {Original.Tabla.NombreCompleto}")</h2>
+
+    <fieldset>
+        <legend>Tabla</legend>
+        <div class="campo">
+            <label for="tabla-nombre">Nombre de la tabla</label>
+            <input id="tabla-nombre" @bind="_definicion.Nombre" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-tabla-nombre" />
+            <span id="ayuda-tabla-nombre" class="ayuda">@AvisoNombreGuardado(_definicion.Nombre)</span>
+        </div>
+        <div class="campo">
+            <label for="tabla-esquema">Esquema</label>
+            <input id="tabla-esquema" @bind="_definicion.Esquema" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-esquema" readonly="@(Original is not null)" />
+            <span id="ayuda-esquema" class="ayuda">@(Original is null ? $"Normalmente {Proveedor.EsquemaPredeterminado(Conexion)}." : "El esquema no se cambia desde aquí.")</span>
+        </div>
+    </fieldset>
+
+    <h3 id="titulo-columnas" tabindex="-1">Columnas (@_definicion.Columnas.Count)</h3>
+
+    @if (_definicion.Columnas.Count == 0)
+    {
+        <p>Todavía no hay columnas. Agrega la primera; si quieres, empieza con una columna Id automática.</p>
+    }
+    else
+    {
+        <ul class="lista-columnas">
+            @for (var i = 0; i < _definicion.Columnas.Count; i++)
+            {
+                var indice = i;
+                var columna = _definicion.Columnas[i];
+                var nombre = NombreVisible(columna);
+
+                <li>
+                    <span>@(indice + 1). @ResumenColumna(columna)</span>
+                    <div class="acciones">
+                        @if (!columna.EsCalculada)
+                        {
+                            <button id="@($"col-{indice}-editar")" aria-label="@($"Editar {nombre}")" @onclick="() => EditarColumna(indice)">Editar</button>
+                        }
+                        <button id="@($"col-{indice}-subir")" aria-label="@($"Subir {nombre}")" disabled="@(indice == 0)" @onclick="() => MoverAsync(indice, -1)">Subir</button>
+                        <button id="@($"col-{indice}-bajar")" aria-label="@($"Bajar {nombre}")" disabled="@(indice == _definicion.Columnas.Count - 1)" @onclick="() => MoverAsync(indice, 1)">Bajar</button>
+                        <button class="peligro" aria-label="@($"Quitar {nombre}")" @onclick="() => QuitarAsync(indice)">Quitar</button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (_editando is null)
+    {
+        <div class="acciones">
+            <button id="agregar-columna" @onclick="AgregarColumna">Agregar columna</button>
+            @if (Original is null && !_definicion.Columnas.Any(c => c.EsIdentidad))
+            {
+                <button @onclick="AgregarIdAsync">Agregar columna Id automática</button>
+            }
+        </div>
+    }
+    else
+    {
+        var tipo = TipoActual;
+
+        <fieldset class="editor-columna">
+            <legend>@(_indiceEditando is int posicion ? $"Editar columna {posicion + 1} de {_definicion.Columnas.Count}" : "Nueva columna")</legend>
+
+            <div class="campo">
+                <label for="col-nombre">Nombre de la columna</label>
+                <input id="col-nombre" @bind="_editando.Nombre" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-col-nombre" />
+                <span id="ayuda-col-nombre" class="ayuda">@AvisoNombreGuardado(_editando.Nombre)</span>
+            </div>
+
+            <div class="campo" data-ayuda="@($"tipo:{_editando.Tipo}")">
+                <label for="col-tipo">Tipo de datos</label>
+                <select id="col-tipo" value="@_editando.Tipo" @onchange="CambiarTipoAsync">
+                    @foreach (var grupo in Proveedor.TiposDatos.GroupBy(t => t.Categoria))
+                    {
+                        <optgroup label="@grupo.Key">
+                            @foreach (var opcion in grupo)
+                            {
+                                <option value="@opcion.Nombre">@opcion.Nombre: @opcion.Descripcion</option>
+                            }
+                        </optgroup>
+                    }
+                </select>
+                <span class="ayuda">Pulsa F1 sobre la lista para saber qué guarda el tipo elegido.</span>
+            </div>
+
+            @if (tipo?.UsaLongitud == true)
+            {
+                <div class="campo">
+                    <label for="col-longitud">Longitud máxima, en caracteres o bytes</label>
+                    <input id="col-longitud" type="number" min="1" max="@tipo.LongitudMaxima"
+                           @bind="_editando.Longitud" @bind:event="oninput" disabled="@_editando.EsMax" aria-describedby="ayuda-longitud" />
+                    <span id="ayuda-longitud" class="ayuda">Entre 1 y @tipo.LongitudMaxima.</span>
+                </div>
+
+                @if (tipo.AdmiteMax)
+                {
+                    <div class="campo casilla">
+                        <input id="col-max" type="checkbox" checked="@_editando.EsMax" @onchange="e => CambiarMax((bool)e.Value!)" />
+                        <label for="col-max">Máxima (MAX), para textos o datos muy largos</label>
+                    </div>
+                }
+            }
+
+            @if (tipo?.UsaPrecision == true)
+            {
+                <div class="campo">
+                    <label for="col-precision">Precisión: total de dígitos@(tipo.PrecisionOpcional ? ", opcional" : "")</label>
+                    <input id="col-precision" type="number" min="1" max="38" @bind="_editando.Precision" @bind:event="oninput" />
+                </div>
+                <div class="campo">
+                    <label for="col-escala">Escala: dígitos después de la coma</label>
+                    <input id="col-escala" type="number" min="0" max="38" @bind="_editando.Escala" @bind:event="oninput" aria-describedby="ayuda-escala" />
+                    <span id="ayuda-escala" class="ayuda">Por ejemplo, precisión 10 y escala 2 llega hasta 99 999 999,99.@(tipo.PrecisionOpcional ? $" Deja las dos vacías para un {tipo.Nombre} sin límite fijo." : "")</span>
+                </div>
+            }
+
+            @if (tipo?.UsaFraccionSegundos == true)
+            {
+                <div class="campo">
+                    <label for="col-fraccion">Decimales de segundo, de 0 a @tipo.FraccionMaxima</label>
+                    <input id="col-fraccion" type="number" min="0" max="@tipo.FraccionMaxima" @bind="_editando.FraccionSegundos" @bind:event="oninput" />
+                </div>
+            }
+
+            <div class="campo casilla" data-ayuda="concepto:null">
+                <input id="col-nulos" type="checkbox" checked="@_editando.PermiteNulos" @onchange="e => _editando.PermiteNulos = (bool)e.Value!" aria-describedby="ayuda-nulos" />
+                <label for="col-nulos">Permitir NULL (opcional)</label>
+            </div>
+            <p id="ayuda-nulos" class="ayuda">Desmarcada, la columna es obligatoria (NOT NULL).</p>
+
+            <div class="campo casilla" data-ayuda="concepto:clave-principal">
+                <input id="col-clave" type="checkbox" checked="@_editando.EsClavePrincipal" @onchange="e => CambiarClaveAsync((bool)e.Value!)" />
+                <label for="col-clave">Es clave principal (PRIMARY KEY)</label>
+            </div>
+
+            <div class="campo casilla" data-ayuda="concepto:unique">
+                <input id="col-unica" type="checkbox" checked="@_editando.EsUnica" @onchange="e => _editando.EsUnica = (bool)e.Value!" />
+                <label for="col-unica">Valor único, no se puede repetir (UNIQUE)</label>
+            </div>
+
+            @if (tipo?.AdmiteIdentidad == true)
+            {
+                <div class="campo casilla" data-ayuda="concepto:identity">
+                    <input id="col-identidad" type="checkbox" checked="@_editando.EsIdentidad" @onchange="e => CambiarIdentidadAsync((bool)e.Value!)" />
+                    <label for="col-identidad">Número automático (@Terminos.NombreIdentidad)</label>
+                </div>
+
+                @if (_editando.EsIdentidad)
+                {
+                    <div class="campo">
+                        <label for="col-semilla">Empieza en</label>
+                        <input id="col-semilla" type="number" @bind="_editando.Semilla" @bind:event="oninput" />
+                    </div>
+                    <div class="campo">
+                        <label for="col-incremento">Sube de</label>
+                        <input id="col-incremento" type="number" @bind="_editando.Incremento" @bind:event="oninput" />
+                    </div>
+                }
+            }
+
+            @if (!_editando.EsIdentidad)
+            {
+                <div class="campo" data-ayuda="concepto:default">
+                    <label for="col-predeterminado">Valor predeterminado, opcional (DEFAULT)</label>
+                    <input id="col-predeterminado" @bind="_editando.ValorPredeterminado" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-predeterminado" />
+                    <span id="ayuda-predeterminado" class="ayuda">Escríbelo como en SQL: @Terminos.EjemploPredeterminado.</span>
+                </div>
+            }
+
+            <div class="campo casilla" data-ayuda="concepto:llave-foranea">
+                <input id="col-fk" type="checkbox" checked="@(_editando.Referencia is not null)" @onchange="e => CambiarReferencia((bool)e.Value!)" />
+                <label for="col-fk">Apunta a otra tabla (FOREIGN KEY)</label>
+            </div>
+
+            @if (_editando.Referencia is { } referencia)
+            {
+                <div class="campo" data-ayuda="concepto:llave-foranea">
+                    <label for="col-destino">Tabla y columna a la que apunta</label>
+                    <select id="col-destino" value="@ClaveDestino(referencia)" @onchange="CambiarDestinoAsync" aria-describedby="ayuda-destino">
+                        <option value="">Elige una…</option>
+                        @foreach (var destino in _destinos)
+                        {
+                            <option value="@destino.Clave">@destino.Descripcion</option>
+                        }
+                    </select>
+                    <span id="ayuda-destino" class="ayuda">@(_destinos.Count == 0 ? "No hay tablas con clave principal en esta base." : "Solo aparecen columnas que son clave principal o valor único.")</span>
+                </div>
+
+                <div class="campo" data-ayuda="concepto:reglas-referenciales">
+                    <label for="col-borrar">Al borrar una fila de la tabla destino (ON DELETE)</label>
+                    <select id="col-borrar" value="@referencia.AlEliminar" @onchange="e => referencia.AlEliminar = Enum.Parse<ReglaReferencial>(e.Value!.ToString()!)">
+                        @foreach (var regla in Proveedor.Capacidades.ReglasAlEliminar)
+                        {
+                            <option value="@regla">@regla.Explicacion(true)</option>
+                        }
+                    </select>
+                </div>
+
+                @if (Proveedor.Capacidades.ReglasAlActualizar.Count > 0)
+                {
+                    <div class="campo" data-ayuda="concepto:reglas-referenciales">
+                        <label for="col-actualizar">Al cambiar la clave en la tabla destino (ON UPDATE)</label>
+                        <select id="col-actualizar" value="@referencia.AlActualizar" @onchange="e => referencia.AlActualizar = Enum.Parse<ReglaReferencial>(e.Value!.ToString()!)">
+                            @foreach (var regla in Proveedor.Capacidades.ReglasAlActualizar)
+                            {
+                                <option value="@regla">@regla.Explicacion(false)</option>
+                            }
+                        </select>
+                    </div>
+                }
+            }
+
+            <div role="alert" class="error">
+                @if (_problemasColumna.Count > 0)
+                {
+                    <ul>
+                        @foreach (var problema in _problemasColumna)
+                        {
+                            <li>@problema.Mensaje</li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <div class="acciones">
+                <button class="principal" @onclick="GuardarColumnaAsync">Guardar columna</button>
+                <button @onclick="CancelarColumnaAsync">Cancelar columna</button>
+            </div>
+        </fieldset>
+    }
+
+    @if (Original is null)
+    {
+        <h3>Resumen</h3>
+        <ul class="frases">
+            @foreach (var frase in narrador.DescribirDefinicion(_definicion, Proveedor.Capacidades.Terminos))
+            {
+                <li>@frase</li>
+            }
+        </ul>
+
+        <h3>SQL que se ejecutará</h3>
+        <pre><code>@Proveedor.ScriptCrearTabla(_definicion)</code></pre>
+    }
+    else
+    {
+        var (plan, script) = PlanActual();
+
+        <h3 id="titulo-cambios" tabindex="-1">Cambios (@script.Sentencias.Select(s => s.Frase).Distinct().Count())</h3>
+        @if (script.Sentencias.Count == 0)
+        {
+            <p>Todavía no hay cambios que aplicar.</p>
+        }
+        else
+        {
+            <ul class="frases">
+                @foreach (var frase in script.Sentencias.Select(s => s.Frase).Distinct())
+                {
+                    <li>@frase</li>
+                }
+            </ul>
+        }
+
+        @if (script.NoAplicables.Count > 0)
+        {
+            <h3>Cambios que no se aplican desde aquí (@script.NoAplicables.Count)</h3>
+            <ul class="frases">
+                @foreach (var motivo in script.NoAplicables)
+                {
+                    <li>@motivo</li>
+                }
+            </ul>
+            <div class="acciones">
+                <button @onclick="() => AbrirRecreacionAsync(plan)">Abrir el script de recreación en una pestaña nueva</button>
+            </div>
+        }
+
+        <h3>SQL que se ejecutará</h3>
+        <pre><code>@(script.Texto.Length == 0 ? "Ninguno todavía." : script.Texto)</code></pre>
+
+        @if (_comprobaciones.Count > 0)
+        {
+            <h3 id="titulo-comprobaciones" tabindex="-1">Comprobaciones (@_comprobaciones.Count)</h3>
+            <ul class="lista-mensajes">
+                @foreach (var comprobacion in _comprobaciones)
+                {
+                    <li class="@(comprobacion.Bloquea ? "error" : null)">
+                        @(comprobacion.Bloquea ? "" : "Aviso: ")@comprobacion.Mensaje
+                        @if (comprobacion.ConsultaFilas is { } consulta)
+                        {
+                            <button aria-label="@($"Ver esas filas: {comprobacion.Mensaje}")" @onclick="() => VerFilasAsync(consulta)">Ver esas filas</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    }
+
+    @if (_problemas.Count > 0)
+    {
+        <h3 id="titulo-problemas" tabindex="-1">Problemas (@_problemas.Count)</h3>
+        <ul class="lista-mensajes">
+            @foreach (var problema in _problemas)
+            {
+                <li class="@(problema.EsAdvertencia ? null : "error")">@(problema.EsAdvertencia ? "Advertencia: " : "")@problema.Mensaje</li>
+            }
+        </ul>
+    }
+
+    <ErrorDialogo Mensaje="@_errorCrear" />
+
+    <div class="acciones">
+        @if (Original is null)
+        {
+            <button class="principal" disabled="@_creando" @onclick="CrearAsync">Crear tabla</button>
+        }
+        else
+        {
+            <button class="principal" disabled="@_creando" @onclick="AplicarAsync">Aplicar cambios</button>
+        }
+        <button @onclick="AlCancelar">Cancelar</button>
+    </div>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public ConexionActiva Conexion { get; set; } = default!;
+    [Parameter, EditorRequired] public string BaseDatos { get; set; } = "";
+    [Parameter] public EventCallback<DefinicionTablaModelo> AlCrear { get; set; }
+    [Parameter] public EventCallback AlCancelar { get; set; }
+    [Parameter] public DefinicionTablaModelo? DefinicionInicial { get; set; }
+    [Parameter] public string? MensajeInicial { get; set; }
+    [Parameter] public DetalleTablaModelo? Original { get; set; }
+    [Parameter] public EventCallback<string> AlModificar { get; set; }
+    [Parameter] public EventCallback<ScriptAbiertoModelo> AlAbrirScript { get; set; }
+
+    private DefinicionTablaModelo _definicion = new();
+    private List<DestinoLlaveModelo> _destinos = [];
+    private bool _mensajeInicialDado;
+    private DefinicionColumnaModelo? _editando;
+    private int? _indiceEditando;
+    private List<ProblemaValidacion> _problemasColumna = [];
+    private List<ProblemaValidacion> _problemas = [];
+    private string? _errorCrear;
+    private bool _creando;
+    private bool _advertenciasVistas;
+    private string? _enfocar = "titulo-nueva-tabla";
+    private List<ComprobacionModelo> _comprobaciones = [];
+    private bool _avisosModificacionVistos;
+
+    private IProveedorBaseDatos Proveedor => proveedores.Obtener(Conexion.Conexion.Motor);
+
+    private TerminosMotorModelo Terminos => Proveedor.Capacidades.Terminos;
+
+    private string? AvisoNombreGuardado(string? nombre) => Proveedor.AvisoNombre(nombre ?? "");
+
+    private TipoDatosModelo? TipoActual => Proveedor.TiposDatos.FirstOrDefault(t => t.Nombre == _editando?.Tipo);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (DefinicionInicial is not null)
+        {
+            _definicion = DefinicionInicial;
+        }
+        else
+        {
+            _definicion.Esquema = Proveedor.EsquemaPredeterminado(Conexion);
+        }
+
+        try
+        {
+            _destinos = await Proveedor.ObtenerDestinosLlaveAsync(Conexion, BaseDatos);
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudieron leer las tablas a las que se puede apuntar. {ex.Message}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocar is not null)
+        {
+            var id = _enfocar;
+            _enfocar = null;
+            await js.InvokeVoidAsync("miGestor.enfocar", id);
+        }
+
+        if (!_mensajeInicialDado && !string.IsNullOrEmpty(MensajeInicial))
+        {
+            _mensajeInicialDado = true;
+            await Task.Delay(600);
+            await anunciador.AnunciarAsync(MensajeInicial);
+        }
+    }
+
+    private static string ClaveDestino(ReferenciaModelo referencia) =>
+        string.IsNullOrEmpty(referencia.ColumnaDestino) ? "" : $"{referencia.TablaDestino.NombreCompleto}.{referencia.ColumnaDestino}";
+
+    private void CambiarReferencia(bool valor)
+    {
+        _editando!.Referencia = valor ? new ReferenciaModelo() : null;
+    }
+
+    private async Task CambiarDestinoAsync(ChangeEventArgs e)
+    {
+        var destino = _destinos.FirstOrDefault(d => d.Clave == e.Value?.ToString());
+        var referencia = _editando?.Referencia;
+
+        if (destino is null || referencia is null)
+        {
+            return;
+        }
+
+        referencia.TablaDestino = destino.Tabla;
+        referencia.ColumnaDestino = destino.Columna;
+        referencia.TipoDestino = destino.TipoDatos;
+
+        var cambios = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(_editando!.Nombre))
+        {
+            _editando.Nombre = $"{destino.Tabla.Nombre}{Terminos.SeparadorNombres}{destino.Columna}";
+            cambios.Add($"el nombre de la columna se propuso como {_editando.Nombre}; puedes cambiarlo");
+        }
+
+        if (!Terminos.TiposCompatibles(_editando.TipoCompleto, destino.TipoDatos) && _editando.AplicarTipo(destino.TipoDatos, Proveedor.TiposDatos))
+        {
+            cambios.Add($"el tipo se ajustó a {destino.TipoDatos} para coincidir con {destino.Tabla.NombreCorto()}.{destino.Columna}");
+        }
+
+        if (cambios.Count > 0)
+        {
+            await anunciador.AnunciarAsync($"{string.Join(", y ", cambios)}.");
+        }
+    }
+
+
+
+    private static string NombreVisible(DefinicionColumnaModelo columna) =>
+        string.IsNullOrWhiteSpace(columna.Nombre) ? "columna sin nombre" : columna.Nombre.Trim();
+
+    private string ResumenColumna(DefinicionColumnaModelo columna)
+    {
+        if (columna.EsCalculada)
+        {
+            return $"{NombreVisible(columna)}: calculada con {columna.Formula}; solo se puede quitar o cambiar de lugar";
+        }
+
+        var partes = new List<string> { columna.TipoCompleto };
+
+        if (columna.EsClavePrincipal) partes.Add("clave principal");
+        if (columna.EsIdentidad) partes.Add($"automático desde {columna.Semilla}");
+        if (columna.EsUnica) partes.Add("único");
+        if (!string.IsNullOrWhiteSpace(columna.ValorPredeterminado)) partes.Add($"predeterminado {columna.ValorPredeterminado.Trim()}");
+        if (columna.Referencia is { ColumnaDestino.Length: > 0 } destino) partes.Add($"apunta a {destino.TablaDestino.NombreCorto()}.{destino.ColumnaDestino}");
+        partes.Add(columna.PermiteNulos ? "opcional" : "obligatoria");
+
+        if (Original is not null && columna.NombreOriginal is null)
+        {
+            partes.Add("columna nueva");
+        }
+
+        return $"{NombreVisible(columna)}: {string.Join(", ", partes)}";
+    }
+
+    private DefinicionColumnaModelo NuevaColumna()
+    {
+        var tipo = Proveedor.TiposDatos.First(t => t.Nombre == Terminos.TipoTexto);
+        return new DefinicionColumnaModelo { Tipo = tipo.Nombre, Longitud = tipo.LongitudPredeterminada };
+    }
+
+    private void AgregarColumna()
+    {
+        _editando = NuevaColumna();
+        _indiceEditando = null;
+        _problemasColumna = [];
+        _enfocar = "col-nombre";
+    }
+
+    private void EditarColumna(int indice)
+    {
+        _editando = _definicion.Columnas[indice].Copiar();
+        _indiceEditando = indice;
+        _problemasColumna = [];
+        _enfocar = "col-nombre";
+    }
+
+    private async Task AgregarIdAsync()
+    {
+        _definicion.Columnas.Insert(0, new DefinicionColumnaModelo
+        {
+            Nombre = Terminos.NombreId,
+            Tipo = Terminos.TipoId,
+            EsClavePrincipal = true,
+            EsIdentidad = true
+        });
+
+        _advertenciasVistas = false;
+        await AnunciarTrasFocoAsync("titulo-columnas",
+            $"Columna {Terminos.NombreId} agregada al principio: {Terminos.TipoId}, clave principal, número automático desde 1. {TextoColumnas()}.");
+    }
+
+    private async Task CambiarTipoAsync(ChangeEventArgs e)
+    {
+        var tipo = Proveedor.TiposDatos.FirstOrDefault(t => t.Nombre == e.Value?.ToString());
+
+        if (tipo is null || _editando is null)
+        {
+            return;
+        }
+
+        _editando.Tipo = tipo.Nombre;
+        _editando.Longitud = tipo.UsaLongitud ? tipo.LongitudPredeterminada : null;
+        _editando.EsMax = false;
+        _editando.Precision = tipo.UsaPrecision && !tipo.PrecisionOpcional ? 10 : null;
+        _editando.Escala = tipo.UsaPrecision && !tipo.PrecisionOpcional ? 2 : null;
+        _editando.FraccionSegundos = tipo.UsaFraccionSegundos ? tipo.FraccionPredeterminada : null;
+
+        if (_editando.EsIdentidad && !tipo.AdmiteIdentidad)
+        {
+            _editando.EsIdentidad = false;
+            await anunciador.AnunciarAsync($"Se desmarcó Número automático: {tipo.Nombre} no puede ser de identidad ({Terminos.NombreIdentidad}).");
+        }
+    }
+
+    private void CambiarMax(bool valor)
+    {
+        _editando!.EsMax = valor;
+        _editando.Longitud = valor ? null : TipoActual?.LongitudPredeterminada;
+    }
+
+    private async Task CambiarClaveAsync(bool valor)
+    {
+        _editando!.EsClavePrincipal = valor;
+
+        if (valor && _editando.PermiteNulos)
+        {
+            _editando.PermiteNulos = false;
+            await anunciador.AnunciarAsync("Se desmarcó Permitir NULL: una clave principal no admite NULL (NOT NULL).");
+        }
+    }
+
+    private async Task CambiarIdentidadAsync(bool valor)
+    {
+        _editando!.EsIdentidad = valor;
+
+        if (!valor)
+        {
+            return;
+        }
+
+        var cambios = new List<string>();
+
+        if (_editando.PermiteNulos)
+        {
+            _editando.PermiteNulos = false;
+            cambios.Add("se desmarcó Permitir NULL");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_editando.ValorPredeterminado))
+        {
+            _editando.ValorPredeterminado = null;
+            cambios.Add("se quitó el valor predeterminado");
+        }
+
+        if (cambios.Count > 0)
+        {
+            await anunciador.AnunciarAsync($"Número automático: {string.Join(" y ", cambios)}, porque una columna de identidad ({Terminos.NombreIdentidad}) no los admite.");
+        }
+    }
+
+    private async Task GuardarColumnaAsync()
+    {
+        _comprobaciones = [];
+        _avisosModificacionVistos = false;
+        var otras = _definicion.Columnas.Where((_, i) => i != _indiceEditando);
+        _problemasColumna = validador.ValidarColumna(_editando!, otras, Proveedor.TiposDatos, Terminos);
+
+        if (_problemasColumna.Count > 0)
+        {
+            return;
+        }
+
+        var nombre = _editando!.Nombre.Trim();
+        _editando.Nombre = nombre;
+
+        if (_indiceEditando is int indice)
+        {
+            _definicion.Columnas[indice] = _editando;
+        }
+        else
+        {
+            _definicion.Columnas.Add(_editando);
+        }
+
+        var accion = _indiceEditando is null ? "agregada" : "actualizada";
+        _editando = null;
+        _indiceEditando = null;
+        _advertenciasVistas = false;
+
+        await AnunciarTrasFocoAsync("titulo-columnas", $"Columna {nombre} {accion}. {TextoColumnas()}.");
+    }
+
+    private async Task CancelarColumnaAsync()
+    {
+        _editando = null;
+        _indiceEditando = null;
+        _problemasColumna = [];
+        await AnunciarTrasFocoAsync("titulo-columnas", "Edición de columna cancelada.");
+    }
+
+    private async Task MoverAsync(int indice, int direccion)
+    {
+        _comprobaciones = [];
+        _avisosModificacionVistos = false;
+        var destino = indice + direccion;
+        var columna = _definicion.Columnas[indice];
+
+        _definicion.Columnas.RemoveAt(indice);
+        _definicion.Columnas.Insert(destino, columna);
+
+        var boton = direccion < 0
+            ? (destino > 0 ? "subir" : "bajar")
+            : (destino < _definicion.Columnas.Count - 1 ? "bajar" : "subir");
+
+        await AnunciarTrasFocoAsync($"col-{destino}-{boton}",
+            $"{NombreVisible(columna)} ahora es la columna {destino + 1} de {_definicion.Columnas.Count}.");
+    }
+
+    private async Task QuitarAsync(int indice)
+    {
+        _comprobaciones = [];
+        _avisosModificacionVistos = false;
+        var columna = _definicion.Columnas[indice];
+        _definicion.Columnas.RemoveAt(indice);
+        _advertenciasVistas = false;
+
+        await AnunciarTrasFocoAsync("titulo-columnas", $"Columna {NombreVisible(columna)} quitada. {TextoColumnas()}.");
+    }
+
+    private async Task CrearAsync()
+    {
+        _errorCrear = null;
+        _problemas = validador.ValidarTabla(_definicion, Proveedor.TiposDatos, Terminos);
+        var errores = _problemas.Where(p => !p.EsAdvertencia).ToList();
+
+        if (errores.Count > 0)
+        {
+            var cantidad = errores.Count == 1 ? "1 problema" : $"{errores.Count} problemas";
+            await AnunciarTrasFocoAsync("titulo-problemas", $"No se puede crear la tabla: {cantidad}. Primero: {errores[0].Mensaje}", true);
+            return;
+        }
+
+        if (_problemas.Count > 0 && !_advertenciasVistas)
+        {
+            _advertenciasVistas = true;
+            await AnunciarTrasFocoAsync("titulo-problemas", $"{_problemas[0].Mensaje} Pulsa Crear tabla otra vez para crearla de todos modos.");
+            return;
+        }
+
+        _creando = true;
+        StateHasChanged();
+
+        var resultado = await Proveedor.EjecutarAsync(Conexion, BaseDatos, Proveedor.ScriptCrearTabla(_definicion), 1);
+        var error = resultado.Errores.FirstOrDefault();
+        _creando = false;
+
+        if (error is not null)
+        {
+            _errorCrear = $"{Conexion.Conexion.Motor.Nombre()} no pudo crear la tabla. {error.Texto}";
+            await anunciador.AnunciarUrgenteAsync(_errorCrear);
+            return;
+        }
+
+        _definicion.Nombre = _definicion.Nombre.Trim();
+        _definicion.Esquema = _definicion.Esquema.Trim();
+        await AlCrear.InvokeAsync(_definicion);
+    }
+
+    private (PlanModificacionModelo Plan, ScriptModificacionModelo Script) PlanActual()
+    {
+        var plan = ComparadorTablaService.Comparar(Original!, _definicion, Proveedor.TiposDatos, Terminos, Proveedor.NombreGuardado);
+        return (plan, Proveedor.ScriptModificarTabla(plan));
+    }
+
+    private async Task AplicarAsync()
+    {
+        _errorCrear = null;
+        _problemas = validador.ValidarTabla(_definicion, Proveedor.TiposDatos, Terminos).Where(p => !p.EsAdvertencia).ToList();
+
+        if (_problemas.Count > 0)
+        {
+            var cantidad = _problemas.Count == 1 ? "1 problema" : $"{_problemas.Count} problemas";
+            await AnunciarTrasFocoAsync("titulo-problemas", $"No se pueden aplicar los cambios: {cantidad}. Primero: {_problemas[0].Mensaje}", true);
+            return;
+        }
+
+        var (plan, script) = PlanActual();
+
+        if (script.Sentencias.Count == 0)
+        {
+            await anunciador.AnunciarAsync(script.NoAplicables.Count > 0
+                ? "Los cambios que hiciste solo se pueden hacer creando la tabla de nuevo. Usa el botón Abrir el script de recreación en una pestaña nueva."
+                : "No hay cambios para aplicar.");
+            return;
+        }
+
+        _creando = true;
+        StateHasChanged();
+
+        try
+        {
+            _comprobaciones = await comprobador.ComprobarAsync(Proveedor, Conexion, BaseDatos, plan);
+        }
+        catch (Exception ex)
+        {
+            _creando = false;
+            _errorCrear = $"No se pudieron revisar los datos. {ex.Message}";
+            await anunciador.AnunciarUrgenteAsync(_errorCrear);
+            return;
+        }
+
+        _creando = false;
+        var bloqueos = _comprobaciones.Where(c => c.Bloquea).ToList();
+
+        if (bloqueos.Count > 0)
+        {
+            var cantidad = bloqueos.Count == 1 ? "1 problema" : $"{bloqueos.Count} problemas";
+            await AnunciarTrasFocoAsync("titulo-comprobaciones", $"No se pueden aplicar los cambios: {cantidad}. Primero: {bloqueos[0].Mensaje}", true);
+            return;
+        }
+
+        var avisos = _comprobaciones.Select(c => c.Mensaje).ToList();
+
+        if (script.NoAplicables.Count > 0)
+        {
+            avisos.Add(script.NoAplicables.Count == 1
+                ? "Un cambio no se aplica desde aquí y se deja fuera; los demás sí."
+                : $"{script.NoAplicables.Count} cambios no se aplican desde aquí y se dejan fuera; los demás sí.");
+        }
+
+        if (avisos.Count > 0 && !_avisosModificacionVistos)
+        {
+            _avisosModificacionVistos = true;
+            await AnunciarTrasFocoAsync(_comprobaciones.Count > 0 ? "titulo-comprobaciones" : "titulo-cambios",
+                $"{string.Join(" ", avisos)} Pulsa Aplicar cambios otra vez para seguir.");
+            return;
+        }
+
+        _creando = true;
+        StateHasChanged();
+        var resultado = await Proveedor.AplicarModificacionAsync(Conexion, BaseDatos, script);
+        _creando = false;
+
+        if (!resultado.Correcto)
+        {
+            var motor = Conexion.Conexion.Motor.Nombre();
+            _errorCrear = resultado.FraseFallida is not null && resultado.Aplicados.Count > 0
+                ? $"{motor} no pudo «{resultado.FraseFallida}». {resultado.Error} Ya quedaron hechos: {NarradorTablaService.Unir(resultado.Aplicados)}."
+                : resultado.FraseFallida is not null
+                    ? $"{motor} no pudo «{resultado.FraseFallida}», y no se aplicó ningún cambio. {resultado.Error}"
+                    : $"{motor} no pudo aplicar los cambios, y no se aplicó ninguno. {resultado.Error}";
+            await anunciador.AnunciarUrgenteAsync(_errorCrear);
+            return;
+        }
+
+        var nombre = ComparadorTablaService.NombreFinal(_definicion.Nombre, Original!.Tabla.Nombre, Proveedor.NombreGuardado);
+        var aplicados = resultado.Aplicados.Count == 1 ? "1 cambio aplicado" : $"{resultado.Aplicados.Count} cambios aplicados";
+        await AlModificar.InvokeAsync($"Tabla {nombre} modificada: {aplicados}.");
+    }
+
+    private async Task VerFilasAsync(string consulta)
+    {
+        await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(BaseDatos, consulta, true, "Filas que impiden el cambio"));
+    }
+
+    private async Task AbrirRecreacionAsync(PlanModificacionModelo plan)
+    {
+        try
+        {
+            var script = await Proveedor.ScriptRecrearTablaAsync(Conexion, BaseDatos, plan);
+            await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(BaseDatos, script, false, $"Script de recreación de {Original!.Tabla.NombreCompleto}"));
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo preparar el script de recreación. {ex.Message}");
+        }
+    }
+
+    private string TextoColumnas() =>
+        _definicion.Columnas.Count == 1 ? "La tabla tiene 1 columna" : $"La tabla tiene {_definicion.Columnas.Count} columnas";
+
+    private async Task AnunciarTrasFocoAsync(string id, string mensaje, bool urgente = false)
+    {
+        _enfocar = id;
+        StateHasChanged();
+        await Task.Delay(500);
+
+        if (urgente)
+        {
+            await anunciador.AnunciarUrgenteAsync(mensaje);
+        }
+        else
+        {
+            await anunciador.AnunciarAsync(mensaje);
+        }
+    }
+}

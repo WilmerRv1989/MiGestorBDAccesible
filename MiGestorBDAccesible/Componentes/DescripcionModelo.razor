@@ -1,0 +1,77 @@
+<h2 id="titulo-detalle" tabindex="-1" @ref="_titulo">@Descripcion.Titulo</h2>
+
+@foreach (var frase in Descripcion.Resumen)
+{
+    <p>@frase</p>
+}
+
+<h3>Tablas</h3>
+@if (Descripcion.Tablas.Count == 0)
+{
+    <p>No hay tablas.</p>
+}
+else
+{
+    <p class="ayuda">Activa una tabla para ver su descripción completa.</p>
+    <ul class="frases">
+        @for (var i = 0; i < Descripcion.Tablas.Count; i++)
+        {
+            var indice = i;
+            var tabla = Descripcion.Tablas[i];
+            <li><button id="@($"modelo-tabla-{indice}")" class="enlace" @onclick="() => AlDescribirTabla.InvokeAsync(indice)">@tabla.Texto</button></li>
+        }
+    </ul>
+}
+
+@foreach (var seccion in Descripcion.Secciones)
+{
+    <h3>@seccion.Titulo</h3>
+    <ul class="frases">
+        @foreach (var frase in seccion.Frases)
+        {
+            <li>@frase</li>
+        }
+    </ul>
+}
+
+<div class="acciones">
+    @if (Descripcion.Tablas.Count > 1)
+    {
+        <button @onclick="AlCaminoJoin">Camino de JOIN…</button>
+    }
+    <button @onclick="AlGuardar">Guardar como archivo…</button>
+</div>
+
+<p class="ayuda">Pulsa F8 para volver al explorador.</p>
+
+@code {
+    [Parameter, EditorRequired] public DescripcionModeloModelo Descripcion { get; set; } = default!;
+    [Parameter] public int? EnfocarTabla { get; set; }
+    [Parameter] public EventCallback<int> AlDescribirTabla { get; set; }
+    [Parameter] public EventCallback AlCaminoJoin { get; set; }
+    [Parameter] public EventCallback AlGuardar { get; set; }
+
+    [Inject] private IJSRuntime js { get; set; } = default!;
+
+    private ElementReference _titulo;
+    private bool _enfocado;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocado)
+        {
+            return;
+        }
+
+        _enfocado = true;
+
+        if (EnfocarTabla is { } indice)
+        {
+            await js.InvokeVoidAsync("miGestor.enfocar", $"modelo-tabla-{indice}");
+        }
+        else
+        {
+            await _titulo.FocusAsync();
+        }
+    }
+}

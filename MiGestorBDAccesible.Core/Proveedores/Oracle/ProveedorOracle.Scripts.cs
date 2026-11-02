@@ -1,0 +1,309 @@
+using MiGestorBDAccesible.Core.Conexiones;
+using MiGestorBDAccesible.Core.Descripcion;
+using MiGestorBDAccesible.Core.Estructura;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace MiGestorBDAccesible.Core.Proveedores.Oracle
+{
+    public partial class ProveedorOracle
+    {
+        private static readonly HashSet<string> _palabrasReservadas = new(StringComparer.Ordinal)
+        {
+            "ACCESS", "ADD", "ALL", "ALTER", "AND", "ANY", "AS", "ASC", "AUDIT", "BETWEEN", "BY", "CHAR", "CHECK",
+            "CLUSTER", "COLUMN", "COLUMN_VALUE", "COMMENT", "COMPRESS", "CONNECT", "CREATE", "CURRENT", "DATE",
+            "DECIMAL", "DEFAULT", "DELETE", "DESC", "DISTINCT", "DROP", "ELSE", "EXCLUSIVE", "EXISTS", "FILE",
+            "FLOAT", "FOR", "FROM", "GRANT", "GROUP", "HAVING", "IDENTIFIED", "IMMEDIATE", "IN", "INCREMENT",
+            "INDEX", "INITIAL", "INSERT", "INTEGER", "INTERSECT", "INTO", "IS", "LEVEL", "LIKE", "LOCK", "LONG",
+            "MAXEXTENTS", "MINUS", "MLSLABEL", "MODE", "MODIFY", "NESTED_TABLE_ID", "NOAUDIT", "NOCOMPRESS", "NOT",
+            "NOWAIT", "NULL", "NUMBER", "OF", "OFFLINE", "ON", "ONLINE", "OPTION", "OR", "ORDER", "PCTFREE",
+            "PRIOR", "PUBLIC", "RAW", "RENAME", "RESOURCE", "REVOKE", "ROW", "ROWID", "ROWNUM", "ROWS", "SELECT",
+            "SESSION", "SET", "SHARE", "SIZE", "SMALLINT", "START", "SUCCESSFUL", "SYNONYM", "SYSDATE", "TABLE",
+            "THEN", "TO", "TRIGGER", "UID", "UNION", "UNIQUE", "UPDATE", "USER", "VALIDATE", "VALUES", "VARCHAR",
+            "VARCHAR2", "VIEW", "WHENEVER", "WHERE", "WITH"
+        };
+
+        private static readonly Regex _nombreSimple = new(@"^[A-Z][A-Z0-9_$#]*$");
+
+        public async Task<string> GenerarScriptAsync(
+            ConexionActiva conexion,
+            string baseDatos,
+            TablaModelo tabla,
+            TipoScript tipo,
+            CancellationToken cancelacion = default)
+        {
+            var detalle = await ObtenerDetalleTablaAsync(conexion, baseDatos, tabla, cancelacion);
+            var propio = EsquemaPredeterminado(conexion);
+            var script = new StringBuilder();
+
+            switch (tipo)
+            {
+                case TipoScript.Crear:
+                    EscribirCrear(script, detalle, propio);
+                    break;
+                case TipoScript.Seleccionar:
+                    EscribirSeleccionar(script, detalle, propio, null);
+                    break;
+                case TipoScript.SeleccionarPrimeras:
+                    EscribirSeleccionar(script, detalle, propio, 100);
+                    break;
+                case TipoScript.Insertar:
+                    EscribirInsertar(script, detalle, propio);
+                    break;
+                case TipoScript.Actualizar:
+                    EscribirActualizar(script, detalle, propio);
+                    break;
+                case TipoScript.Eliminar:
+                    EscribirEliminar(script, detalle, propio);
+                    break;
+                case TipoScript.EliminarTabla:
+                    EscribirEliminarTabla(script, detalle, propio);
+                    break;
+            }
+
+            return script.ToString().TrimEnd() + Environment.NewLine;
+        }
+
+        public string ScriptEliminarTabla(TablaModelo tabla) => ScriptEliminarTabla(tabla, false);
+
+        public string ScriptEliminarTabla(TablaModelo tabla, bool definitivo) =>
+            $"DROP TABLE {Identificador(tabla.Esquema)}.{Identificador(tabla.Nombre)}{(definitivo ? " PURGE" : "")};";
+
+        public static string Identificador(string nombre) =>
+            _nombreSimple.IsMatch(nombre) && !_palabrasReservadas.Contains(nombre) ? nombre : Delimitar(nombre);
+
+        private static string NombreTabla(TablaModelo tabla, string propio) =>
+            tabla.Esquema == propio ? Identificador(tabla.Nombre) : $"{Identificador(tabla.Esquema)}.{Identificador(tabla.Nombre)}";
+
+        private static string Restriccion(string nombre) =>
+            nombre.StartsWith("SYS_C", StringComparison.Ordinal) ? "" : $"CONSTRAINT {Identificador(nombre)} ";
+
+        private static void EscribirCrear(StringBuilder script, DetalleTablaModelo detalle, string propio)
+        {
+            var tabla = NombreTabla(detalle.Tabla, propio);
+            var lineas = new List<string>();
+
+            foreach (var columna in detalle.Columnas)
+            {
+                var linea = new StringBuilder($"{Identificador(columna.Nombre)} {columna.TipoDatos}");
+
+                if (columna.EsCalculada)
+                {
+                    linea.Append($" GENERATED ALWAYS AS ({NarradorTablaService.QuitarParentesisExternos(columna.Formula!)}) VIRTUAL");
+                    lineas.Add(linea.ToString());
+                    continue;
+                }
+
+                if (columna.EsIdentidad)
+                {
+                    linea.Append(columna.IdentidadSiempre == false ? " GENERATED BY DEFAULT AS IDENTITY" : " GENERATED ALWAYS AS IDENTITY");
+
+                    if ((columna.SemillaIdentidad ?? 1) != 1 || (columna.IncrementoIdentidad ?? 1) != 1)
+                    {
+                        linea.Append($" (START WITH {columna.SemillaIdentidad} INCREMENT BY {columna.IncrementoIdentidad})");
+                    }
+
+                    lineas.Add(linea.ToString());
+                    continue;
+                }
+
+                if (columna.ValorPredeterminado is not null)
+                {
+                    linea.Append($" DEFAULT {columna.ValorPredeterminado}");
+                }
+
+                if (!columna.PermiteNulos)
+                {
+                    linea.Append(" NOT NULL");
+                }
+
+                lineas.Add(linea.ToString());
+            }
+
+            foreach (var indice in detalle.Indices.Where(i => i.EsClavePrincipal || i.EsRestriccionUnica))
+            {
+                var tipo = indice.EsClavePrincipal ? "PRIMARY KEY" : "UNIQUE";
+                lineas.Add($"{Restriccion(indice.Nombre)}{tipo} ({string.Join(", ", indice.ColumnasClave.Select(Identificador))})");
+            }
+
+            foreach (var restriccion in detalle.Restricciones)
+            {
+                lineas.Add($"{Restriccion(restriccion.Nombre)}CHECK ({NarradorTablaService.QuitarParentesisExternos(restriccion.Definicion)})");
+            }
+
+            script.AppendLine($"CREATE TABLE {tabla} (");
+            script.AppendLine(string.Join($",{Environment.NewLine}", lineas.Select(l => $"    {l}")));
+            script.AppendLine(");");
+
+            foreach (var llave in detalle.LlavesForaneas)
+            {
+                script.AppendLine();
+                script.AppendLine($"ALTER TABLE {tabla}");
+                script.AppendLine($"    ADD {Restriccion(llave.Nombre)}FOREIGN KEY ({string.Join(", ", llave.ColumnasOrigen.Select(Identificador))})");
+                script.Append($"    REFERENCES {NombreTabla(llave.TablaDestino, propio)} ({string.Join(", ", llave.ColumnasDestino.Select(Identificador))})");
+
+                if (llave.AlEliminar != ReglaReferencial.SinAccion)
+                {
+                    script.AppendLine();
+                    script.Append($"    ON DELETE {(llave.AlEliminar == ReglaReferencial.Cascada ? "CASCADE" : "SET NULL")}");
+                }
+
+                script.AppendLine(llave.Habilitada ? ";" : $"{Environment.NewLine}    DISABLE;");
+            }
+
+            foreach (var indice in detalle.Indices.Where(i => !i.EsClavePrincipal && !i.EsRestriccionUnica))
+            {
+                var columnas = indice.Columnas.Select(c => $"{(c.Nombre.Contains('(') ? c.Nombre : Identificador(c.Nombre))}{(c.Descendente ? " DESC" : "")}");
+                script.AppendLine();
+                script.AppendLine($"CREATE {(indice.EsUnico ? "UNIQUE " : "")}INDEX {Identificador(indice.Nombre)} ON {tabla} ({string.Join(", ", columnas)});");
+            }
+        }
+
+        private static void EscribirSeleccionar(StringBuilder script, DetalleTablaModelo detalle, string propio, int? primeras)
+        {
+            script.AppendLine("SELECT");
+            script.AppendLine(string.Join($",{Environment.NewLine}", detalle.Columnas.Select(c => $"    {Identificador(c.Nombre)}")));
+
+            if (primeras is int cantidad)
+            {
+                script.AppendLine($"FROM {NombreTabla(detalle.Tabla, propio)}");
+                script.AppendLine($"FETCH FIRST {cantidad} ROWS ONLY;");
+            }
+            else
+            {
+                script.AppendLine($"FROM {NombreTabla(detalle.Tabla, propio)};");
+            }
+        }
+
+        private static void EscribirInsertar(StringBuilder script, DetalleTablaModelo detalle, string propio)
+        {
+            var columnas = detalle.Columnas.Where(c => !c.EsIdentidad && !c.EsCalculada).ToList();
+            var tabla = NombreTabla(detalle.Tabla, propio);
+
+            if (columnas.Count == 0)
+            {
+                script.AppendLine($"INSERT INTO {tabla} VALUES (DEFAULT);");
+                return;
+            }
+
+            script.AppendLine("-- Cambia cada valor de ejemplo por el dato real. En Oracle el texto vacío '' equivale a NULL.");
+            script.AppendLine($"INSERT INTO {tabla} ({string.Join(", ", columnas.Select(c => Identificador(c.Nombre)))})");
+            script.AppendLine("VALUES (");
+
+            for (var i = 0; i < columnas.Count; i++)
+            {
+                var coma = i < columnas.Count - 1 ? "," : "";
+                script.AppendLine($"    {ValorEjemplo(columnas[i])}{coma}  -- {ComentarioColumna(columnas[i], detalle)}");
+            }
+
+            script.AppendLine(");");
+            script.AppendLine("-- El cambio queda pendiente hasta que ejecutes COMMIT; ROLLBACK lo deshace.");
+        }
+
+        private static void EscribirActualizar(StringBuilder script, DetalleTablaModelo detalle, string propio)
+        {
+            var clave = detalle.ClavePrincipal?.ColumnasClave.ToList() ?? [];
+            var columnas = detalle.Columnas
+                .Where(c => !c.EsIdentidad && !c.EsCalculada && !clave.Contains(c.Nombre, StringComparer.OrdinalIgnoreCase))
+                .ToList();
+
+            script.AppendLine("-- Deja solo las columnas que quieres cambiar y escribe sus valores nuevos.");
+            script.AppendLine($"UPDATE {NombreTabla(detalle.Tabla, propio)}");
+            script.AppendLine("SET");
+
+            for (var i = 0; i < columnas.Count; i++)
+            {
+                var coma = i < columnas.Count - 1 ? "," : "";
+                script.AppendLine($"    {Identificador(columnas[i].Nombre)} = {ValorEjemplo(columnas[i])}{coma}  -- {ComentarioColumna(columnas[i], detalle)}");
+            }
+
+            EscribirWhere(script, detalle, "cambiar");
+            script.AppendLine("-- El cambio queda pendiente hasta que ejecutes COMMIT; ROLLBACK lo deshace.");
+        }
+
+        private static void EscribirEliminar(StringBuilder script, DetalleTablaModelo detalle, string propio)
+        {
+            script.AppendLine($"DELETE FROM {NombreTabla(detalle.Tabla, propio)}");
+            EscribirWhere(script, detalle, "borrar");
+
+            if (detalle.Referencias.Count > 0)
+            {
+                var tablas = NarradorTablaService.Unir(detalle.Referencias.Select(r => r.TablaOrigen.NombreCorto()).Distinct());
+                script.AppendLine($"-- Atención: {tablas} apunta a esta tabla. Según su regla ON DELETE, el borrado se rechaza o arrastra filas relacionadas.");
+            }
+
+            script.AppendLine("-- El borrado queda pendiente hasta que ejecutes COMMIT; ROLLBACK lo deshace.");
+        }
+
+        private static void EscribirWhere(StringBuilder script, DetalleTablaModelo detalle, string verbo)
+        {
+            var clave = detalle.ClavePrincipal?.ColumnasClave.ToList() ?? [];
+
+            if (clave.Count == 0)
+            {
+                script.AppendLine($"WHERE 1 = 0;  -- Esta tabla no tiene clave principal. Escribe aquí la condición de las filas que quieres {verbo}.");
+                return;
+            }
+
+            var condiciones = clave.Select(c =>
+            {
+                var columna = detalle.Columnas.First(x => x.Nombre.Equals(c, StringComparison.OrdinalIgnoreCase));
+                return $"{Identificador(c)} = {ValorEjemplo(columna)}";
+            });
+
+            script.AppendLine($"WHERE {string.Join(" AND ", condiciones)};  -- Pon el valor de la clave de la fila que quieres {verbo}. Sin WHERE se afectan todas las filas.");
+        }
+
+        private static void EscribirEliminarTabla(StringBuilder script, DetalleTablaModelo detalle, string propio)
+        {
+            var tabla = NombreTabla(detalle.Tabla, propio);
+
+            foreach (var referencia in detalle.Referencias)
+            {
+                script.AppendLine($"-- Atención: {referencia.TablaOrigen.NombreCorto()} apunta a esta tabla con la llave {referencia.Nombre}. Hay que quitar esa llave antes:");
+                script.AppendLine($"-- ALTER TABLE {NombreTabla(referencia.TablaOrigen, propio)} DROP CONSTRAINT {Identificador(referencia.Nombre)};");
+                script.AppendLine("-- O bien agregar CASCADE CONSTRAINTS al DROP TABLE, que quita esas llaves automáticamente.");
+            }
+
+            if (detalle.Referencias.Count > 0)
+            {
+                script.AppendLine();
+            }
+
+            script.AppendLine("-- La tabla va a la papelera de reciclaje de Oracle. Para recuperarla:");
+            script.AppendLine($"-- FLASHBACK TABLE {tabla} TO BEFORE DROP;");
+            script.AppendLine("-- Para borrarla del todo, sin pasar por la papelera, agrega PURGE al final del DROP TABLE.");
+            script.AppendLine($"DROP TABLE {tabla};");
+        }
+
+        private static string ComentarioColumna(ColumnaModelo columna, DetalleTablaModelo detalle)
+        {
+            var partes = new List<string> { columna.TipoDatos, columna.PermiteNulos ? "opcional" : "obligatoria" };
+
+            foreach (var llave in detalle.LlavesForaneas.Where(l => l.ColumnasOrigen.Contains(columna.Nombre, StringComparer.OrdinalIgnoreCase)))
+            {
+                var indice = llave.ColumnasOrigen.FindIndex(c => c.Equals(columna.Nombre, StringComparison.OrdinalIgnoreCase));
+                partes.Add($"apunta a {llave.TablaDestino.NombreCorto()}.{llave.ColumnasDestino[indice]}");
+            }
+
+            if (columna.ValorPredeterminado is not null)
+            {
+                partes.Add($"predeterminado {columna.ValorPredeterminado}");
+            }
+
+            return $"{columna.Nombre}: {string.Join(", ", partes)}";
+        }
+
+        private static string ValorEjemplo(ColumnaModelo columna) =>
+            columna.TipoDatos.Split('(')[0].Trim() switch
+            {
+                "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" or "CLOB" or "NCLOB" => "''",
+                "DATE" => "DATE '2026-01-01'",
+                var tipo when tipo.StartsWith("TIMESTAMP", StringComparison.Ordinal) => "SYSTIMESTAMP",
+                "RAW" => "HEXTORAW('00')",
+                "BLOB" => "EMPTY_BLOB()",
+                "BOOLEAN" => "TRUE",
+                _ => "0"
+            };
+    }
+}

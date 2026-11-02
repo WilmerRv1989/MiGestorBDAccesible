@@ -1,0 +1,144 @@
+@using MiGestorBDAccesible.Core.Ejecucion
+@using System.Globalization
+@using System.Text
+@inject ArchivosService archivos
+@inject AnunciadorService anunciador
+
+<div data-zona="resultados" class="panel-resultados">
+    <h2 id="titulo-resultados" tabindex="-1">Resultados</h2>
+
+    @if (Resultado is null)
+    {
+        <p>Todavía no hay resultados. Escribe una consulta y pulsa F5.</p>
+    }
+    else if (Resultado.Conjuntos.Count == 0)
+    {
+        <p>La ejecución no devolvió filas. Revisa los mensajes con F6.</p>
+    }
+    else
+    {
+        @for (var i = 0; i < Resultado.Conjuntos.Count; i++)
+        {
+            var numero = i + 1;
+            var conjunto = Resultado.Conjuntos[i];
+            var idTitulo = $"resultado-{numero}";
+
+            <h3 id="@idTitulo">Resultado @numero de @Resultado.Conjuntos.Count: @TextoFilas(conjunto.TotalFilas)</h3>
+
+            @if (conjunto.Recortado)
+            {
+                <p class="ayuda">Se muestran las primeras @conjunto.Filas.Count.ToString("N0") de @conjunto.TotalFilas.ToString("N0") filas. Copiar y exportar usan las filas mostradas.</p>
+            }
+
+            <div class="acciones">
+                <button aria-label="@($"Copiar el resultado {numero}")" @onclick="() => Copiar(numero, conjunto)">Copiar tabla</button>
+                <button aria-label="@($"Exportar el resultado {numero} a CSV")" @onclick="() => ExportarAsync(numero, conjunto)">Exportar a CSV</button>
+            </div>
+
+            <div class="contenedor-tabla">
+                <table class="tabla-resultados" aria-labelledby="@idTitulo">
+                    <thead>
+                        <tr>
+                            <th scope="col">Fila</th>
+                            @foreach (var columna in conjunto.Columnas)
+                            {
+                                <th scope="col">@columna.Nombre</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var f = 0; f < conjunto.Filas.Count; f++)
+                        {
+                            var fila = conjunto.Filas[f];
+                            <tr>
+                                <th scope="row">@(f + 1)</th>
+                                @foreach (var valor in fila)
+                                {
+                                    @if (valor is null)
+                                    {
+                                        <td class="nulo">NULL</td>
+                                    }
+                                    else
+                                    {
+                                        <td>@valor</td>
+                                    }
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public ResultadoEjecucionModelo? Resultado { get; set; }
+
+    private static string TextoFilas(long filas) => filas == 1 ? "1 fila" : $"{filas:N0} filas";
+
+    private static string TextoColumnas(int columnas) => columnas == 1 ? "1 columna" : $"{columnas} columnas";
+
+    private async Task Copiar(int numero, ConjuntoResultadosModelo conjunto)
+    {
+        var texto = new StringBuilder();
+        texto.AppendLine(string.Join('\t', conjunto.Columnas.Select(c => c.Nombre)));
+
+        foreach (var fila in conjunto.Filas)
+        {
+            texto.AppendLine(string.Join('\t', fila.Select(v => (v ?? "NULL").Replace('\t', ' ').Replace("\r", " ").Replace("\n", " "))));
+        }
+
+        try
+        {
+            archivos.Copiar(texto.ToString());
+            await anunciador.AnunciarAsync($"Resultado {numero} copiado, separado por tabulaciones: {TextoColumnas(conjunto.Columnas.Count)} y {TextoFilas(conjunto.Filas.Count)}.");
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo copiar. {ex.Message}");
+        }
+    }
+
+    private async Task ExportarAsync(int numero, ConjuntoResultadosModelo conjunto)
+    {
+        var ruta = archivos.ElegirParaGuardar("Exportar resultado a CSV", ArchivosService.FiltroCsv, $"resultado{numero}.csv", "csv");
+
+        if (ruta is null)
+        {
+            await anunciador.AnunciarAsync("Exportación cancelada.");
+            return;
+        }
+
+        var separador = CultureInfo.CurrentCulture.TextInfo.ListSeparator;
+        var texto = new StringBuilder();
+        texto.AppendLine(string.Join(separador, conjunto.Columnas.Select(c => Celda(c.Nombre, separador))));
+
+        foreach (var fila in conjunto.Filas)
+        {
+            texto.AppendLine(string.Join(separador, fila.Select(v => Celda(v, separador))));
+        }
+
+        try
+        {
+            await archivos.GuardarAsync(ruta, texto.ToString());
+            await anunciador.AnunciarAsync($"Resultado {numero} exportado a {System.IO.Path.GetFileName(ruta)}: {TextoFilas(conjunto.Filas.Count)}.");
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo exportar. {ex.Message}");
+        }
+    }
+
+    private static string Celda(string? valor, string separador)
+    {
+        if (valor is null)
+        {
+            return "";
+        }
+
+        return valor.Contains('"') || valor.Contains(separador) || valor.Contains('\n') || valor.Contains('\r')
+            ? $"\"{valor.Replace("\"", "\"\"")}\""
+            : valor;
+    }
+}

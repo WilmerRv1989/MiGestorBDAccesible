@@ -1,0 +1,3188 @@
+{
+  "motor": "PostgreSQL",
+  "tituloProgramacion": "PL/pgSQL",
+  "fichas": [
+    {
+      "id": "tipo:enteros",
+      "categoria": "tipo",
+      "titulo": "integer, bigint y smallint: números enteros",
+      "alias": [
+        "integer",
+        "int",
+        "int4",
+        "bigint",
+        "int8",
+        "smallint",
+        "int2",
+        "serial",
+        "bigserial",
+        "smallserial",
+        "entero"
+      ],
+      "resumen": "Guardan números sin decimales. Se diferencian en el rango de valores y en cuánto espacio ocupan.",
+      "secciones": [
+        {
+          "titulo": "Rangos",
+          "parrafos": [
+            "smallint: de menos 32 768 a 32 767. Ocupa 2 bytes.",
+            "integer, o int: unos 2 mil millones, positivos o negativos. Ocupa 4 bytes. Es el más usado, por ejemplo para los id.",
+            "bigint: hasta unos 9 trillones. Ocupa 8 bytes. Se usa cuando integer se queda corto.",
+            "Si un valor no cabe, PostgreSQL da el error 22003, «integer out of range»."
+          ],
+          "ejemplo": "CREATE TABLE asistencias (\n    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    alumno_id integer NOT NULL,\n    clases smallint DEFAULT 0\n);"
+        },
+        {
+          "titulo": "serial y bigserial",
+          "parrafos": [
+            "serial, bigserial y smallserial no son tipos de verdad: son un atajo que crea una columna entera con una secuencia y DEFAULT nextval(...).",
+            "Es la forma antigua de hacer números automáticos. Hoy se recomienda GENERATED ALWAYS AS IDENTITY, que es el estándar."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "int, bigint, smallint y además tinyint, de 0 a 255."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "NUMBER(p) para enteros, o INTEGER, que Oracle guarda como NUMBER(38, 0)."
+        }
+      ],
+      "relacionadas": [
+        "tipo:numeric",
+        "concepto:identity",
+        "concepto:secuencias"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Numeric Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-numeric.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:numeric",
+      "categoria": "tipo",
+      "titulo": "numeric: números con decimales exactos",
+      "alias": [
+        "numeric",
+        "decimal",
+        "dinero",
+        "money"
+      ],
+      "resumen": "numeric guarda números con decimales exactos, sin redondeos raros. Es el tipo para dinero y cantidades precisas.",
+      "secciones": [
+        {
+          "titulo": "Precisión y escala",
+          "parrafos": [
+            "numeric(p, s) tiene precisión p, el total de dígitos, y escala s, los dígitos después del punto. numeric(10, 2) llega hasta 99 999 999,99.",
+            "numeric sin paréntesis guarda cualquier número, con hasta 131 072 dígitos antes del punto y 16 383 después.",
+            "decimal es exactamente lo mismo que numeric.",
+            "Existe el tipo money, pero la documentación no lo recomienda: depende de la configuración regional. Usa numeric(12, 2)."
+          ],
+          "ejemplo": "SELECT 0.1::numeric + 0.2::numeric AS exacto,\n       0.1::double precision + 0.2::double precision AS aproximado;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "decimal(p, s) o numeric(p, s), con precisión de hasta 38 dígitos."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "NUMBER(p, s), con precisión de hasta 38 dígitos."
+        }
+      ],
+      "relacionadas": [
+        "tipo:enteros",
+        "tipo:flotantes"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Numeric Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-numeric.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:flotantes",
+      "categoria": "tipo",
+      "titulo": "real y double precision: números aproximados",
+      "alias": [
+        "real",
+        "double precision",
+        "float",
+        "float4",
+        "float8",
+        "double"
+      ],
+      "resumen": "Números de coma flotante, rápidos pero aproximados. Sirven para mediciones y cálculos científicos, no para dinero.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "real usa 4 bytes y unos 6 dígitos de precisión. double precision usa 8 bytes y unos 15 dígitos.",
+            "float sin número es double precision; float(1) a float(24) es real.",
+            "Son aproximados: 0,1 más 0,2 no da exactamente 0,3. Para dinero usa numeric.",
+            "Admiten los valores especiales 'Infinity', '-Infinity' y 'NaN'."
+          ],
+          "ejemplo": "CREATE TABLE mediciones (\n    sensor_id integer,\n    temperatura double precision\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "float y real."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "BINARY_DOUBLE y BINARY_FLOAT."
+        }
+      ],
+      "relacionadas": [
+        "tipo:numeric"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Numeric Types: Floating-Point (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-numeric.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:text",
+      "categoria": "tipo",
+      "titulo": "text: texto de cualquier largo",
+      "alias": [
+        "text",
+        "texto",
+        "cadena",
+        "string"
+      ],
+      "resumen": "text guarda texto sin límite de largo. En PostgreSQL es tan rápido como varchar y es muy común usarlo.",
+      "secciones": [
+        {
+          "titulo": "text o varchar",
+          "parrafos": [
+            "La documentación aclara que text, varchar(n) y char(n) rinden igual. La diferencia es que varchar(n) además comprueba el largo máximo.",
+            "Usa text cuando no hay un máximo natural, como una descripción o un comentario. Usa varchar(n) cuando el límite es una regla de negocio, como un código de 10 caracteres.",
+            "A diferencia de Oracle, en PostgreSQL el texto vacío '' no es NULL: son dos cosas distintas.",
+            "Un solo valor puede ocupar hasta 1 GB."
+          ],
+          "ejemplo": "CREATE TABLE notas (\n    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    contenido text NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "nvarchar(max) o varchar(max)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CLOB para textos largos; VARCHAR2 llega a 4000 bytes."
+        }
+      ],
+      "relacionadas": [
+        "tipo:varchar",
+        "concepto:texto-vacio",
+        "palabra:funciones-texto"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Character Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-character.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:varchar",
+      "categoria": "tipo",
+      "titulo": "varchar y char: texto con largo máximo o fijo",
+      "alias": [
+        "varchar",
+        "character varying",
+        "char",
+        "character",
+        "bpchar"
+      ],
+      "resumen": "varchar(n) guarda texto de hasta n caracteres. char(n) guarda siempre n caracteres y rellena con espacios.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "La longitud se cuenta en caracteres, no en bytes: varchar(10) admite 10 letras con tilde.",
+            "Si el texto es más largo, PostgreSQL da el error 22001, «value too long».",
+            "varchar sin número no tiene límite y es igual a text.",
+            "char(n) rellena con espacios a la derecha. Sirve para códigos de largo fijo; para lo demás usa varchar o text."
+          ],
+          "ejemplo": "CREATE TABLE paises (\n    codigo char(2) PRIMARY KEY,\n    nombre varchar(60) NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "varchar(n) y nvarchar(n), con la longitud en bytes o en pares de bytes según el tipo."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "VARCHAR2(n), con la longitud en bytes salvo que escribas VARCHAR2(n CHAR)."
+        }
+      ],
+      "relacionadas": [
+        "tipo:text"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Character Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-character.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:boolean",
+      "categoria": "tipo",
+      "titulo": "boolean: verdadero o falso",
+      "alias": [
+        "boolean",
+        "bool",
+        "true",
+        "false",
+        "booleano"
+      ],
+      "resumen": "Guarda true o false, y NULL si la columna lo admite.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Acepta true y false, y también textos como 't', 'f', 'yes', 'no', 'on', 'off', '1' y '0'.",
+            "Se puede usar directamente en WHERE: WHERE activo es lo mismo que WHERE activo = true.",
+            "En los resultados de esta aplicación se muestra como true o false."
+          ],
+          "ejemplo": "CREATE TABLE usuarios (\n    nombre varchar(50),\n    activo boolean NOT NULL DEFAULT true\n);\n\nSELECT nombre FROM usuarios WHERE activo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "bit, con 1 y 0."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "BOOLEAN desde 23ai; antes, NUMBER(1) o CHAR(1)."
+        }
+      ],
+      "relacionadas": [
+        "palabra:where"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Boolean Type (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-boolean.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:date",
+      "categoria": "tipo",
+      "titulo": "date: solo la fecha",
+      "alias": [
+        "date",
+        "fecha",
+        "current_date"
+      ],
+      "resumen": "date guarda año, mes y día, sin hora.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "La forma más segura de escribir una fecha es DATE '2026-10-31', o '2026-10-31'::date.",
+            "CURRENT_DATE devuelve la fecha de hoy.",
+            "Sumar un número a una fecha suma días: CURRENT_DATE + 7 es dentro de una semana. Restar dos fechas da los días entre ellas.",
+            "En los resultados se muestra como 2026-10-31."
+          ],
+          "ejemplo": "SELECT nombre, fecha_registro, CURRENT_DATE - fecha_registro AS dias_como_cliente\nFROM clientes\nORDER BY fecha_registro;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "date, igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "DATE guarda también la hora, hasta el segundo."
+        }
+      ],
+      "relacionadas": [
+        "tipo:timestamp",
+        "palabra:fechas",
+        "tipo:interval"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Date/Time Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:time",
+      "categoria": "tipo",
+      "titulo": "time: solo la hora",
+      "alias": [
+        "time",
+        "timetz",
+        "time without time zone",
+        "hora"
+      ],
+      "resumen": "time guarda la hora del día, con hasta 6 decimales de segundo.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "TIME '08:30' o '08:30'::time. time(0) guarda sin decimales de segundo.",
+            "Existe timetz, con zona horaria, pero la documentación desaconseja usarlo; para momentos concretos usa timestamptz.",
+            "Restar dos horas da un interval."
+          ],
+          "ejemplo": "SELECT TIME '17:00' - TIME '08:30' AS jornada;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "time, con hasta 7 decimales."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "No tiene tipo de solo hora; se usa DATE, TIMESTAMP o INTERVAL."
+        }
+      ],
+      "relacionadas": [
+        "tipo:timestamp",
+        "tipo:interval"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Date/Time Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:timestamp",
+      "categoria": "tipo",
+      "titulo": "timestamp y timestamptz: fecha y hora",
+      "alias": [
+        "timestamp",
+        "timestamptz",
+        "timestamp with time zone",
+        "timestamp without time zone",
+        "now",
+        "zona horaria"
+      ],
+      "resumen": "timestamp guarda fecha y hora. timestamptz además tiene en cuenta la zona horaria, y es el que la documentación recomienda para momentos reales.",
+      "secciones": [
+        {
+          "titulo": "La diferencia",
+          "parrafos": [
+            "timestamptz convierte el valor a UTC al guardarlo y lo muestra en la zona horaria de la sesión. Así, una venta a las 14:30 en Costa Rica es el mismo momento visto desde cualquier lugar.",
+            "timestamp, sin zona, guarda la fecha y hora tal cual, sin saber de qué zona son.",
+            "Los dos admiten de 0 a 6 decimales de segundo; por omisión, 6.",
+            "now() y CURRENT_TIMESTAMP devuelven el momento actual como timestamptz. Dentro de una transacción, siempre devuelven la hora en que empezó."
+          ],
+          "ejemplo": "SELECT now() AS ahora,\n       now() AT TIME ZONE 'America/Costa_Rica' AS hora_en_costa_rica,\n       timestamptz '2026-10-31 14:30:00-06' AS venta;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "datetime2 sin zona y datetimeoffset con zona."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "TIMESTAMP y TIMESTAMP WITH TIME ZONE, con hasta 9 decimales."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "tipo:interval",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Date/Time Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:interval",
+      "categoria": "tipo",
+      "titulo": "interval: lapsos de tiempo",
+      "alias": [
+        "interval",
+        "intervalo",
+        "duración",
+        "age"
+      ],
+      "resumen": "interval guarda una duración, como 2 días o 1 año y 3 meses, no un momento.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Se escribe con texto: INTERVAL '2 days', INTERVAL '1 year 3 months', INTERVAL '90 minutes'.",
+            "Se suma o resta a fechas y horas: now() + INTERVAL '1 week'.",
+            "age(fecha) devuelve el tiempo transcurrido como interval, en años, meses y días.",
+            "En los resultados de esta aplicación se muestra en español, por ejemplo «1 año 2 meses 3 días 02:00:00»."
+          ],
+          "ejemplo": "SELECT nombre, age(DATE '2026-10-31', fecha_registro) AS antiguedad\nFROM clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene tipo intervalo; se usan DATEADD y DATEDIFF."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "INTERVAL YEAR TO MONTH e INTERVAL DAY TO SECOND, separados."
+        }
+      ],
+      "relacionadas": [
+        "tipo:timestamp",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Date/Time Types: Interval Input (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:uuid",
+      "categoria": "tipo",
+      "titulo": "uuid: identificador global único",
+      "alias": [
+        "uuid",
+        "guid",
+        "gen_random_uuid",
+        "uuidv7"
+      ],
+      "resumen": "Un uuid es un identificador de 128 bits que no se repite aunque lo generen equipos distintos.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "gen_random_uuid() genera uno al azar (versión 4). Desde PostgreSQL 18 también existe uuidv7(), que además queda ordenado por fecha de creación.",
+            "Ocupa 16 bytes y se muestra como 32 dígitos hexadecimales con guiones.",
+            "Es útil cuando los datos se crean en varios lugares, o cuando no quieres que el id revele cuántas filas hay."
+          ],
+          "ejemplo": "CREATE TABLE sesiones (\n    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),\n    inicio timestamptz DEFAULT now()\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "uniqueidentifier, con NEWID() o NEWSEQUENTIALID()."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "RAW(16) con SYS_GUID()."
+        }
+      ],
+      "relacionadas": [
+        "concepto:clave-principal",
+        "tipo:enteros"
+      ],
+      "fuentes": [
+        {
+          "titulo": "UUID Type (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-uuid.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:bytea",
+      "categoria": "tipo",
+      "titulo": "bytea: datos binarios",
+      "alias": [
+        "bytea",
+        "binario",
+        "archivo",
+        "blob"
+      ],
+      "resumen": "bytea guarda bytes sin interpretar, como una imagen o un archivo pequeño.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Se escribe y se muestra en hexadecimal: '\\x41424344'.",
+            "Admite hasta 1 GB por valor, pero para archivos grandes suele ser mejor guardarlos fuera de la base y guardar solo su ruta.",
+            "En los resultados, esta aplicación muestra los primeros 32 bytes."
+          ],
+          "ejemplo": "SELECT '\\x48656c6c6f'::bytea AS bytes, convert_from('\\x48656c6c6f'::bytea, 'UTF8') AS texto;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "varbinary(n) y varbinary(max)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "RAW(n) para datos cortos y BLOB para grandes."
+        }
+      ],
+      "relacionadas": [
+        "tipo:text"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Binary Data Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-binary.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:jsonb",
+      "categoria": "tipo",
+      "titulo": "json y jsonb: datos JSON",
+      "alias": [
+        "jsonb",
+        "json",
+        "->",
+        "->>",
+        "@>"
+      ],
+      "resumen": "PostgreSQL guarda documentos JSON y permite consultarlos con operadores propios. jsonb es la versión recomendada.",
+      "secciones": [
+        {
+          "titulo": "json o jsonb",
+          "parrafos": [
+            "json guarda el texto tal cual. jsonb lo guarda descompuesto en binario: ocupa un poco más al escribir, pero se consulta mucho más rápido y admite índices.",
+            "La documentación recomienda jsonb salvo que necesites conservar el texto exacto o el orden de las claves."
+          ]
+        },
+        {
+          "titulo": "Operadores",
+          "parrafos": [
+            "-> devuelve un elemento como JSON, y ->> lo devuelve como texto: datos->>'ciudad'.",
+            "@> pregunta si contiene otro JSON: datos @> '{\"activo\": true}'.",
+            "? pregunta si existe una clave.",
+            "Un índice GIN sobre una columna jsonb acelera @> y ?."
+          ],
+          "ejemplo": "SELECT '{\"nombre\": \"Ana\", \"ciudad\": \"San José\"}'::jsonb ->> 'ciudad' AS ciudad,\n       '{\"activo\": true, \"edad\": 30}'::jsonb @> '{\"activo\": true}' AS esta_activo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Guarda JSON en nvarchar y lo consulta con JSON_VALUE y OPENJSON; SQL Server 2025 agrega un tipo json."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Tipo JSON desde 21c, con JSON_VALUE y la notación de punto."
+        }
+      ],
+      "relacionadas": [
+        "concepto:indice",
+        "tipo:arreglos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "JSON Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-json.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:arreglos",
+      "categoria": "tipo",
+      "titulo": "Arreglos: varios valores en una columna",
+      "alias": [
+        "array",
+        "arreglo",
+        "integer[]",
+        "text[]",
+        "varchar[]",
+        "any",
+        "unnest",
+        "array_agg"
+      ],
+      "resumen": "En PostgreSQL una columna puede guardar una lista de valores del mismo tipo, como integer[] o text[].",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Se declara con corchetes: etiquetas text[]. Se escribe como ARRAY['a', 'b'] o '{a,b}'.",
+            "Los índices empiezan en 1, no en 0: etiquetas[1] es el primer elemento.",
+            "= ANY(arreglo) pregunta si un valor está en la lista. unnest(arreglo) convierte la lista en filas, y array_agg(columna) hace lo contrario.",
+            "Para relaciones de verdad, una tabla aparte con llave foránea sigue siendo mejor: los arreglos no admiten llaves foráneas por elemento."
+          ],
+          "ejemplo": "SELECT ARRAY['sql', 'braille', 'nvda'] AS etiquetas,\n       (ARRAY['sql', 'braille', 'nvda'])[1] AS primera,\n       'nvda' = ANY(ARRAY['sql', 'braille', 'nvda']) AS tiene_nvda;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene arreglos; se usan tablas, JSON o STRING_SPLIT."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Tiene colecciones (VARRAY y tablas anidadas), poco usadas en columnas."
+        }
+      ],
+      "relacionadas": [
+        "tipo:jsonb",
+        "concepto:muchos-a-muchos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Arrays (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/arrays.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:tabla",
+      "categoria": "concepto",
+      "titulo": "Tablas, filas y columnas",
+      "alias": [
+        "tabla",
+        "fila",
+        "columna",
+        "registro",
+        "campo",
+        "table"
+      ],
+      "resumen": "Una tabla guarda datos de un mismo tipo de cosa, como clientes. Cada fila es una cosa concreta y cada columna es un dato de ella.",
+      "secciones": [
+        {
+          "titulo": "Las partes",
+          "parrafos": [
+            "Las columnas tienen nombre y tipo: nombre varchar(100), precio numeric(10, 2).",
+            "El orden de las filas no está garantizado; para ordenarlas se usa ORDER BY.",
+            "Cada tabla vive en un esquema dentro de una base de datos. public.clientes es la tabla clientes del esquema public, el predeterminado."
+          ],
+          "ejemplo": "CREATE TABLE contactos (\n    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre varchar(100) NOT NULL,\n    correo text\n);"
+        },
+        {
+          "titulo": "Ver la estructura",
+          "parrafos": [
+            "En esta aplicación, ponte sobre la tabla en el explorador y pulsa Intro para oír su descripción.",
+            "En SQL, information_schema.columns lista las columnas de cada tabla."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual: base de datos, esquema (dbo) y tabla."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "La tabla pertenece a un esquema, que es el mismo usuario dueño."
+        }
+      ],
+      "relacionadas": [
+        "concepto:bases-esquemas",
+        "palabra:create-table",
+        "concepto:catalogo"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Table Basics (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-basics.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:null",
+      "categoria": "concepto",
+      "titulo": "NULL y NOT NULL: datos obligatorios y opcionales",
+      "alias": [
+        "null",
+        "not null",
+        "nulo",
+        "obligatoria",
+        "opcional",
+        "is null",
+        "is not null",
+        "is distinct from"
+      ],
+      "resumen": "NULL significa que el dato falta o se desconoce. NOT NULL obliga a que la columna siempre tenga valor.",
+      "secciones": [
+        {
+          "titulo": "Cómo se comporta",
+          "parrafos": [
+            "NULL no es cero ni texto vacío. En PostgreSQL, a diferencia de Oracle, '' es un texto vacío distinto de NULL.",
+            "Para buscar nulos se usa IS NULL, nunca = NULL.",
+            "IS DISTINCT FROM compara tratando NULL como un valor más: NULL IS DISTINCT FROM NULL da false.",
+            "Desde PostgreSQL 18, cada NOT NULL se guarda como una restricción con nombre. Esta aplicación no la muestra aparte porque ya lo dice en cada columna."
+          ],
+          "ejemplo": "SELECT nombre, COALESCE(correo, 'sin correo') AS correo\nFROM clientes\nWHERE correo IS NOT NULL;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; ISNULL hace el papel de COALESCE con dos valores."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual, salvo que '' se guarda como NULL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:texto-vacio",
+        "palabra:funciones-nulos-case",
+        "concepto:check"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Not-Null (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:clave-principal",
+      "categoria": "concepto",
+      "titulo": "Clave principal (PRIMARY KEY)",
+      "alias": [
+        "primary key",
+        "pk",
+        "clave principal",
+        "llave primaria",
+        "clave primaria",
+        "clave compuesta"
+      ],
+      "resumen": "La columna o columnas que identifican cada fila sin repetirse. Toda tabla debería tener una.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "Los valores no se repiten y no pueden ser NULL.",
+            "Puede ser compuesta: PRIMARY KEY (pedido_id, producto_id).",
+            "PostgreSQL crea un índice único para la clave. Si no le das nombre, la llama tabla_pkey, por ejemplo clientes_pkey.",
+            "PostgreSQL no tiene índices agrupados: la clave no ordena físicamente la tabla."
+          ],
+          "ejemplo": "CREATE TABLE envios (\n    id integer GENERATED ALWAYS AS IDENTITY,\n    fecha date NOT NULL,\n    CONSTRAINT pk_envios PRIMARY KEY (id)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, pero la clave crea por omisión un índice agrupado (CLUSTERED)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual; tampoco tiene índices agrupados en tablas normales."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "concepto:identity",
+        "concepto:indice"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Primary Keys (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:llave-foranea",
+      "categoria": "concepto",
+      "titulo": "Llave foránea (FOREIGN KEY)",
+      "alias": [
+        "foreign key",
+        "fk",
+        "llave foranea",
+        "clave externa",
+        "clave foranea",
+        "referencia",
+        "references",
+        "not valid",
+        "validate constraint"
+      ],
+      "resumen": "Una columna que apunta a la clave principal o a un valor único de otra tabla, para que solo admita valores que existen allá.",
+      "secciones": [
+        {
+          "titulo": "Reglas en PostgreSQL",
+          "parrafos": [
+            "Los dos lados deben tener tipos comparables: integer con bigint sirve, y varchar con text también.",
+            "El destino debe ser clave principal o tener UNIQUE.",
+            "PostgreSQL no crea índice para la llave foránea. Si borras a menudo en la tabla destino o haces JOIN por esa columna, conviene crearlo a mano."
+          ],
+          "ejemplo": "ALTER TABLE pedidos\n    ADD CONSTRAINT fk_pedidos_clientes_ejemplo FOREIGN KEY (cliente_id)\n    REFERENCES clientes (id)\n    ON DELETE CASCADE;"
+        },
+        {
+          "titulo": "NOT VALID",
+          "parrafos": [
+            "Al agregar una llave, PostgreSQL comprueba todas las filas que ya existen. Con NOT VALID solo vigila las filas nuevas o cambiadas.",
+            "Después se puede comprobar el resto con ALTER TABLE … VALIDATE CONSTRAINT nombre."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "WITH NOCHECK equivale a NOT VALID."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "ENABLE NOVALIDATE equivale a NOT VALID."
+        }
+      ],
+      "relacionadas": [
+        "concepto:reglas-referenciales",
+        "concepto:uno-a-muchos",
+        "concepto:clave-principal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Foreign Keys (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        },
+        {
+          "titulo": "ALTER TABLE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-altertable.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:reglas-referenciales",
+      "categoria": "concepto",
+      "titulo": "ON DELETE y ON UPDATE: qué pasa con las filas relacionadas",
+      "alias": [
+        "on delete",
+        "on update",
+        "cascade",
+        "cascada",
+        "no action",
+        "restrict",
+        "set null",
+        "set default",
+        "sin acción"
+      ],
+      "resumen": "Deciden qué hace PostgreSQL con las filas que apuntan a una fila que se borra o cuya clave cambia. Tiene las cinco reglas, en los dos casos.",
+      "secciones": [
+        {
+          "titulo": "Las cinco reglas",
+          "parrafos": [
+            "NO ACTION, la predeterminada: no deja borrar ni cambiar si hay filas que apuntan, y da el error 23503.",
+            "RESTRICT: igual que NO ACTION, pero se comprueba al momento. NO ACTION, en cambio, espera al final de la sentencia, y si la llave es diferible, puede esperar al final de la transacción.",
+            "CASCADE: borra o actualiza también las filas que apuntan.",
+            "SET NULL: las deja en NULL. SET DEFAULT: les pone su valor predeterminado."
+          ],
+          "ejemplo": "CREATE TABLE comentarios (\n    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    producto_id integer REFERENCES productos (id) ON DELETE CASCADE ON UPDATE CASCADE,\n    texto text NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "NO ACTION, CASCADE, SET NULL y SET DEFAULT, sin RESTRICT."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Solo ON DELETE, con CASCADE o SET NULL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "palabra:delete"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Foreign Keys (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:uno-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de uno a muchos",
+      "alias": [
+        "uno a muchos",
+        "1 a n",
+        "one to many"
+      ],
+      "resumen": "Una fila de una tabla se relaciona con muchas filas de otra: un cliente tiene muchos pedidos.",
+      "secciones": [
+        {
+          "titulo": "Cómo se hace",
+          "parrafos": [
+            "La tabla del lado muchos lleva una llave foránea hacia la del lado uno: pedidos.cliente_id apunta a clientes.id.",
+            "Si la llave foránea además es UNIQUE, la relación es de uno a uno.",
+            "Para leer los datos juntos se usa JOIN."
+          ],
+          "ejemplo": "SELECT c.nombre, p.id AS pedido, p.fecha\nFROM clientes c\nJOIN pedidos p ON p.cliente_id = c.id;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Se modela igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Se modela igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "concepto:muchos-a-muchos",
+        "palabra:join"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Foreign Keys (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:muchos-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de muchos a muchos y tabla intermedia",
+      "alias": [
+        "muchos a muchos",
+        "n a n",
+        "tabla intermedia",
+        "tabla pivote",
+        "tabla puente",
+        "many to many"
+      ],
+      "resumen": "Cuando muchas filas de una tabla se relacionan con muchas de otra, como pedidos y productos, se necesita una tabla intermedia.",
+      "secciones": [
+        {
+          "titulo": "La tabla intermedia",
+          "parrafos": [
+            "Lleva una llave foránea hacia cada tabla, y su clave principal es compuesta por esas dos columnas.",
+            "Puede tener columnas propias, como la cantidad.",
+            "En esta aplicación, el Asistente de tabla intermedia del menú de la base la prepara por ti."
+          ],
+          "ejemplo": "SELECT p.id AS pedido, pr.nombre, pp.cantidad\nFROM pedidos p\nJOIN pedido_productos pp ON pp.pedido_id = p.id\nJOIN productos pr ON pr.id = pp.producto_id;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Se modela igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Se modela igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:uno-a-muchos",
+        "concepto:clave-principal",
+        "tipo:arreglos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:identity",
+      "categoria": "concepto",
+      "titulo": "GENERATED AS IDENTITY y serial: números automáticos",
+      "alias": [
+        "identity",
+        "generated as identity",
+        "generated always",
+        "by default",
+        "identidad",
+        "autoincremento",
+        "auto increment",
+        "serial"
+      ],
+      "resumen": "Una columna de identidad recibe un número automático en cada INSERT. Es el estándar; serial es la forma antigua.",
+      "secciones": [
+        {
+          "titulo": "ALWAYS y BY DEFAULT",
+          "parrafos": [
+            "GENERATED ALWAYS AS IDENTITY: PostgreSQL pone siempre el número. Escribirlo a mano da error, salvo con OVERRIDING SYSTEM VALUE.",
+            "GENERATED BY DEFAULT AS IDENTITY: lo pone si no lo escribes, pero te deja escribir uno.",
+            "Para empezar en otro número: GENERATED ALWAYS AS IDENTITY (START WITH 100 INCREMENT BY 10).",
+            "Para reiniciarlo: ALTER TABLE t ALTER COLUMN id RESTART WITH 1."
+          ],
+          "ejemplo": "INSERT INTO categorias (nombre) VALUES ('Juegos de mesa') RETURNING id;"
+        },
+        {
+          "titulo": "serial",
+          "parrafos": [
+            "serial crea una secuencia y pone DEFAULT nextval('tabla_columna_seq'). Funciona, pero deja escribir números a mano y es más difícil de copiar entre tablas.",
+            "Los números pueden tener saltos, por ejemplo tras un ROLLBACK. No sirven para numeraciones sin huecos."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "IDENTITY(1, 1)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "GENERATED ALWAYS AS IDENTITY, igual que PostgreSQL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:secuencias",
+        "concepto:clave-principal",
+        "palabra:insert"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Identity Columns (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-identity-columns.html"
+        },
+        {
+          "titulo": "Numeric Types: Serial Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-numeric.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:unique",
+      "categoria": "concepto",
+      "titulo": "UNIQUE: valores que no se repiten",
+      "alias": [
+        "unique",
+        "único",
+        "valor único",
+        "restricción única",
+        "nulls not distinct"
+      ],
+      "resumen": "Una restricción UNIQUE impide que dos filas tengan el mismo valor en esa columna, como el correo de un cliente.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "Por omisión, varios NULL no cuentan como repetidos. Desde PostgreSQL 15, UNIQUE NULLS NOT DISTINCT hace que solo se permita un NULL.",
+            "PostgreSQL crea un índice único para la restricción.",
+            "Una llave foránea puede apuntar a una columna UNIQUE.",
+            "Si se repite un valor, el error es 23505, y el detalle dice cuál: «Key (correo)=(ana@ejemplo.com) already exists»."
+          ],
+          "ejemplo": "ALTER TABLE clientes ADD CONSTRAINT uq_clientes_nombre_ejemplo UNIQUE (nombre);\nALTER TABLE clientes DROP CONSTRAINT uq_clientes_nombre_ejemplo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "UNIQUE solo admite un NULL por columna."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Permite muchos NULL, como PostgreSQL por omisión."
+        }
+      ],
+      "relacionadas": [
+        "concepto:clave-principal",
+        "concepto:indice",
+        "palabra:on-conflict"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Unique (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:default",
+      "categoria": "concepto",
+      "titulo": "DEFAULT: valor predeterminado",
+      "alias": [
+        "default",
+        "predeterminado",
+        "valor por defecto",
+        "valor predeterminado"
+      ],
+      "resumen": "El valor que toma una columna cuando el INSERT no la menciona.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Puede ser un literal, como 0 o 'pendiente', o una expresión, como now(), CURRENT_DATE o gen_random_uuid().",
+            "Si el INSERT escribe NULL explícitamente, el DEFAULT no se aplica.",
+            "En un INSERT o UPDATE puedes escribir la palabra DEFAULT para pedir el valor predeterminado.",
+            "Para cambiarlo: ALTER TABLE t ALTER COLUMN c SET DEFAULT valor."
+          ],
+          "ejemplo": "CREATE TABLE tareas (\n    id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    estado text NOT NULL DEFAULT 'pendiente',\n    creada timestamptz NOT NULL DEFAULT now()\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DEFAULT es una restricción con nombre, como DF_Tareas_Estado."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "DEFAULT va antes de NOT NULL, y existe DEFAULT ON NULL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Default Values (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-default.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:check",
+      "categoria": "concepto",
+      "titulo": "CHECK: reglas sobre los valores",
+      "alias": [
+        "check",
+        "restricción check",
+        "comprobación",
+        "validación"
+      ],
+      "resumen": "Una restricción CHECK define una condición que cada fila debe cumplir.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "La condición usa columnas de la misma fila; no puede consultar otras tablas.",
+            "Si la condición da NULL, PostgreSQL la acepta: solo rechaza cuando da false.",
+            "Si una fila no la cumple, el error es 23514 con el nombre de la restricción.",
+            "Al leerla, PostgreSQL puede mostrar conversiones como 0::numeric: es la misma condición."
+          ],
+          "ejemplo": "ALTER TABLE productos ADD CONSTRAINT ck_productos_nombre_ejemplo CHECK (length(nombre) >= 2);\nALTER TABLE productos DROP CONSTRAINT ck_productos_nombre_ejemplo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "palabra:create-table"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: Check (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:indice",
+      "categoria": "concepto",
+      "titulo": "Índices: btree, gin y otros",
+      "alias": [
+        "indice",
+        "index",
+        "create index",
+        "btree",
+        "gin",
+        "gist",
+        "hash",
+        "brin",
+        "índice parcial"
+      ],
+      "resumen": "Un índice permite encontrar filas rápido sin recorrer toda la tabla. PostgreSQL tiene varios métodos según el tipo de búsqueda.",
+      "secciones": [
+        {
+          "titulo": "Métodos",
+          "parrafos": [
+            "btree, el predeterminado: igualdades, rangos y ORDER BY.",
+            "gin: para jsonb, arreglos y búsqueda de texto completo.",
+            "gist: para datos geométricos y rangos. hash: solo igualdades. brin: tablas enormes con datos ordenados por fecha.",
+            "Esta aplicación dice el método cuando no es btree, por ejemplo «de tipo gin»."
+          ]
+        },
+        {
+          "titulo": "Tipos útiles",
+          "parrafos": [
+            "Sobre expresiones: CREATE INDEX ON clientes (lower(correo)) acelera WHERE lower(correo) = '...'.",
+            "Parciales: CREATE INDEX … WHERE activo solo indexa las filas activas.",
+            "INCLUDE agrega columnas al índice sin ordenarlas, para no tener que leer la tabla.",
+            "PostgreSQL no tiene índices agrupados permanentes; el comando CLUSTER reordena la tabla una sola vez."
+          ],
+          "ejemplo": "CREATE INDEX ix_pedidos_cliente_ejemplo ON pedidos (cliente_id);\nDROP INDEX ix_pedidos_cliente_ejemplo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Índices agrupados y no agrupados, filtrados (WHERE) e INCLUDE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Árbol B, bitmap y sobre expresiones; sin índices agrupados en tablas normales."
+        }
+      ],
+      "relacionadas": [
+        "concepto:clave-principal",
+        "concepto:unique",
+        "tipo:jsonb"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Indexes (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/indexes.html"
+        },
+        {
+          "titulo": "Index Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/indexes-types.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:columna-calculada",
+      "categoria": "concepto",
+      "titulo": "Columnas generadas: VIRTUAL y STORED",
+      "alias": [
+        "columna calculada",
+        "columna generada",
+        "generated always as",
+        "virtual",
+        "stored",
+        "calculada"
+      ],
+      "resumen": "Una columna generada calcula su valor con una expresión. Puede calcularse al leerla o guardarse en disco.",
+      "secciones": [
+        {
+          "titulo": "Los dos tipos",
+          "parrafos": [
+            "GENERATED ALWAYS AS (expresión) STORED: se calcula al escribir la fila y se guarda en disco.",
+            "GENERATED ALWAYS AS (expresión) VIRTUAL: se calcula cada vez que se lee. Existe desde PostgreSQL 18 y es la opción por omisión si no escribes ninguna de las dos.",
+            "No se puede escribir en ellas con INSERT ni UPDATE.",
+            "La expresión solo puede usar columnas de la misma fila y funciones que siempre devuelvan lo mismo; por eso now() no sirve."
+          ],
+          "ejemplo": "CREATE TABLE lineas (\n    cantidad integer NOT NULL,\n    precio numeric(10, 2) NOT NULL,\n    total numeric GENERATED ALWAYS AS (cantidad * precio) STORED\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Columna AS (expresión), y con PERSISTED se guarda."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Columnas virtuales, que nunca se guardan."
+        }
+      ],
+      "relacionadas": [
+        "palabra:create-table"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Generated Columns (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-generated-columns.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:bases-esquemas",
+      "categoria": "concepto",
+      "titulo": "Bases de datos, esquemas y public",
+      "alias": [
+        "base de datos",
+        "esquema",
+        "schema",
+        "public",
+        "search_path",
+        "database",
+        "current_database"
+      ],
+      "resumen": "Un servidor de PostgreSQL tiene varias bases de datos. Cada base tiene esquemas, y el predeterminado se llama public.",
+      "secciones": [
+        {
+          "titulo": "Cómo se organiza",
+          "parrafos": [
+            "Cada conexión entra a una sola base. No existe USE: para trabajar en otra base hay que abrir otra conexión. Esta aplicación lo hace sola cuando eliges otra base y pulsas Control+N.",
+            "Dentro de una base, los esquemas agrupan tablas: ventas.facturas, rrhh.empleados.",
+            "search_path dice en qué esquemas se buscan los nombres sin prefijo. Por omisión es \"$user\", public.",
+            "postgres es la base que existe siempre, y template0 y template1 son plantillas para crear bases nuevas."
+          ],
+          "ejemplo": "SELECT current_database(), current_schema();\nSHOW search_path;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual: servidor, bases y esquemas, con dbo como predeterminado; USE cambia de base."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "El esquema es el mismo usuario; no hay bases separadas dentro de una PDB."
+        }
+      ],
+      "relacionadas": [
+        "concepto:tabla",
+        "concepto:minusculas-comillas",
+        "concepto:catalogo"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Schemas (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-schemas.html"
+        },
+        {
+          "titulo": "CREATE DATABASE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createdatabase.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:minusculas-comillas",
+      "categoria": "concepto",
+      "titulo": "Nombres: minúsculas y comillas dobles",
+      "alias": [
+        "minúsculas",
+        "mayúsculas",
+        "comillas",
+        "comillas dobles",
+        "identificador",
+        "nombre",
+        "nombres"
+      ],
+      "resumen": "PostgreSQL convierte a minúsculas los nombres escritos sin comillas. Con comillas dobles respeta mayúsculas y espacios, pero desde entonces hay que escribirlos siempre con comillas.",
+      "secciones": [
+        {
+          "titulo": "Sin comillas",
+          "parrafos": [
+            "CREATE TABLE Clientes crea la tabla clientes. Luego da igual escribir Clientes o CLIENTES.",
+            "La costumbre en PostgreSQL es usar minúsculas separadas por guion bajo: fecha_registro.",
+            "Un nombre sin comillas no puede ser una palabra reservada, como user, order o table."
+          ]
+        },
+        {
+          "titulo": "Con comillas dobles",
+          "parrafos": [
+            "CREATE TABLE \"Clientes\" guarda la C mayúscula. Después, SELECT * FROM Clientes falla, porque busca clientes; hay que escribir \"Clientes\".",
+            "Esto confunde mucho a quien viene de SQL Server. Por eso esta aplicación avisa cómo se guardará cada nombre.",
+            "Las comillas simples son para textos ('Ana'), y las dobles para nombres."
+          ],
+          "ejemplo": "SELECT nombre FROM clientes;\nSELECT \"nombre\" FROM \"clientes\";"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Respeta como escribes los nombres y, por lo general, no distingue mayúsculas; usa corchetes para nombres raros."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Al revés que PostgreSQL: convierte a MAYÚSCULAS los nombres sin comillas."
+        }
+      ],
+      "relacionadas": [
+        "concepto:bases-esquemas",
+        "palabra:create-table"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Lexical Structure: Identifiers (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-syntax-lexical.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:texto-vacio",
+      "categoria": "concepto",
+      "titulo": "El texto vacío no es NULL",
+      "alias": [
+        "cadena vacía",
+        "texto vacío",
+        "''",
+        "vacío"
+      ],
+      "resumen": "En PostgreSQL, el texto vacío '' es un valor real, distinto de NULL. Es lo contrario de Oracle.",
+      "secciones": [
+        {
+          "titulo": "Consecuencias",
+          "parrafos": [
+            "Una columna NOT NULL acepta '' sin problema.",
+            "WHERE nombre = '' encuentra las filas con texto vacío, y WHERE nombre IS NULL las que no tienen valor.",
+            "length('') da 0.",
+            "Si quieres tratar los dos casos igual, usa NULLIF(nombre, ''), que convierte el vacío en NULL."
+          ],
+          "ejemplo": "SELECT '' IS NULL AS vacio_es_null, length('') AS largo, NULLIF('', '') IS NULL AS con_nullif;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual que PostgreSQL: '' no es NULL."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Al contrario: '' se guarda como NULL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "tipo:text"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Character Types (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/datatype-character.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:secuencias",
+      "categoria": "concepto",
+      "titulo": "Secuencias: nextval, currval y setval",
+      "alias": [
+        "secuencia",
+        "sequence",
+        "create sequence",
+        "nextval",
+        "currval",
+        "setval",
+        "pg_get_serial_sequence"
+      ],
+      "resumen": "Una secuencia entrega números consecutivos. Las columnas de identidad y serial las usan por dentro.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "nextval('nombre') pide el siguiente número; currval('nombre') repite el último de tu sesión.",
+            "setval('nombre', 100) cambia el valor actual; es útil después de cargar datos a mano.",
+            "pg_get_serial_sequence('tabla', 'columna') dice qué secuencia usa una columna.",
+            "Los números no se devuelven con ROLLBACK, así que puede haber saltos."
+          ],
+          "ejemplo": "CREATE SEQUENCE sec_facturas START WITH 1000;\nSELECT nextval('sec_facturas'), currval('sec_facturas');\nDROP SEQUENCE sec_facturas;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE SEQUENCE y NEXT VALUE FOR nombre."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "nombre.NEXTVAL y nombre.CURRVAL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:identity",
+        "tipo:enteros"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE SEQUENCE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createsequence.html"
+        },
+        {
+          "titulo": "Sequence Manipulation Functions (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-sequence.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:transacciones",
+      "categoria": "concepto",
+      "titulo": "Transacciones: BEGIN, COMMIT y ROLLBACK",
+      "alias": [
+        "transacción",
+        "transaccion",
+        "begin",
+        "commit",
+        "rollback",
+        "savepoint",
+        "start transaction",
+        "cambios sin confirmar",
+        "transacción abortada"
+      ],
+      "resumen": "En PostgreSQL cada sentencia se confirma sola, salvo que abras una transacción con BEGIN. Y a diferencia de otros motores, el CREATE y el DROP también se pueden deshacer.",
+      "secciones": [
+        {
+          "titulo": "Cómo funciona",
+          "parrafos": [
+            "Sin BEGIN, cada sentencia es su propia transacción y se confirma al terminar.",
+            "BEGIN abre una transacción: los cambios quedan pendientes hasta COMMIT, que los guarda, o ROLLBACK, que los deshace.",
+            "El DDL es transaccional: un CREATE TABLE o un DROP TABLE dentro de BEGIN se deshace con ROLLBACK.",
+            "SAVEPOINT nombre marca un punto; ROLLBACK TO nombre deshace solo lo posterior."
+          ],
+          "ejemplo": "BEGIN;\nUPDATE productos SET precio = precio * 1.10 WHERE categoria_id = 1;\nCREATE TABLE prueba_transaccion (id int);\nROLLBACK;"
+        },
+        {
+          "titulo": "La transacción anulada",
+          "parrafos": [
+            "Si una sentencia falla dentro de BEGIN, PostgreSQL anula la transacción y rechaza todas las siguientes con el error 25P02, hasta que ejecutes ROLLBACK.",
+            "Para que un error no lo anule todo, se usa SAVEPOINT antes de la sentencia arriesgada y ROLLBACK TO después del error."
+          ]
+        },
+        {
+          "titulo": "En esta aplicación",
+          "parrafos": [
+            "Funciona como pgAdmin: confirmación automática, y con BEGIN oyes «Quedan cambios sin confirmar». Al desconectar o cerrar con cambios pendientes, te pregunta qué hacer.",
+            "Cada base tiene su propia sesión: los cambios pendientes en una base no se ven desde otra."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "También confirma solo; BEGIN TRANSACTION abre una transacción, y su DDL también es transaccional."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Todo queda pendiente hasta COMMIT, y cada CREATE o DROP confirma automáticamente."
+        }
+      ],
+      "relacionadas": [
+        "palabra:insert",
+        "palabra:update",
+        "concepto:mvcc"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Transactions (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/tutorial-transactions.html"
+        },
+        {
+          "titulo": "BEGIN (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-begin.html"
+        },
+        {
+          "titulo": "SAVEPOINT (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-savepoint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:mvcc",
+      "categoria": "concepto",
+      "titulo": "MVCC y VACUUM: cómo guarda PostgreSQL los cambios",
+      "alias": [
+        "mvcc",
+        "vacuum",
+        "autovacuum",
+        "analyze",
+        "filas muertas",
+        "bloqueo"
+      ],
+      "resumen": "PostgreSQL no sobrescribe las filas: cada UPDATE crea una versión nueva. Así nadie espera a nadie para leer, y VACUUM limpia después las versiones viejas.",
+      "secciones": [
+        {
+          "titulo": "Por qué importa",
+          "parrafos": [
+            "Gracias a MVCC, quien lee nunca bloquea a quien escribe, ni al revés: cada transacción ve una foto coherente de los datos.",
+            "Las versiones viejas de las filas quedan como «filas muertas». VACUUM las marca como espacio reutilizable.",
+            "El autovacuum lo hace solo, en segundo plano. Casi nunca hace falta ejecutarlo a mano.",
+            "ANALYZE actualiza las estadísticas que usa el planificador para elegir cómo ejecutar las consultas."
+          ],
+          "ejemplo": "VACUUM ANALYZE clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Usa bloqueos por omisión; el aislamiento por versiones de filas se activa aparte."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "También usa versiones, guardando lo anterior en los segmentos de deshacer (undo)."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Concurrency Control: Introduction (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/mvcc-intro.html"
+        },
+        {
+          "titulo": "Routine Vacuuming (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/routine-vacuuming.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:catalogo",
+      "categoria": "concepto",
+      "titulo": "El catálogo: pg_catalog e information_schema",
+      "alias": [
+        "catálogo",
+        "pg_catalog",
+        "information_schema",
+        "pg_class",
+        "pg_tables",
+        "pg_constraint",
+        "metadatos"
+      ],
+      "resumen": "PostgreSQL guarda la descripción de todo lo que existe en tablas que puedes consultar con SELECT. Esta aplicación las usa para describir las tablas.",
+      "secciones": [
+        {
+          "titulo": "Las dos formas",
+          "parrafos": [
+            "information_schema es el estándar SQL: tables, columns, table_constraints. Funciona parecido en otros motores.",
+            "pg_catalog es propio de PostgreSQL y más completo: pg_class para tablas e índices, pg_attribute para columnas, pg_constraint para restricciones.",
+            "pg_tables y pg_indexes son vistas sencillas para empezar."
+          ],
+          "ejemplo": "SELECT table_name FROM information_schema.tables\nWHERE table_schema = 'public'\nORDER BY table_name;\n\nSELECT column_name, data_type, is_nullable\nFROM information_schema.columns\nWHERE table_name = 'productos';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "sys.tables, sys.columns y también INFORMATION_SCHEMA."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Las vistas USER_, ALL_ y DBA_, como USER_TABLES."
+        }
+      ],
+      "relacionadas": [
+        "concepto:bases-esquemas",
+        "concepto:psql"
+      ],
+      "fuentes": [
+        {
+          "titulo": "System Catalogs (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/catalogs.html"
+        },
+        {
+          "titulo": "The Information Schema (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/information-schema.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:psql",
+      "categoria": "concepto",
+      "titulo": "Comandos de psql: \\d, \\dt, \\c y otros",
+      "alias": [
+        "psql",
+        "\\d",
+        "\\dt",
+        "\\c",
+        "\\l",
+        "\\x",
+        "\\i",
+        "metacomando",
+        "barra invertida"
+      ],
+      "resumen": "Los comandos que empiezan con barra invertida no son SQL: son de la consola psql. Aquí no existen, pero cada uno tiene su equivalente.",
+      "secciones": [
+        {
+          "titulo": "Equivalentes en esta aplicación",
+          "parrafos": [
+            "\\dt, listar tablas: expande la carpeta Tablas en el explorador, o consulta information_schema.tables.",
+            "\\d tabla, describir: ponte sobre la tabla y pulsa Intro.",
+            "\\l, listar bases: la carpeta Bases de datos del explorador.",
+            "\\c base, cambiar de base: ponte sobre otra base y pulsa Control+N.",
+            "\\i archivo.sql, ejecutar un archivo: ábrelo con Control+O y pulsa F5.",
+            "Si escribes uno de estos comandos en el editor, la aplicación te explica que no es SQL, sin enviarlo al servidor."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "sqlcmd tiene sus propios comandos, como :r para incluir un archivo, y GO."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "SQL*Plus tiene DESCRIBE, SET SERVEROUTPUT ON y @archivo.sql."
+        }
+      ],
+      "relacionadas": [
+        "concepto:catalogo",
+        "concepto:bases-esquemas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "psql (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/app-psql.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:vistas",
+      "categoria": "concepto",
+      "titulo": "Vistas y vistas materializadas",
+      "alias": [
+        "vista",
+        "vistas",
+        "view",
+        "create view",
+        "create or replace view",
+        "drop view",
+        "vista materializada",
+        "materialized view",
+        "refresh materialized view"
+      ],
+      "resumen": "Una vista es un SELECT guardado con nombre que se consulta como una tabla. Una vista materializada además guarda el resultado en disco.",
+      "secciones": [
+        {
+          "titulo": "Crear y usar",
+          "parrafos": [
+            "CREATE OR REPLACE VIEW crea la vista o la reemplaza; solo puede agregar columnas al final, no quitarlas ni cambiar su tipo.",
+            "Una vista normal no guarda datos: PostgreSQL ejecuta su consulta cada vez.",
+            "CREATE MATERIALIZED VIEW guarda el resultado. Es más rápida de consultar, pero se queda con los datos viejos hasta que ejecutas REFRESH MATERIALIZED VIEW.",
+            "En el explorador, las dos están en la carpeta Vistas, y las materializadas se anuncian así."
+          ],
+          "ejemplo": "CREATE OR REPLACE VIEW productos_caros AS\nSELECT nombre, precio FROM productos WHERE precio > 50;\n\nSELECT * FROM productos_caros;\n\nCREATE MATERIALIZED VIEW resumen_categorias AS\nSELECT categoria_id, count(*) AS productos FROM productos GROUP BY categoria_id;\n\nREFRESH MATERIALIZED VIEW resumen_categorias;\n\nDROP MATERIALIZED VIEW resumen_categorias;\nDROP VIEW productos_caros;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE OR ALTER VIEW; lo parecido a una materializada es una vista indexada."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE OR REPLACE VIEW y CREATE MATERIALIZED VIEW."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:join",
+        "concepto:catalogo"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE VIEW (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createview.html"
+        },
+        {
+          "titulo": "CREATE MATERIALIZED VIEW (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-creatematerializedview.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:select",
+      "categoria": "palabra",
+      "titulo": "SELECT: leer datos",
+      "alias": [
+        "select",
+        "distinct",
+        "distinct on",
+        "as",
+        "alias"
+      ],
+      "resumen": "SELECT lee datos de una o varias tablas. En PostgreSQL, FROM es opcional para calcular expresiones.",
+      "secciones": [
+        {
+          "titulo": "Partes",
+          "parrafos": [
+            "SELECT dice qué columnas o expresiones quieres; FROM, de qué tabla.",
+            "AS pone un alias: precio * 1.13 AS precio_con_iva.",
+            "DISTINCT quita filas repetidas. DISTINCT ON (columna), propio de PostgreSQL, deja una fila por cada valor de esa columna: la primera según el ORDER BY.",
+            "SELECT 2 + 2; funciona sin FROM."
+          ],
+          "ejemplo": "SELECT DISTINCT ON (p.cliente_id) p.cliente_id, p.id AS ultimo_pedido, p.fecha\nFROM pedidos p\nORDER BY p.cliente_id, p.fecha DESC;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, sin DISTINCT ON; se usa ROW_NUMBER() para lo mismo."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Antes de 23ai necesitaba FROM dual para calcular sin tabla."
+        }
+      ],
+      "relacionadas": [
+        "palabra:where",
+        "palabra:join",
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SELECT (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-select.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:where",
+      "categoria": "palabra",
+      "titulo": "WHERE: filtrar filas",
+      "alias": [
+        "where",
+        "and",
+        "or",
+        "not",
+        "like",
+        "ilike",
+        "in",
+        "between",
+        "exists",
+        "similar to",
+        "~"
+      ],
+      "resumen": "WHERE deja solo las filas que cumplen una condición.",
+      "secciones": [
+        {
+          "titulo": "Operadores",
+          "parrafos": [
+            "Comparación: =, <> o !=, <, >, <= y >=, combinados con AND, OR y NOT.",
+            "BETWEEN incluye los extremos. IN compara con una lista o subconsulta.",
+            "LIKE distingue mayúsculas; ILIKE, propio de PostgreSQL, no las distingue: nombre ILIKE '%braille%'.",
+            "El operador ~ usa expresiones regulares: correo ~ '@ejemplo\\.com$'."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nWHERE nombre ILIKE '%braille%'\n   OR precio BETWEEN 30 AND 60;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "LIKE suele no distinguir mayúsculas, según la intercalación; no tiene ILIKE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "LIKE distingue mayúsculas; se usa UPPER(columna) LIKE, o REGEXP_LIKE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "concepto:null"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Pattern Matching (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-matching.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:join",
+      "categoria": "palabra",
+      "titulo": "FROM y JOIN: combinar tablas",
+      "alias": [
+        "from",
+        "join",
+        "inner",
+        "inner join",
+        "left",
+        "left join",
+        "right",
+        "right join",
+        "full",
+        "full join",
+        "outer",
+        "on",
+        "using",
+        "cross join",
+        "lateral"
+      ],
+      "resumen": "JOIN combina filas de dos tablas que se relacionan, normalmente por una llave foránea.",
+      "secciones": [
+        {
+          "titulo": "Tipos",
+          "parrafos": [
+            "JOIN o INNER JOIN: solo filas con pareja. LEFT JOIN: todas las de la izquierda, con NULL donde no hay pareja.",
+            "RIGHT, FULL y CROSS JOIN funcionan como en el estándar.",
+            "USING (columna) sirve cuando las dos columnas se llaman igual: JOIN pedidos USING (cliente_id).",
+            "LATERAL deja que la subconsulta de la derecha use columnas de la izquierda, por ejemplo para los 3 últimos pedidos de cada cliente."
+          ],
+          "ejemplo": "SELECT c.nombre, count(p.id) AS pedidos\nFROM clientes c\nLEFT JOIN pedidos p ON p.cliente_id = c.id\nGROUP BY c.nombre\nORDER BY pedidos DESC;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; en lugar de LATERAL usa CROSS APPLY y OUTER APPLY."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual, y en código antiguo usa (+) para los JOIN externos."
+        }
+      ],
+      "relacionadas": [
+        "concepto:uno-a-muchos",
+        "palabra:select"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Table Expressions: Joined Tables (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/queries-table-expressions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:group-by",
+      "categoria": "palabra",
+      "titulo": "GROUP BY, HAVING y funciones de agregado",
+      "alias": [
+        "group",
+        "group by",
+        "having",
+        "count",
+        "sum",
+        "avg",
+        "min",
+        "max",
+        "string_agg",
+        "array_agg",
+        "filter"
+      ],
+      "resumen": "GROUP BY junta las filas con el mismo valor para calcular totales, promedios o conteos por grupo.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "count, sum, avg, min y max, como en todos los motores. count(*) cuenta filas y count(columna) cuenta los no nulos.",
+            "string_agg(nombre, ', ') junta textos, y array_agg(columna) arma un arreglo.",
+            "FILTER cuenta solo algunas filas: count(*) FILTER (WHERE precio > 50).",
+            "WHERE filtra antes de agrupar; HAVING filtra los grupos."
+          ],
+          "ejemplo": "SELECT categoria_id,\n       count(*) AS productos,\n       count(*) FILTER (WHERE precio > 50) AS caros,\n       string_agg(nombre, ', ' ORDER BY nombre) AS nombres\nFROM productos\nGROUP BY categoria_id;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "STRING_AGG igual; sin FILTER, se usa SUM(CASE WHEN … THEN 1 END)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "LISTAGG en lugar de string_agg."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Aggregate Functions (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-aggregate.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:order-by",
+      "categoria": "palabra",
+      "titulo": "ORDER BY: ordenar el resultado",
+      "alias": [
+        "order",
+        "order by",
+        "asc",
+        "desc",
+        "nulls first",
+        "nulls last"
+      ],
+      "resumen": "ORDER BY ordena las filas del resultado. Sin él, PostgreSQL no garantiza ningún orden.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "ASC de menor a mayor, la opción por omisión; DESC de mayor a menor.",
+            "En PostgreSQL los NULL van al final en orden ascendente y al principio en descendente. NULLS FIRST y NULLS LAST lo cambian.",
+            "Se puede ordenar por un alias del SELECT o por una expresión: ORDER BY lower(nombre)."
+          ],
+          "ejemplo": "SELECT nombre, precio FROM productos ORDER BY precio DESC NULLS LAST, nombre;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Los NULL van primero en orden ascendente; no tiene NULLS FIRST ni NULLS LAST."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual que PostgreSQL."
+        }
+      ],
+      "relacionadas": [
+        "palabra:limit",
+        "palabra:select"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Sorting Rows (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/queries-order.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:limit",
+      "categoria": "palabra",
+      "titulo": "LIMIT y OFFSET: limitar filas",
+      "alias": [
+        "limit",
+        "offset",
+        "fetch",
+        "fetch first",
+        "top",
+        "paginar"
+      ],
+      "resumen": "LIMIT n devuelve solo las primeras n filas, y OFFSET salta filas. Es la forma de PostgreSQL de decir TOP.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Va al final: ORDER BY precio DESC LIMIT 3.",
+            "LIMIT 10 OFFSET 20 salta 20 filas y trae 10: sirve para paginar.",
+            "También acepta el estándar: FETCH FIRST 10 ROWS ONLY, y FETCH FIRST 3 ROWS WITH TIES para incluir los empates.",
+            "Siempre conviene usarlo con ORDER BY; si no, las primeras filas son cualquiera."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nORDER BY precio DESC\nLIMIT 3;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "TOP (n), u OFFSET … FETCH NEXT después de ORDER BY."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "FETCH FIRST n ROWS ONLY, o ROWNUM en código antiguo."
+        }
+      ],
+      "relacionadas": [
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "LIMIT and OFFSET (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/queries-limit.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:insert",
+      "categoria": "palabra",
+      "titulo": "INSERT y RETURNING: agregar filas",
+      "alias": [
+        "insert",
+        "insert into",
+        "into",
+        "values",
+        "returning",
+        "overriding system value"
+      ],
+      "resumen": "INSERT agrega filas nuevas. Con RETURNING, PostgreSQL te devuelve en el mismo paso los datos de las filas insertadas, como el id generado.",
+      "secciones": [
+        {
+          "titulo": "Formas",
+          "parrafos": [
+            "INSERT INTO tabla (columnas) VALUES (valores), con varias filas separadas por coma.",
+            "INSERT INTO tabla (columnas) SELECT … copia filas desde una consulta.",
+            "RETURNING id devuelve el número que PostgreSQL asignó. RETURNING * devuelve la fila completa.",
+            "Se confirma solo, salvo que lo ejecutes después de BEGIN."
+          ],
+          "ejemplo": "INSERT INTO categorias (nombre)\nVALUES ('Música'), ('Juegos')\nRETURNING id, nombre;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "OUTPUT inserted.id hace el papel de RETURNING."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "RETURNING … INTO solo dentro de PL/SQL."
+        }
+      ],
+      "relacionadas": [
+        "palabra:on-conflict",
+        "concepto:identity",
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "INSERT (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-insert.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:on-conflict",
+      "categoria": "palabra",
+      "titulo": "ON CONFLICT: insertar o actualizar",
+      "alias": [
+        "on conflict",
+        "do update",
+        "do nothing",
+        "excluded",
+        "upsert",
+        "merge"
+      ],
+      "resumen": "INSERT … ON CONFLICT decide qué hacer si la fila choca con una clave o un valor único: no hacer nada, o actualizar la fila que ya existe.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "ON CONFLICT (columna) DO NOTHING: si ya existe, la ignora sin error.",
+            "ON CONFLICT (columna) DO UPDATE SET … actualiza la existente. EXCLUDED.columna es el valor que intentabas insertar.",
+            "La columna del conflicto debe tener UNIQUE o ser la clave principal.",
+            "Desde PostgreSQL 15 también existe MERGE, el estándar, para casos más complejos."
+          ],
+          "ejemplo": "INSERT INTO categorias (nombre) VALUES ('Libros')\nON CONFLICT (nombre) DO NOTHING\nRETURNING id;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "MERGE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "MERGE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:insert",
+        "concepto:unique"
+      ],
+      "fuentes": [
+        {
+          "titulo": "INSERT: ON CONFLICT Clause (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-insert.html"
+        },
+        {
+          "titulo": "MERGE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-merge.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:update",
+      "categoria": "palabra",
+      "titulo": "UPDATE: cambiar datos",
+      "alias": [
+        "update",
+        "set",
+        "update from"
+      ],
+      "resumen": "UPDATE cambia valores de filas existentes. Sin WHERE cambia todas las filas.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "UPDATE tabla SET columna = valor WHERE condición.",
+            "UPDATE … FROM otra_tabla permite usar datos de otra tabla en la condición o en el valor nuevo.",
+            "RETURNING devuelve las filas como quedaron.",
+            "Antes de un UPDATE grande, prueba el WHERE con un SELECT, o ejecútalo después de BEGIN para poder deshacerlo."
+          ],
+          "ejemplo": "BEGIN;\nUPDATE productos SET precio = precio * 1.10\nWHERE categoria_id = 2\nRETURNING nombre, precio;\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, con UPDATE … FROM y OUTPUT en lugar de RETURNING."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Sin UPDATE … FROM; se usa MERGE o una subconsulta."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "palabra:where"
+      ],
+      "fuentes": [
+        {
+          "titulo": "UPDATE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-update.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:delete",
+      "categoria": "palabra",
+      "titulo": "DELETE y TRUNCATE: borrar filas",
+      "alias": [
+        "delete",
+        "delete from",
+        "truncate",
+        "restart identity",
+        "using"
+      ],
+      "resumen": "DELETE borra las filas que cumplen el WHERE. TRUNCATE vacía la tabla entera de golpe.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "DELETE FROM tabla WHERE condición. Sin WHERE borra todas las filas. DELETE … USING otra_tabla permite usar otra tabla en la condición.",
+            "TRUNCATE tabla es mucho más rápido. Con RESTART IDENTITY reinicia los números automáticos, y con CASCADE vacía también las tablas que apuntan a ella.",
+            "En PostgreSQL, TRUNCATE dentro de BEGIN también se puede deshacer con ROLLBACK.",
+            "Si otras tablas apuntan a la fila, el DELETE falla con 23503, salvo que la llave tenga ON DELETE CASCADE o SET NULL."
+          ],
+          "ejemplo": "BEGIN;\nDELETE FROM pedido_productos WHERE pedido_id = 3 RETURNING *;\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; TRUNCATE no tiene CASCADE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "TRUNCATE hace COMMIT automático y no se puede deshacer."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "concepto:reglas-referenciales"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DELETE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-delete.html"
+        },
+        {
+          "titulo": "TRUNCATE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-truncate.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:create-table",
+      "categoria": "palabra",
+      "titulo": "CREATE TABLE: crear una tabla",
+      "alias": [
+        "create",
+        "table",
+        "create table",
+        "constraint",
+        "if not exists",
+        "like"
+      ],
+      "resumen": "CREATE TABLE crea una tabla nueva con sus columnas y restricciones.",
+      "secciones": [
+        {
+          "titulo": "Estructura",
+          "parrafos": [
+            "Cada columna lleva nombre y tipo, y después DEFAULT, NOT NULL u otras restricciones, en cualquier orden.",
+            "Las restricciones de tabla van al final, con nombre: CONSTRAINT pk_t PRIMARY KEY (id).",
+            "IF NOT EXISTS no da error si la tabla ya existe.",
+            "CREATE TABLE nueva (LIKE vieja INCLUDING ALL) copia la estructura de otra tabla. CREATE TABLE … AS SELECT copia también los datos."
+          ],
+          "ejemplo": "CREATE TABLE IF NOT EXISTS resenas_ejemplo (\n    id integer GENERATED ALWAYS AS IDENTITY,\n    producto_id integer NOT NULL REFERENCES productos (id),\n    estrellas smallint NOT NULL DEFAULT 5,\n    CONSTRAINT pk_resenas_ejemplo PRIMARY KEY (id),\n    CONSTRAINT ck_resenas_ejemplo_estrellas CHECK (estrellas BETWEEN 1 AND 5)\n);\nDROP TABLE resenas_ejemplo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "IDENTITY(1, 1) en lugar de GENERATED AS IDENTITY."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual en lo básico; IF NOT EXISTS desde 23ai."
+        }
+      ],
+      "relacionadas": [
+        "palabra:alter-table",
+        "concepto:clave-principal",
+        "concepto:minusculas-comillas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE TABLE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createtable.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:alter-table",
+      "categoria": "palabra",
+      "titulo": "ALTER TABLE: modificar una tabla",
+      "alias": [
+        "alter",
+        "alter table",
+        "add column",
+        "alter column",
+        "drop column",
+        "rename",
+        "rename column",
+        "type",
+        "set not null"
+      ],
+      "resumen": "ALTER TABLE cambia una tabla que ya existe.",
+      "secciones": [
+        {
+          "titulo": "Operaciones comunes",
+          "parrafos": [
+            "Agregar: ALTER TABLE clientes ADD COLUMN telefono varchar(20).",
+            "Cambiar tipo: ALTER COLUMN telefono TYPE varchar(30). Si hace falta convertir, se agrega USING expresión.",
+            "Obligatoria u opcional: ALTER COLUMN telefono SET NOT NULL, o DROP NOT NULL. Valor predeterminado: SET DEFAULT o DROP DEFAULT.",
+            "Renombrar: RENAME COLUMN telefono TO celular, o RENAME TO nombre_nuevo para la tabla.",
+            "Como el DDL es transaccional, puedes probar un cambio dentro de BEGIN y deshacerlo."
+          ],
+          "ejemplo": "BEGIN;\nALTER TABLE clientes ADD COLUMN telefono varchar(20);\nALTER TABLE clientes RENAME COLUMN telefono TO celular;\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ALTER COLUMN sin TYPE, y sp_rename para renombrar."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "MODIFY en lugar de ALTER COLUMN."
+        }
+      ],
+      "relacionadas": [
+        "palabra:create-table",
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ALTER TABLE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-altertable.html"
+        },
+        {
+          "titulo": "Modifying Tables (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/ddl-alter.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:drop",
+      "categoria": "palabra",
+      "titulo": "DROP: eliminar objetos",
+      "alias": [
+        "drop",
+        "drop table",
+        "if exists",
+        "cascade",
+        "drop database",
+        "with (force)"
+      ],
+      "resumen": "DROP elimina un objeto. En PostgreSQL no hay papelera, pero dentro de BEGIN el DROP se puede deshacer.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "DROP TABLE IF EXISTS nombre no da error si no existe; PostgreSQL solo deja un aviso.",
+            "Si otras tablas apuntan a ella, falla. CASCADE quita esas llaves foráneas y las vistas que dependen de la tabla.",
+            "DROP DATABASE nombre WITH (FORCE) cierra las conexiones abiertas a esa base y la borra. No se puede ejecutar dentro de BEGIN.",
+            "Fuera de una transacción, el DROP es definitivo."
+          ],
+          "ejemplo": "CREATE TABLE tmp_ejemplo (id int);\nDROP TABLE IF EXISTS tmp_ejemplo;\nDROP TABLE IF EXISTS tmp_ejemplo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DROP … IF EXISTS desde 2016, sin CASCADE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "La tabla va a la papelera de reciclaje; CASCADE CONSTRAINTS quita las llaves."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "palabra:create-table"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DROP TABLE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-droptable.html"
+        },
+        {
+          "titulo": "DROP DATABASE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-dropdatabase.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:conversion",
+      "categoria": "palabra",
+      "titulo": "El operador :: y CAST: convertir tipos",
+      "alias": [
+        "::",
+        "cast",
+        "conversión",
+        "convertir"
+      ],
+      "resumen": "valor::tipo convierte un valor a otro tipo. Es la forma más común en PostgreSQL; CAST(valor AS tipo) es la estándar.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "'2026-10-31'::date convierte un texto en fecha; precio::text, un número en texto.",
+            "Al leer restricciones y valores predeterminados, PostgreSQL muestra conversiones como 0::numeric o 'abc'::text. Son la misma expresión, escrita completa.",
+            "Si la conversión no es posible, el error es 22P02, «invalid input syntax».",
+            "El error 42883, «operator does not exist», suele significar que falta una conversión."
+          ],
+          "ejemplo": "SELECT '2026-10-31'::date + 1 AS manana,\n       CAST('42' AS integer) * 2 AS doble,\n       25.5::text || ' colones' AS texto;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CAST y CONVERT; no tiene ::."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CAST, TO_NUMBER, TO_DATE y TO_CHAR; no tiene ::."
+        }
+      ],
+      "relacionadas": [
+        "palabra:fechas",
+        "palabra:funciones-texto"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Value Expressions: Type Casts (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-expressions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-texto",
+      "categoria": "palabra",
+      "titulo": "Funciones de texto: ||, concat, lower y otras",
+      "alias": [
+        "||",
+        "concat",
+        "lower",
+        "upper",
+        "length",
+        "substring",
+        "replace",
+        "trim",
+        "split_part",
+        "format",
+        "initcap",
+        "left",
+        "right"
+      ],
+      "resumen": "Las funciones más usadas para unir, cortar y transformar textos.",
+      "secciones": [
+        {
+          "titulo": "Las más comunes",
+          "parrafos": [
+            "|| une textos, pero si uno es NULL el resultado es NULL. concat() ignora los NULL.",
+            "lower, upper e initcap cambian mayúsculas. length da el largo en caracteres.",
+            "substring(texto from 1 for 3), left(texto, 3) y right(texto, 3) cortan. replace(texto, 'a', 'b') reemplaza. trim quita espacios.",
+            "split_part('a,b,c', ',', 2) da 'b'. format('Hola %s', nombre) arma textos con marcadores."
+          ],
+          "ejemplo": "SELECT upper(nombre) AS mayusculas,\n       split_part(correo, '@', 1) AS usuario,\n       format('%s tiene el correo %s', nombre, correo) AS frase\nFROM clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "+ o CONCAT para unir, LEN, SUBSTRING, REPLACE y STRING_SPLIT."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "|| para unir (ignora los NULL), LENGTH, SUBSTR, REPLACE e INSTR."
+        }
+      ],
+      "relacionadas": [
+        "tipo:text",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "String Functions and Operators (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-string.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:fechas",
+      "categoria": "palabra",
+      "titulo": "Funciones de fecha: now, date_trunc, extract y otras",
+      "alias": [
+        "now",
+        "current_date",
+        "current_timestamp",
+        "date_trunc",
+        "extract",
+        "age",
+        "to_char",
+        "to_date",
+        "date_part",
+        "make_date"
+      ],
+      "resumen": "Las funciones para obtener la fecha actual, recortar fechas, sacar partes y darles formato.",
+      "secciones": [
+        {
+          "titulo": "Las más usadas",
+          "parrafos": [
+            "now() o CURRENT_TIMESTAMP: el momento actual. CURRENT_DATE: la fecha de hoy.",
+            "date_trunc('month', fecha) recorta al primer día del mes; también sirve con 'year', 'week', 'day' u 'hour'.",
+            "extract(year from fecha) saca una parte. age(fecha) da el tiempo transcurrido.",
+            "to_char(fecha, 'DD/MM/YYYY HH24:MI') da formato; to_date('31/10/2026', 'DD/MM/YYYY') convierte texto en fecha.",
+            "Sumar intervalos: fecha + INTERVAL '1 month'."
+          ],
+          "ejemplo": "SELECT date_trunc('month', fecha)::date AS mes, count(*) AS pedidos\nFROM pedidos\nGROUP BY 1\nORDER BY 1;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "GETDATE(), DATEADD, DATEDIFF, DATEPART y FORMAT."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "SYSDATE, TRUNC, ADD_MONTHS, EXTRACT, TO_CHAR y TO_DATE."
+        }
+      ],
+      "relacionadas": [
+        "tipo:timestamp",
+        "tipo:interval",
+        "palabra:generate-series"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Date/Time Functions and Operators (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-nulos-case",
+      "categoria": "palabra",
+      "titulo": "CASE, COALESCE, NULLIF, GREATEST y LEAST",
+      "alias": [
+        "case",
+        "when",
+        "then",
+        "else",
+        "coalesce",
+        "nullif",
+        "greatest",
+        "least"
+      ],
+      "resumen": "Las expresiones condicionales: elegir un valor según una condición, o reemplazar los NULL.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "CASE WHEN condición THEN valor … ELSE valor END devuelve el primero que se cumple, o NULL si ninguno se cumple y no hay ELSE.",
+            "COALESCE(a, b, c) devuelve el primer valor que no sea NULL.",
+            "NULLIF(a, b) devuelve NULL si a y b son iguales; sirve para evitar divisiones entre cero.",
+            "GREATEST y LEAST devuelven el mayor y el menor de una lista de valores."
+          ],
+          "ejemplo": "SELECT nombre, precio,\n       CASE WHEN precio < 30 THEN 'barato'\n            WHEN precio < 80 THEN 'medio'\n            ELSE 'caro' END AS rango,\n       GREATEST(precio, 50) AS al_menos_50\nFROM productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CASE, COALESCE, NULLIF e ISNULL; GREATEST y LEAST desde 2022."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CASE, COALESCE, NULLIF, NVL y DECODE."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "plpgsql:if-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Conditional Expressions (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-conditional.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:generate-series",
+      "categoria": "palabra",
+      "titulo": "generate_series: generar filas",
+      "alias": [
+        "generate_series",
+        "serie",
+        "secuencia de números",
+        "secuencia de fechas"
+      ],
+      "resumen": "generate_series crea una lista de números o de fechas como si fuera una tabla. Es muy útil para practicar y para reportes.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "generate_series(1, 10) da los números del 1 al 10. Con un tercer valor, el salto: generate_series(0, 100, 25).",
+            "Con fechas: generate_series(DATE '2026-01-01', DATE '2026-12-01', INTERVAL '1 month') da el primer día de cada mes.",
+            "Combinado con LEFT JOIN, sirve para mostrar también los meses sin ventas."
+          ],
+          "ejemplo": "SELECT mes::date, count(p.id) AS pedidos\nFROM generate_series(DATE '2026-05-01', DATE '2026-09-01', INTERVAL '1 month') AS mes\nLEFT JOIN pedidos p ON date_trunc('month', p.fecha) = mes\nGROUP BY mes\nORDER BY mes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "GENERATE_SERIES desde 2022, solo con números."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "SELECT LEVEL FROM dual CONNECT BY LEVEL <= 10."
+        }
+      ],
+      "relacionadas": [
+        "palabra:fechas",
+        "palabra:join"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Set Returning Functions (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/functions-srf.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:do",
+      "categoria": "plsql",
+      "titulo": "Bloque DO: código PL/pgSQL sin guardar",
+      "alias": [
+        "do",
+        "plpgsql",
+        "pl/pgsql",
+        "declare",
+        "begin",
+        "end",
+        "bloque",
+        "bloque anónimo"
+      ],
+      "resumen": "DO ejecuta un bloque de PL/pgSQL, el lenguaje de programación de PostgreSQL, sin guardarlo como función.",
+      "secciones": [
+        {
+          "titulo": "Estructura",
+          "parrafos": [
+            "DO $$ DECLARE … BEGIN … END $$; El cuerpo va entre signos de dólar.",
+            "DECLARE, opcional, declara variables. BEGIN … END tiene las instrucciones, cada una con punto y coma. EXCEPTION, opcional, maneja errores.",
+            "Ojo: el BEGIN de PL/pgSQL no abre una transacción; es solo el inicio del bloque.",
+            "Un DO no devuelve resultados; para mostrar valores usa RAISE NOTICE."
+          ],
+          "ejemplo": "DO $$\nDECLARE\n    total integer;\nBEGIN\n    SELECT count(*) INTO total FROM clientes;\n    RAISE NOTICE 'Hay % clientes', total;\nEND\n$$;"
+        },
+        {
+          "titulo": "En el editor",
+          "parrafos": [
+            "No hace falta la barra / de Oracle: el divisor reconoce los signos de dólar y no corta en los puntos y coma de adentro.",
+            "Si ocurre un error dentro del bloque, la aplicación lo ubica en la línea real del editor."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No necesita bloque: el T-SQL se ejecuta directo en el lote."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "BEGIN … END; seguido de una línea con /."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:dolar",
+        "plpgsql:variables",
+        "plpgsql:raise"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DO (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-do.html"
+        },
+        {
+          "titulo": "Structure of PL/pgSQL (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/plpgsql-structure.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:dolar",
+      "categoria": "plsql",
+      "titulo": "Signos de dólar: $$ … $$",
+      "alias": [
+        "$$",
+        "dólar",
+        "dollar quoting",
+        "$cuerpo$"
+      ],
+      "resumen": "PostgreSQL permite escribir un texto entre $$ y $$ sin escapar las comillas de adentro. Se usa sobre todo para el cuerpo de funciones y bloques DO.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Todo lo que va entre $$ y $$ es un texto literal: puede tener comillas simples, puntos y coma y saltos de línea.",
+            "Se puede poner una etiqueta entre los dólares, como $cuerpo$ … $cuerpo$, para anidar un texto con $$ dentro de otro.",
+            "$1 y $2, en cambio, son parámetros, no signos de dólar de texto."
+          ],
+          "ejemplo": "SELECT $$Texto con 'comillas' y ; punto y coma$$ AS texto;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No existe; las comillas se duplican: 'it''s'."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "q'[ … ]' cumple un papel parecido."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:do",
+        "plpgsql:funciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Lexical Structure: Dollar-Quoted String Constants (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-syntax-lexical.html#SQL-SYNTAX-DOLLAR-QUOTING"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:variables",
+      "categoria": "plsql",
+      "titulo": "Variables, %TYPE, %ROWTYPE y SELECT INTO",
+      "alias": [
+        "variable",
+        "constant",
+        ":=",
+        "%type",
+        "%rowtype",
+        "record",
+        "into",
+        "select into",
+        "strict",
+        "found"
+      ],
+      "resumen": "Las variables se declaran en DECLARE y se asignan con :=. %TYPE y %ROWTYPE copian el tipo de una columna o de una fila.",
+      "secciones": [
+        {
+          "titulo": "Declarar y asignar",
+          "parrafos": [
+            "nombre varchar(100); y luego nombre := 'Ana';. CONSTANT crea un valor fijo.",
+            "precio productos.precio%TYPE toma el tipo de la columna; fila clientes%ROWTYPE guarda una fila entera; record guarda una fila de cualquier forma.",
+            "SELECT … INTO variable lee una fila. Si no hay filas, la variable queda en NULL; con INTO STRICT, en cambio, da error si no hay exactamente una.",
+            "La variable especial FOUND dice si la última consulta encontró filas."
+          ],
+          "ejemplo": "DO $$\nDECLARE\n    c clientes%ROWTYPE;\nBEGIN\n    SELECT * INTO c FROM clientes WHERE id = 1;\n    IF FOUND THEN\n        RAISE NOTICE 'Cliente: %', c.nombre;\n    END IF;\nEND\n$$;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DECLARE @nombre nvarchar(100) = 'Ana';"
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual en PL/SQL, pero SELECT INTO sin filas lanza NO_DATA_FOUND."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:do",
+        "plpgsql:bucles"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/pgSQL Declarations (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/plpgsql-declarations.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:if-case",
+      "categoria": "plsql",
+      "titulo": "IF y CASE en PL/pgSQL",
+      "alias": [
+        "if",
+        "elsif",
+        "elseif",
+        "end if",
+        "case",
+        "end case"
+      ],
+      "resumen": "IF ejecuta instrucciones según una condición; CASE elige entre varias opciones.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "IF condición THEN … ELSIF otra THEN … ELSE … END IF; En PostgreSQL vale ELSIF o ELSEIF.",
+            "CASE … WHEN … THEN … ELSE … END CASE; Si ninguna opción se cumple y no hay ELSE, da el error CASE_NOT_FOUND."
+          ],
+          "ejemplo": "DO $$\nDECLARE\n    precio numeric := 45;\nBEGIN\n    IF precio < 30 THEN\n        RAISE NOTICE 'barato';\n    ELSIF precio < 80 THEN\n        RAISE NOTICE 'medio';\n    ELSE\n        RAISE NOTICE 'caro';\n    END IF;\nEND\n$$;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "IF … BEGIN … END ELSE …, sin ELSIF."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual en PL/SQL, solo con ELSIF."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:bucles",
+        "palabra:funciones-nulos-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/pgSQL Control Structures (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/plpgsql-control-structures.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:bucles",
+      "categoria": "plsql",
+      "titulo": "Bucles: LOOP, WHILE, FOR y FOREACH",
+      "alias": [
+        "loop",
+        "end loop",
+        "while",
+        "for",
+        "foreach",
+        "exit",
+        "continue",
+        "reverse",
+        "for in select"
+      ],
+      "resumen": "Los bucles repiten instrucciones. El FOR sobre una consulta recorre sus filas, como un cursor.",
+      "secciones": [
+        {
+          "titulo": "Los bucles",
+          "parrafos": [
+            "LOOP … END LOOP; se repite hasta un EXIT WHEN condición.",
+            "WHILE condición LOOP … END LOOP; repite mientras se cumpla.",
+            "FOR i IN 1..10 LOOP … END LOOP; cuenta. FOR fila IN SELECT … LOOP recorre las filas de una consulta.",
+            "FOREACH elemento IN ARRAY arreglo LOOP recorre un arreglo. CONTINUE salta a la siguiente vuelta."
+          ],
+          "ejemplo": "DO $$\nDECLARE\n    p record;\nBEGIN\n    FOR p IN SELECT nombre, precio FROM productos ORDER BY precio DESC LIMIT 3 LOOP\n        RAISE NOTICE '%: %', p.nombre, p.precio;\n    END LOOP;\nEND\n$$;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Solo WHILE; para recorrer filas, cursores."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual en PL/SQL, con FOR fila IN (SELECT …)."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:variables",
+        "tipo:arreglos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/pgSQL Control Structures: Loops (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/plpgsql-control-structures.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:raise",
+      "categoria": "plsql",
+      "titulo": "RAISE y EXCEPTION: mensajes y errores",
+      "alias": [
+        "raise",
+        "raise notice",
+        "raise exception",
+        "exception",
+        "when others",
+        "sqlerrm",
+        "sqlstate",
+        "division_by_zero",
+        "unique_violation",
+        "notice"
+      ],
+      "resumen": "RAISE NOTICE muestra un mensaje; RAISE EXCEPTION lanza un error. La sección EXCEPTION decide qué hacer cuando algo falla.",
+      "secciones": [
+        {
+          "titulo": "Mensajes",
+          "parrafos": [
+            "RAISE NOTICE 'Total: %', total; El signo % se reemplaza por cada valor, en orden.",
+            "En esta aplicación los NOTICE aparecen en el panel de mensajes, como PRINT en SQL Server.",
+            "RAISE EXCEPTION 'texto' lanza un error que detiene el bloque; con USING ERRCODE se le pone un código."
+          ]
+        },
+        {
+          "titulo": "Manejar errores",
+          "parrafos": [
+            "EXCEPTION WHEN division_by_zero THEN …, WHEN unique_violation THEN …, WHEN OTHERS THEN …",
+            "SQLERRM tiene el mensaje del error y SQLSTATE su código.",
+            "Si se entra a EXCEPTION, lo que hizo el bloque se deshace, como si tuviera su propio SAVEPOINT."
+          ],
+          "ejemplo": "DO $$\nBEGIN\n    PERFORM 1 / 0;\nEXCEPTION\n    WHEN division_by_zero THEN\n        RAISE NOTICE 'Atrapé el error: % (%)', SQLERRM, SQLSTATE;\nEND\n$$;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "PRINT para mensajes, THROW o RAISERROR para errores, y TRY … CATCH."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "DBMS_OUTPUT.PUT_LINE, RAISE_APPLICATION_ERROR y EXCEPTION WHEN."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:do",
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/pgSQL Errors and Messages (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/plpgsql-errors-and-messages.html"
+        },
+        {
+          "titulo": "PostgreSQL Error Codes (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/errcodes-appendix.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:funciones",
+      "categoria": "plsql",
+      "titulo": "Funciones: CREATE FUNCTION",
+      "alias": [
+        "function",
+        "función",
+        "create function",
+        "returns",
+        "return",
+        "returns table",
+        "language",
+        "language sql",
+        "perform"
+      ],
+      "resumen": "Una función guarda código con nombre que recibe parámetros y devuelve un valor o una tabla. Se puede usar dentro de un SELECT.",
+      "secciones": [
+        {
+          "titulo": "Crear y usar",
+          "parrafos": [
+            "CREATE OR REPLACE FUNCTION nombre(parametro tipo) RETURNS tipo LANGUAGE plpgsql AS $$ … $$;",
+            "Las funciones sencillas pueden escribirse en LANGUAGE sql, con solo una consulta.",
+            "RETURNS TABLE (columnas) devuelve varias filas, y se usa en el FROM: SELECT * FROM mi_funcion(1).",
+            "Para llamar una función sin usar su resultado dentro de PL/pgSQL, se usa PERFORM en lugar de SELECT."
+          ],
+          "ejemplo": "CREATE OR REPLACE FUNCTION precio_con_iva(p numeric) RETURNS numeric\nLANGUAGE sql\nAS $$\n    SELECT round(p * 1.13, 2);\n$$;\n\nSELECT nombre, precio_con_iva(precio) FROM productos;\nDROP FUNCTION precio_con_iva(numeric);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE FUNCTION … RETURNS … AS BEGIN … END, y funciones de tabla con RETURNS TABLE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE FUNCTION … RETURN tipo AS BEGIN … END; y una línea con /."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:procedimientos",
+        "plpgsql:dolar"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE FUNCTION (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createfunction.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:procedimientos",
+      "categoria": "plsql",
+      "titulo": "Procedimientos: CREATE PROCEDURE y CALL",
+      "alias": [
+        "procedure",
+        "procedimiento",
+        "create procedure",
+        "call"
+      ],
+      "resumen": "Un procedimiento es como una función que no devuelve valor y se llama con CALL. A diferencia de las funciones, puede hacer COMMIT y ROLLBACK por dentro.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "CREATE OR REPLACE PROCEDURE nombre(parametros) LANGUAGE plpgsql AS $$ … $$;",
+            "Se ejecuta con CALL nombre(valores);.",
+            "Dentro de un procedimiento se puede hacer COMMIT, por ejemplo para procesar muchas filas por partes. Eso no se puede en una función.",
+            "Existen desde PostgreSQL 11; antes todo se hacía con funciones."
+          ],
+          "ejemplo": "CREATE OR REPLACE PROCEDURE subir_precios(porcentaje numeric)\nLANGUAGE plpgsql\nAS $$\nBEGIN\n    UPDATE productos SET precio = round(precio * (1 + porcentaje / 100), 2);\n    RAISE NOTICE 'Precios actualizados';\nEND\n$$;\n\nDROP PROCEDURE subir_precios(numeric);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE PROCEDURE, que se llama con EXEC."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE PROCEDURE, que se llama dentro de un bloque o con CALL."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:funciones",
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE PROCEDURE (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createprocedure.html"
+        },
+        {
+          "titulo": "CALL (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-call.html"
+        }
+      ]
+    },
+    {
+      "id": "plpgsql:disparadores",
+      "categoria": "plsql",
+      "titulo": "Disparadores (triggers)",
+      "alias": [
+        "trigger",
+        "disparador",
+        "create trigger",
+        "returns trigger",
+        "new",
+        "old",
+        "tg_op",
+        "before",
+        "after",
+        "for each row",
+        "execute function"
+      ],
+      "resumen": "En PostgreSQL un disparador tiene dos partes: una función que devuelve trigger, y el CREATE TRIGGER que la conecta a la tabla.",
+      "secciones": [
+        {
+          "titulo": "Las dos partes",
+          "parrafos": [
+            "La función: CREATE FUNCTION nombre() RETURNS trigger LANGUAGE plpgsql AS $$ … $$; Dentro, NEW es la fila nueva, OLD la anterior, y TG_OP dice si fue INSERT, UPDATE o DELETE.",
+            "En un disparador BEFORE … FOR EACH ROW, la función devuelve NEW, que puede cambiar; si devuelve NULL, la operación se cancela para esa fila.",
+            "El disparador: CREATE TRIGGER nombre BEFORE INSERT OR UPDATE ON tabla FOR EACH ROW EXECUTE FUNCTION nombre_funcion();",
+            "Para reglas simples, una restricción CHECK es más clara."
+          ],
+          "ejemplo": "CREATE OR REPLACE FUNCTION tg_nombre_mayuscula() RETURNS trigger\nLANGUAGE plpgsql\nAS $$\nBEGIN\n    NEW.nombre := initcap(NEW.nombre);\n    RETURN NEW;\nEND\n$$;\n\nCREATE TRIGGER tr_clientes_nombre\nBEFORE INSERT OR UPDATE ON clientes\nFOR EACH ROW EXECUTE FUNCTION tg_nombre_mayuscula();\n\nDROP TRIGGER tr_clientes_nombre ON clientes;\nDROP FUNCTION tg_nombre_mayuscula();"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE TRIGGER … AFTER o INSTEAD OF, con las tablas inserted y deleted."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE TRIGGER con el código adentro, usando :NEW y :OLD."
+        }
+      ],
+      "relacionadas": [
+        "plpgsql:funciones",
+        "concepto:check"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Trigger Functions (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/plpgsql-trigger.html"
+        },
+        {
+          "titulo": "CREATE TRIGGER (PostgreSQL 18)",
+          "url": "https://www.postgresql.org/docs/18/sql-createtrigger.html"
+        }
+      ]
+    },
+    {
+      "id": "atajos:aplicacion",
+      "categoria": "atajos",
+      "titulo": "Atajos de teclado de Mi Gestor BD Accesible",
+      "alias": [
+        "atajos",
+        "teclas",
+        "teclado",
+        "f1",
+        "f5",
+        "f6",
+        "f8",
+        "menú",
+        "aplicaciones"
+      ],
+      "resumen": "Las teclas para moverte por la aplicación sin ratón.",
+      "secciones": [
+        {
+          "titulo": "En cualquier lugar",
+          "parrafos": [
+            "F1: abre la ayuda del elemento donde estás. En el editor, explica la palabra de SQL bajo el cursor. Si no hay ayuda para ese elemento, abre la portada.",
+            "F8: vuelve al explorador de objetos, al último nodo donde estabas.",
+            "Control+N: abre una consulta conectada a la base de datos del nodo donde estás. Si ya hay una abierta, cambia su base y conserva el texto.",
+            "Control+T: abre otra pestaña de consulta en la base del nodo (o en la de la pestaña actual, si estás en el editor). Control+W cierra la pestaña activa y Control+Tab o Control+Mayúsculas+Tab cambian de pestaña. En la lista de pestañas, las flechas izquierda y derecha pasan de una a otra.",
+            "F5: ejecuta la consulta completa, o solo el texto seleccionado.",
+            "F6 y Mayúsculas+F6: pasan entre el editor, los resultados y los mensajes, hacia adelante o hacia atrás.",
+            "Control+O: abre un archivo .sql en el editor. Si hay cambios sin guardar, primero pregunta si quieres guardarlos.",
+            "Control+S: guarda la consulta en su archivo; la primera vez pregunta dónde. Control+Mayúsculas+S: guarda en un archivo nuevo.",
+            "Control+H: muestra el historial de consultas ejecutadas en esta conexión, de la más reciente a la más antigua.",
+            "Control+F: abre la barra para buscar y reemplazar en la consulta. Intro va a la siguiente coincidencia y Mayúsculas+Intro a la anterior; Escape vuelve al editor con el cursor sobre la coincidencia. F3 y Mayúsculas+F3 siguen buscando desde el editor.",
+            "Control+B: busca un objeto por su nombre en la base (tablas, columnas, vistas, procedimientos, funciones, índices, restricciones, disparadores y secuencias). Las flechas recorren los resultados e Intro lleva al objeto en el árbol. Control+B otra vez recupera la última búsqueda.",
+            "Alt o F10: activa la barra de menús (Archivo, Editar, Consulta y Ayuda), con todas las acciones principales y sus atajos. Las flechas recorren los menús, Intro elige una opción y Escape vuelve a donde estabas."
+          ]
+        },
+        {
+          "titulo": "En el editor con PostgreSQL",
+          "parrafos": [
+            "Cada sentencia termina en punto y coma. El cuerpo de las funciones y de los bloques DO va entre signos de dólar, $$ … $$, y el editor no corta en los puntos y coma de adentro.",
+            "Cada sentencia se confirma sola. Si escribes BEGIN, los cambios quedan pendientes hasta COMMIT o ROLLBACK, y verás un aviso sobre los resultados.",
+            "Cada pestaña tiene su propia sesión en cada base: un COMMIT o un ROLLBACK en una pestaña no toca a las demás. Para trabajar en otra base, ponte sobre ella en el explorador y pulsa Control+N (misma pestaña) o Control+T (pestaña nueva).",
+            "Los mensajes de RAISE NOTICE aparecen en el panel de mensajes, y los comandos de psql, como \\d, se explican sin enviarse al servidor."
+          ]
+        },
+        {
+          "titulo": "En los resultados y los mensajes",
+          "parrafos": [
+            "Cada resultado es una tabla: usa los comandos de tabla de tu lector de pantalla para moverte por filas y columnas. La primera columna es el número de fila.",
+            "En los mensajes, cada error tiene un botón «Ir a la línea» que lleva el cursor del editor al comienzo de esa línea.",
+            "Cada resultado tiene los botones «Copiar tabla», que la copia separada por tabulaciones para pegarla en una hoja de cálculo, y «Exportar a CSV». Con la tecla 3 de tu lector de pantalla saltas de un resultado al siguiente."
+          ]
+        },
+        {
+          "titulo": "En el explorador de objetos",
+          "parrafos": [
+            "Flecha abajo y flecha arriba: siguiente y anterior nodo.",
+            "Flecha derecha: expande el nodo; si ya está expandido, entra al primer hijo.",
+            "Flecha izquierda: contrae el nodo; si ya está contraído, sube al padre.",
+            "Inicio y Fin: primer y último nodo visible.",
+            "Intro: sobre una tabla, la describe; sobre una carpeta, la expande o la contrae.",
+            "Tecla Aplicaciones o Mayúsculas+F10: abre el menú de acciones del nodo, como Nueva consulta, Nueva tabla, Seleccionar las primeras 100 filas, Generar script o Eliminar."
+          ]
+        },
+        {
+          "titulo": "En el menú de acciones",
+          "parrafos": [
+            "Flecha abajo y flecha arriba recorren las acciones; Inicio y Fin van a la primera y a la última. Una letra salta a la siguiente acción que empieza con ella.",
+            "Intro o Espacio ejecutan la acción. Escape o Tab cierran el menú y vuelven al nodo.",
+            "Las acciones que terminan en puntos suspensivos abren un cuadro de diálogo que muestra el SQL antes de ejecutarlo. Las de eliminar piden confirmación."
+          ]
+        },
+        {
+          "titulo": "En la ayuda",
+          "parrafos": [
+            "Escape: cierra la ayuda y vuelve al lugar donde estabas.",
+            "Los temas relacionados son botones: actívalos con Intro para abrir esa ficha. El botón Atrás vuelve a la ficha anterior."
+          ]
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [],
+      "fuentes": []
+    }
+  ]
+}

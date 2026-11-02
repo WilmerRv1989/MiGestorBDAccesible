@@ -1,0 +1,14 @@
+<Project>
+
+  <PropertyGroup>
+    <Product>Mi Gestor BD Accesible</Product>
+    <Version>1.0.0</Version>
+    <Authors>Wilmer Rodríguez Vega</Authors>
+    <Company>Wilmer Rodríguez Vega</Company>
+    <Copyright>© 2026 Wilmer Rodríguez Vega</Copyright>
+    <AssemblyTitle>Mi Gestor BD Accesible</AssemblyTitle>
+    <Description>Gestor de bases de datos accesible con lector de pantalla</Description>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+</Project>

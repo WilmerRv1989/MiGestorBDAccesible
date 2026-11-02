@@ -1,0 +1,51 @@
+@using MiGestorBDAccesible.Core.Ejecucion
+@inject IJSRuntime js
+
+<div data-zona="mensajes" class="panel-mensajes">
+    <h2 id="titulo-mensajes" tabindex="-1">Mensajes@(Resultado is null ? "" : $" ({Resultado.Mensajes.Count})")</h2>
+
+    @if (Resultado is null)
+    {
+        <p>Aquí aparecerán los mensajes y errores de la ejecución.</p>
+    }
+    else
+    {
+        <ul class="lista-mensajes">
+            @foreach (var mensaje in Resultado.Mensajes)
+            {
+                <li class="@(mensaje.Tipo == TipoMensaje.Error ? "error" : null)">
+                    @Texto(mensaje)
+                    @if (mensaje.Tipo == TipoMensaje.Error && mensaje.Linea is int linea)
+                    {
+                        <button class="enlace" @onclick="() => IrALineaAsync(linea)">Ir a la línea @linea</button>
+                    }
+                </li>
+            }
+
+            @if (Resultado.Mensajes.Count == 0)
+            {
+                <li>Comandos completados correctamente.</li>
+            }
+
+            <li>Duración: @Resultado.Duracion.TotalMilliseconds.ToString("N0") milisegundos.</li>
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public ResultadoEjecucionModelo? Resultado { get; set; }
+
+    private static string Texto(MensajeEjecucionModelo mensaje)
+    {
+        var linea = mensaje.Linea is int l ? $", línea {l}" : "";
+
+        return mensaje.Tipo switch
+        {
+            TipoMensaje.Error => $"Error{(mensaje.Numero is null ? "" : $" {mensaje.Numero}")}{linea}: {mensaje.Texto}",
+            TipoMensaje.Informacion when mensaje.Numero is not null => $"Aviso {mensaje.Numero}{linea}: {mensaje.Texto}",
+            _ => mensaje.Texto
+        };
+    }
+
+    private async Task IrALineaAsync(int linea) => await js.InvokeVoidAsync("miGestor.irALinea", linea);
+}

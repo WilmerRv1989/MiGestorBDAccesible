@@ -1,0 +1,235 @@
+@using MiGestorBDAccesible.Core.Trabajo
+@inject IJSRuntime js
+@inject AnunciadorService anunciador
+
+<h2 id="titulo-consulta">Consulta en @(BaseDatos ?? "la base predeterminada")@(Archivo is null ? "" : $": {Archivo}")@(Modificado && Archivo is not null ? ", con cambios sin guardar" : "")</h2>
+
+@if (Busqueda.Abierta)
+{
+    <div class="barra-busqueda" role="search" aria-label="Buscar en la consulta" @onkeydown="TeclaBarraAsync">
+        <div class="campo">
+            <label for="buscar-texto">Buscar</label>
+            <input id="buscar-texto" type="text" autocomplete="off" spellcheck="false" @bind="Busqueda.Texto" @bind:event="oninput" @onkeydown="TeclaBuscarAsync" />
+        </div>
+        <div class="campo">
+            <label for="buscar-reemplazo">Reemplazar con</label>
+            <input id="buscar-reemplazo" type="text" autocomplete="off" spellcheck="false" @bind="Busqueda.Reemplazo" @bind:event="oninput" @onkeydown="TeclaReemplazoAsync" />
+        </div>
+        <div class="campo casilla">
+            <input id="buscar-mayusculas" type="checkbox" @bind="Busqueda.CoincidirMayusculas" />
+            <label for="buscar-mayusculas">Coincidir mayúsculas y minúsculas</label>
+        </div>
+        <div class="campo casilla">
+            <input id="buscar-palabra" type="checkbox" @bind="Busqueda.PalabraCompleta" />
+            <label for="buscar-palabra">Solo palabras completas</label>
+        </div>
+        <div class="acciones">
+            <button @onclick="() => BuscarAsync(true)">Anterior</button>
+            <button class="principal" @onclick="() => BuscarAsync(false)">Siguiente</button>
+            <button disabled="@Ejecutando" @onclick="ReemplazarAsync">Reemplazar</button>
+            <button disabled="@Ejecutando" @onclick="ReemplazarTodoAsync">Reemplazar todo</button>
+            <button @onclick="CerrarBusquedaAsync">Cerrar</button>
+        </div>
+    </div>
+}
+
+<div class="campo" data-zona="editor">
+    <label for="editor-sql">Editor de SQL</label>
+    <textarea id="editor-sql" class="editor-sql" rows="12" spellcheck="false" autocomplete="off"
+              value="@Texto" @oninput="CambiarTexto"></textarea>
+    <span id="ayuda-editor" class="ayuda">F5 ejecuta todo o lo seleccionado. F6 cambia entre editor, resultados y mensajes. F1 explica la palabra bajo el cursor. Control+T abre otra pestaña, Control+W la cierra y Control+Tab cambia de pestaña. Control+O abre, Control+S guarda y Control+H muestra el historial. Control+F busca y reemplaza; F3 sigue buscando.</span>
+</div>
+
+<div class="acciones">
+    <button class="principal" disabled="@Ejecutando" @onclick="EjecutarAsync">Ejecutar (F5)</button>
+    <button disabled="@(!Ejecutando)" @onclick="AlCancelar">Cancelar ejecución</button>
+    <button disabled="@Ejecutando" @onclick="AbrirAsync">Abrir archivo (Control+O)</button>
+    <button disabled="@Ejecutando" @onclick="GuardarAsync">Guardar (Control+S)</button>
+    <button disabled="@Ejecutando" @onclick="GuardarComoAsync">Guardar como (Control+Mayúsculas+S)</button>
+    <button @onclick="HistorialAsync">Historial (Control+H)</button>
+    <button disabled="@Ejecutando" @onclick="LimpiarAsync">Limpiar editor</button>
+</div>
+
+@code {
+    [Parameter] public string? BaseDatos { get; set; }
+    [Parameter] public string? Archivo { get; set; }
+    [Parameter] public bool Modificado { get; set; }
+    [Parameter] public string Texto { get; set; } = "";
+    [Parameter] public EventCallback<string> TextoChanged { get; set; }
+    [Parameter] public bool Ejecutando { get; set; }
+    [Parameter] public EventCallback AlCancelar { get; set; }
+    [Parameter, EditorRequired] public BusquedaModelo Busqueda { get; set; } = default!;
+
+    private bool _enfocarBusqueda;
+
+    private record SeleccionEditor(int Inicio, int Fin, string Texto);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocarBusqueda)
+        {
+            _enfocarBusqueda = false;
+            await js.InvokeVoidAsync("miGestor.enfocarYSeleccionar", "buscar-texto");
+        }
+    }
+
+    public async Task AbrirBusquedaAsync()
+    {
+        var seleccion = await js.InvokeAsync<SeleccionEditor?>("miGestor.seleccionEditor");
+
+        if (seleccion is not null && seleccion.Fin > seleccion.Inicio && seleccion.Fin - seleccion.Inicio <= 100)
+        {
+            var seleccionado = seleccion.Texto[seleccion.Inicio..seleccion.Fin];
+
+            if (!seleccionado.Contains('\n'))
+            {
+                Busqueda.Texto = seleccionado;
+            }
+        }
+
+        Busqueda.Abierta = true;
+        _enfocarBusqueda = true;
+        StateHasChanged();
+    }
+
+    public async Task BuscarSiguienteAsync(bool atras)
+    {
+        if (Busqueda.Texto.Length == 0)
+        {
+            await AbrirBusquedaAsync();
+            return;
+        }
+
+        await BuscarAsync(atras);
+    }
+
+    private async Task BuscarAsync(bool atras)
+    {
+        var seleccion = await js.InvokeAsync<SeleccionEditor?>("miGestor.seleccionEditor");
+
+        if (seleccion is null || Busqueda.Texto.Length == 0)
+        {
+            return;
+        }
+
+        var resultado = BuscadorTextoService.Buscar(seleccion.Texto, Busqueda, seleccion.Inicio, seleccion.Fin, atras);
+
+        if (resultado is null)
+        {
+            await anunciador.AnunciarAsync($"No se encontró {Busqueda.Texto}.");
+            return;
+        }
+
+        await js.InvokeVoidAsync("miGestor.seleccionarEnEditor", resultado.Coincidencia.Inicio, resultado.Coincidencia.Fin);
+        await anunciador.AnunciarAsync(BuscadorTextoService.Anuncio(seleccion.Texto, resultado));
+    }
+
+    private async Task ReemplazarAsync()
+    {
+        var seleccion = await js.InvokeAsync<SeleccionEditor?>("miGestor.seleccionEditor");
+
+        if (seleccion is null || Busqueda.Texto.Length == 0)
+        {
+            return;
+        }
+
+        var actual = BuscadorTextoService.Coincidencias(seleccion.Texto, Busqueda)
+            .FirstOrDefault(c => c.Inicio == seleccion.Inicio && c.Fin == seleccion.Fin);
+
+        if (actual is null)
+        {
+            await BuscarAsync(false);
+            return;
+        }
+
+        var texto = await js.InvokeAsync<string?>("miGestor.reemplazarEnEditor", actual.Inicio, actual.Fin, Busqueda.Reemplazo);
+
+        if (texto is null)
+        {
+            return;
+        }
+
+        var despues = actual.Inicio + Busqueda.Reemplazo.Length;
+        var resultado = BuscadorTextoService.Buscar(texto, Busqueda, despues, despues, false);
+
+        if (resultado is null)
+        {
+            await js.InvokeVoidAsync("miGestor.seleccionarEnEditor", actual.Inicio, despues);
+            await anunciador.AnunciarAsync("Reemplazada. No quedan más coincidencias.");
+            return;
+        }
+
+        await js.InvokeVoidAsync("miGestor.seleccionarEnEditor", resultado.Coincidencia.Inicio, resultado.Coincidencia.Fin);
+        await anunciador.AnunciarAsync("Reemplazada. " + BuscadorTextoService.Anuncio(texto, resultado));
+    }
+
+    private async Task ReemplazarTodoAsync()
+    {
+        var seleccion = await js.InvokeAsync<SeleccionEditor?>("miGestor.seleccionEditor");
+
+        if (seleccion is null || Busqueda.Texto.Length == 0)
+        {
+            return;
+        }
+
+        var (texto, cantidad) = BuscadorTextoService.ReemplazarTodo(seleccion.Texto, Busqueda);
+
+        if (cantidad == 0)
+        {
+            await anunciador.AnunciarAsync($"No se encontró {Busqueda.Texto}.");
+            return;
+        }
+
+        await js.InvokeVoidAsync("miGestor.reemplazarTodoEnEditor", texto);
+        await anunciador.AnunciarAsync(cantidad == 1 ? "1 reemplazo hecho." : $"{cantidad} reemplazos hechos.");
+    }
+
+    private async Task CerrarBusquedaAsync()
+    {
+        Busqueda.Abierta = false;
+        StateHasChanged();
+        await js.InvokeVoidAsync("miGestor.enfocar", "editor-sql");
+    }
+
+    private async Task TeclaBarraAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await CerrarBusquedaAsync();
+        }
+    }
+
+    private async Task TeclaBuscarAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await BuscarAsync(e.ShiftKey);
+        }
+    }
+
+    private async Task TeclaReemplazoAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ReemplazarAsync();
+        }
+    }
+
+    private Task CambiarTexto(ChangeEventArgs e) => TextoChanged.InvokeAsync(e.Value?.ToString() ?? "");
+
+    private async Task EjecutarAsync() => await js.InvokeVoidAsync("miGestor.ejecutarConsulta");
+
+    private async Task AbrirAsync() => await js.InvokeVoidAsync("miGestor.abrirArchivo");
+
+    private async Task GuardarAsync() => await js.InvokeVoidAsync("miGestor.guardarArchivo", false);
+
+    private async Task GuardarComoAsync() => await js.InvokeVoidAsync("miGestor.guardarArchivo", true);
+
+    private async Task HistorialAsync() => await js.InvokeVoidAsync("miGestor.abrirHistorial");
+
+    private async Task LimpiarAsync()
+    {
+        await TextoChanged.InvokeAsync("");
+        await js.InvokeVoidAsync("miGestor.enfocar", "editor-sql");
+    }
+}

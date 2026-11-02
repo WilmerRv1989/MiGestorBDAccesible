@@ -1,0 +1,1397 @@
+@using MiGestorBDAccesible.Core.Ejecucion
+@using MiGestorBDAccesible.Core.Trabajo
+@using System.IO
+@implements IAsyncDisposable
+@inject ProveedoresService proveedores
+@inject NarradorTablaService narrador
+@inject NarradorObjetoService narradorObjetos
+@inject NarradorModeloService narradorModelo
+@inject AnunciadorService anunciador
+@inject ArchivosService archivos
+@inject HistorialConsultasService historial
+@inject SesionEditorService sesiones
+@inject IJSRuntime js
+
+<div class="espacio" inert="@(_historialAbierto || _preguntarDesconexion || _pestanaPorCerrar is not null || _joinAbierto)">
+    <header class="cabecera">
+        <h1>@Conexion.Conexion.Nombre</h1>
+        <p class="detalle">@Conexion.Servidor.Producto, @Conexion.Servidor.Edicion, versión @Conexion.Servidor.Version.</p>
+        @if (Conexion.Servidor.Advertencia is not null)
+        {
+            <p class="aviso-transaccion">@Conexion.Servidor.Advertencia</p>
+        }
+        <button id="boton-desconectar" @onclick="DesconectarAsync">Desconectar</button>
+    </header>
+
+    <nav class="zona-explorador" aria-label="Explorador de objetos">
+        <Explorador @ref="_explorador"
+                    Conexion="Conexion"
+                    AlDescribir="DescribirAsync"
+                    AlNuevaTabla="AbrirNuevaTabla"
+                    AlNuevaConsulta="NuevaConsulta"
+                    AlAbrirScript="AbrirScriptAsync"
+                    AlEditarFilas="AbrirEditorFilasAsync"
+                    AlDescribirModelo="(b) => LeerModeloAsync(b, false)"
+                    AlCaminoJoin="(b) => LeerModeloAsync(b, true)"
+                    AlVerDependencias="VerDependenciasAsync" />
+    </nav>
+
+    <div class="zona-detalle">
+        @if (_filasTabla is not null)
+        {
+            <EditorFilas @key="_versionFilas" @ref="_editorFilas"
+                         Conexion="Conexion"
+                         BaseDatos="@(_filasBase ?? string.Empty)"
+                         Tabla="_filasTabla"
+                         AlCerrar="CerrarEditorFilasAsync" />
+        }
+
+        @if (_baseNuevaTabla is not null)
+        {
+            <FormularioTabla @key="_versionFormulario"
+                             Conexion="Conexion"
+                             BaseDatos="@_baseNuevaTabla"
+                             DefinicionInicial="_definicionInicial"
+                             Original="_originalTabla"
+                             AlModificar="TablaModificadaAsync"
+                             AlAbrirScript="AbrirScriptAsync"
+                             MensajeInicial="@_mensajeInicial"
+                             AlCrear="TablaCreadaAsync"
+                             AlCancelar="CancelarNuevaTablaAsync" />
+        }
+
+        @if (_pestanas.Activa is { } activa)
+        {
+            <section class="consulta" aria-labelledby="titulo-consulta" data-base="@activa.BaseDatos">
+                <div role="tablist" aria-label="Pestañas de consulta" class="pestanas" data-zona="pestanas" @onkeydown="TeclaPestanasAsync">
+                    @foreach (var pestana in _pestanas.Pestanas)
+                    {
+                        <button role="tab" id="@($"pestana-{pestana.Id}")"
+                                aria-selected="@(pestana == activa ? "true" : "false")"
+                                aria-controls="panel-consulta"
+                                tabindex="@(pestana == activa ? 0 : -1)"
+                                @onclick="() => ActivarPestanaAsync(pestana, true)">@pestana.Etiqueta</button>
+                    }
+                </div>
+                <div role="tabpanel" id="panel-consulta" aria-labelledby="@($"pestana-{activa.Id}")">
+                    <EditorConsulta @key="activa.Id" @ref="_editorConsulta"
+                                    Busqueda="_busqueda"
+                                    BaseDatos="@activa.BaseDatos"
+                                    Archivo="@(activa.Archivo is null ? null : activa.Nombre)"
+                                    Modificado="activa.Modificado"
+                                    Texto="@activa.Texto"
+                                    TextoChanged="CambiarTexto"
+                                    Ejecutando="activa.Ejecutando"
+                                    AlCancelar="CancelarEjecucion" />
+                    @if (activa.CambiosPendientes)
+                    {
+                        <p class="aviso-transaccion">Hay cambios sin confirmar en esta pestaña. COMMIT los guarda en la base de datos y ROLLBACK los deshace.</p>
+                    }
+                    <PanelResultados @key="@($"r{activa.Id}")" Resultado="activa.Resultado" />
+                    <PanelMensajes @key="@($"m{activa.Id}")" Resultado="activa.Resultado" />
+                </div>
+            </section>
+        }
+
+        <section class="descripcion" aria-labelledby="titulo-detalle"
+                 data-ayuda="@(_descripcion is not null ? _temasDescripcion : _descripcionModelo is not null ? "concepto:llave-foranea|concepto:uno-a-muchos|concepto:muchos-a-muchos|concepto:indice" : null)">
+            @if (_lecturaModelo is not null)
+            {
+                <h2 id="titulo-detalle">Leyendo el modelo de @_baseLeyendo</h2>
+                <p>@_avanceModelo</p>
+                <button id="cancelar-lectura" @onclick="CancelarLecturaModelo" @onkeydown="TeclaLecturaModelo">Cancelar la lectura</button>
+            }
+            else if (_dependencias is not null)
+            {
+                <DescripcionDependencias @key="_versionDependencias"
+                                         Nombre="@_nombreDependencias"
+                                         Dependencias="_dependencias"
+                                         QuienUsa="@_quienUsa"
+                                         DisparadoresBase="@proveedores.Obtener(Conexion.Conexion.Motor).Capacidades.TituloDisparadoresBase.Replace("Disparadores ", "")"
+                                         AlIr="IrADependenciaAsync" />
+            }
+            else if (_descripcion is not null)
+            {
+                <DescripcionTabla Descripcion="_descripcion" />
+                @if (_descripcionModelo is not null)
+                {
+                    <button class="enlace" @onclick="VolverAlModeloAsync">Volver al modelo de @_modelo!.BaseDatos</button>
+                }
+            }
+            else if (_descripcionModelo is not null)
+            {
+                <DescripcionModelo @key="_versionModelo"
+                                   Descripcion="_descripcionModelo"
+                                   EnfocarTabla="_tablaModeloEnfocar"
+                                   AlDescribirTabla="DescribirTablaModelo"
+                                   AlCaminoJoin="AbrirCaminoJoin"
+                                   AlGuardar="GuardarModeloAsync" />
+            }
+            else
+            {
+                <h2 id="titulo-detalle">Detalle</h2>
+                <p>Elige una tabla en el explorador y pulsa Intro para describirla.</p>
+                @if (_pestanas.Activa is null)
+                {
+                    <p>Para escribir SQL, ponte sobre una base de datos y pulsa Control+N o Control+T: se abre una consulta conectada a esa base. Control+O abre un archivo .sql.</p>
+                }
+            }
+        </section>
+    </div>
+</div>
+
+@if (_historialAbierto)
+{
+    <DialogoAccion Titulo="Historial de consultas" AlCancelar="CerrarHistorial">
+        @if (_entradasHistorial is null)
+        {
+            <p>Cargando el historial…</p>
+        }
+        else if (_entradasHistorial.Count == 0)
+        {
+            <p>Todavía no hay consultas en el historial de esta conexión.</p>
+        }
+        else
+        {
+            <p>@(_entradasHistorial.Count == 1 ? "1 consulta" : $"{_entradasHistorial.Count} consultas"), de la más reciente a la más antigua. Activa una para ponerla en el editor.</p>
+            <ul class="lista-temas lista-historial">
+                @for (var i = 0; i < _entradasHistorial.Count; i++)
+                {
+                    var entrada = _entradasHistorial[i];
+                    <li>
+                        <button id="@($"historial-{i}")" class="enlace" @onclick="() => UsarEntradaAsync(entrada)">@DescribirEntrada(entrada)</button>
+                    </li>
+                }
+            </ul>
+        }
+        <div class="acciones">
+            @if (_entradasHistorial is { Count: > 0 })
+            {
+                <button class="peligro" @onclick="BorrarHistorialAsync">Borrar el historial</button>
+            }
+            <button @onclick="CerrarHistorial">Cerrar</button>
+        </div>
+    </DialogoAccion>
+}
+
+@if (_preguntarDesconexion)
+{
+    <DialogoAccion Titulo="Hay cambios sin confirmar" EsAlerta="true" AlCancelar="SeguirConectado">
+        <p>Hiciste cambios con INSERT, UPDATE, DELETE o MERGE que todavía no se guardaron en la base de datos@(PestanasConPendientes().Select(p => p.Nombre).Concat(_editorFilas?.CambiosPendientes > 0 ? ["el panel de edición de filas"] : []).ToList() is { Count: > 0 } conPendientes ? $", en {NarradorTablaService.Unir(conPendientes)}" : ""). ¿Qué hago con ellos antes de desconectar?</p>
+        <div class="acciones">
+            <button class="principal" @onclick="() => TerminarDesconexionAsync(true)">Confirmar los cambios (COMMIT)</button>
+            <button class="peligro" @onclick="() => TerminarDesconexionAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial @onclick="SeguirConectado">Seguir conectado</button>
+        </div>
+    </DialogoAccion>
+}
+
+@if (_joinAbierto && _modelo is not null)
+{
+    <DialogoAccion Titulo="@($"Camino de JOIN en {_modelo.BaseDatos}")" AlCancelar="CerrarCaminoJoin">
+        @if (_modelo.Tablas.Count < 2)
+        {
+            <p>Hacen falta al menos dos tablas para buscar un camino.</p>
+        }
+        else
+        {
+            <p>Elige dos tablas: busco el camino más corto entre ellas siguiendo las llaves foráneas.</p>
+            <div class="campo">
+                <label for="join-desde">Desde</label>
+                <select id="join-desde" data-foco-inicial @bind="_joinDesde">
+                    @for (var i = 0; i < _modelo.Tablas.Count; i++)
+                    {
+                        <option value="@i">@_modelo.Tablas[i].Tabla.NombreCorto()</option>
+                    }
+                </select>
+            </div>
+            <div class="campo">
+                <label for="join-hasta">Hasta</label>
+                <select id="join-hasta" @bind="_joinHasta">
+                    @for (var i = 0; i < _modelo.Tablas.Count; i++)
+                    {
+                        <option value="@i">@_modelo.Tablas[i].Tabla.NombreCorto()</option>
+                    }
+                </select>
+            </div>
+            @if (_caminos is not null)
+            {
+                <h3 id="titulo-caminos" tabindex="-1">@TituloCaminos()</h3>
+                @if (_caminos.Count > 0)
+                {
+                    <ul class="frases">
+                        @for (var i = 0; i < _caminos.Count; i++)
+                        {
+                            var indice = i;
+                            <li>
+                                <p>@(_caminos.Count > 1 ? $"Camino {indice + 1}: " : "")@NarradorModeloService.DescribirCamino(_caminos[indice])</p>
+                                <button @onclick="() => AbrirCaminoAsync(indice)">@(_caminos.Count > 1 ? $"Abrir el camino {indice + 1} en una pestaña nueva" : "Abrir en una pestaña nueva")</button>
+                            </li>
+                        }
+                    </ul>
+                }
+            }
+        }
+        <div class="acciones">
+            @if (_modelo.Tablas.Count >= 2)
+            {
+                <button class="principal" @onclick="BuscarCaminoAsync">Buscar el camino</button>
+            }
+            <button @onclick="CerrarCaminoJoin">Cerrar</button>
+        </div>
+    </DialogoAccion>
+}
+
+@if (_pestanaPorCerrar is not null)
+{
+    <DialogoAccion Titulo="@($"{_pestanaPorCerrar.Nombre} tiene cambios sin confirmar")" EsAlerta="true" AlCancelar="NoCerrarPestana">
+        <p>En esta pestaña hiciste cambios que todavía no se guardaron en la base de datos. ¿Qué hago con ellos antes de cerrarla?</p>
+        <div class="acciones">
+            <button class="principal" @onclick="() => TerminarCierreAsync(true)">Confirmar los cambios (COMMIT)</button>
+            <button class="peligro" @onclick="() => TerminarCierreAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial @onclick="NoCerrarPestana">No cerrar la pestaña</button>
+        </div>
+    </DialogoAccion>
+}
+
+@code {
+    [Parameter, EditorRequired] public ConexionActiva Conexion { get; set; } = default!;
+    [Parameter] public EventCallback AlDesconectar { get; set; }
+
+    private DotNetObjectReference<EspacioTrabajo>? _referencia;
+    private Explorador? _explorador;
+    private string? _baseNuevaTabla;
+    private MiGestorBDAccesible.Core.Definicion.DefinicionTablaModelo? _definicionInicial;
+    private DetalleTablaModelo? _originalTabla;
+    private EditorFilas? _editorFilas;
+    private string? _filasBase;
+    private TablaModelo? _filasTabla;
+    private int _versionFilas;
+    private string? _mensajeInicial;
+    private int _versionFormulario;
+    private DescripcionTablaModelo? _descripcion;
+    private string _temasDescripcion = "";
+    private ConjuntoPestanasModelo _pestanas = new();
+    private PestanaModelo? _pestanaPorCerrar;
+    private bool _enfocarEditor;
+    private bool _enfocarEditorInicio;
+    private bool _enfocarResultados;
+    private string? _enfocarPestana;
+    private string? _avisoSesion;
+    private CancellationTokenSource? _guardadoSesion;
+    private bool _historialAbierto;
+    private List<EntradaHistorialModelo>? _entradasHistorial;
+    private bool _preguntarDesconexion;
+    private bool _enfocarDesconectar;
+    private EditorConsulta? _editorConsulta;
+    private DependenciasModelo? _dependencias;
+    private string _nombreDependencias = "";
+    private string _quienUsa = "Quién lo usa";
+    private string? _baseDependencias;
+    private int _versionDependencias;
+    private readonly BusquedaModelo _busqueda = new();
+    private ModeloBaseDatosModelo? _modelo;
+    private DescripcionModeloModelo? _descripcionModelo;
+    private CancellationTokenSource? _lecturaModelo;
+    private string? _baseLeyendo;
+    private string _avanceModelo = "";
+    private bool _enfocarCancelarLectura;
+    private int _versionModelo;
+    private int? _tablaModeloEnfocar;
+    private bool _joinAbierto;
+    private int _joinDesde;
+    private int _joinHasta = 1;
+    private List<List<PasoJoinModelo>>? _caminos;
+    private bool _enfocarCaminos;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _pestanas = ConjuntoPestanasModelo.Recuperar(await sesiones.ObtenerAsync(Conexion.Conexion.Id));
+
+        if (_pestanas.Activa is { } activa)
+        {
+            var archivo = activa.Archivo is null ? "" : $", del archivo {activa.Nombre}";
+            _avisoSesion = _pestanas.Pestanas.Count == 1
+                ? $"Se recuperó tu consulta anterior en {activa.BaseDatos ?? "la base predeterminada"}{archivo}."
+                : $"Se recuperaron {_pestanas.Pestanas.Count} pestañas; activa: {activa.Nombre} en {activa.BaseDatos ?? "la base predeterminada"}.";
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _referencia = DotNetObjectReference.Create(this);
+            await js.InvokeVoidAsync("miGestor.registrarEspacio", _referencia);
+
+            if (_avisoSesion is not null)
+            {
+                await Task.Delay(1500);
+                await anunciador.AnunciarAsync(_avisoSesion);
+                _avisoSesion = null;
+            }
+        }
+
+        if (_enfocarEditor)
+        {
+            _enfocarEditor = false;
+            await js.InvokeVoidAsync("miGestor.enfocar", "editor-sql");
+        }
+
+        if (_enfocarEditorInicio)
+        {
+            _enfocarEditorInicio = false;
+            await js.InvokeVoidAsync("miGestor.enfocarInicio", "editor-sql");
+        }
+
+        if (_enfocarResultados)
+        {
+            _enfocarResultados = false;
+            await js.InvokeVoidAsync("miGestor.enfocar", "titulo-resultados");
+        }
+
+        if (_enfocarPestana is not null)
+        {
+            var id = _enfocarPestana;
+            _enfocarPestana = null;
+            await js.InvokeVoidAsync("miGestor.enfocar", id);
+        }
+
+        if (_enfocarDesconectar)
+        {
+            _enfocarDesconectar = false;
+            await js.InvokeVoidAsync("miGestor.enfocar", "boton-desconectar");
+        }
+
+        if (_enfocarCancelarLectura)
+        {
+            _enfocarCancelarLectura = false;
+            await js.InvokeVoidAsync("miGestor.enfocar", "cancelar-lectura");
+        }
+
+        if (_enfocarCaminos)
+        {
+            _enfocarCaminos = false;
+            await js.InvokeVoidAsync("miGestor.enfocar", "titulo-caminos");
+        }
+    }
+
+    private async Task DesconectarAsync()
+    {
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+
+        if (_pestanas.Pestanas.FirstOrDefault(p => p.Ejecutando) is { } ejecutando)
+        {
+            await anunciador.AnunciarAsync($"{ejecutando.Nombre} está ejecutando. Espera a que termine o cancélala antes de desconectar.");
+            return;
+        }
+
+        if (proveedor.TieneCambiosPendientes(Conexion) || _editorFilas?.CambiosPendientes > 0)
+        {
+            _preguntarDesconexion = true;
+            return;
+        }
+
+        await proveedor.FinalizarSesionAsync(Conexion, false);
+        await AlDesconectar.InvokeAsync();
+    }
+
+    private void SeguirConectado()
+    {
+        _preguntarDesconexion = false;
+        _enfocarDesconectar = true;
+    }
+
+    private async Task TerminarDesconexionAsync(bool confirmar)
+    {
+        var mensaje = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(Conexion, confirmar);
+
+        if (_editorFilas?.CambiosPendientes > 0)
+        {
+            mensaje = await _editorFilas.TerminarSinAnunciarAsync(confirmar) ?? (confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).");
+        }
+        _preguntarDesconexion = false;
+        await AlDesconectar.InvokeAsync();
+
+        if (mensaje is not null)
+        {
+            await Task.Delay(600);
+            await anunciador.AnunciarAsync($"{mensaje} Desconectado de {Conexion.Conexion.Nombre}.");
+        }
+    }
+
+    private List<PestanaModelo> PestanasConPendientes()
+    {
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+        return _pestanas.Pestanas.Where(p => p.Sesion is not null && proveedor.TieneCambiosPendientes(p.Sesion)).ToList();
+    }
+
+    private void CambiarTexto(string texto)
+    {
+        if (_pestanas.Activa is { } activa)
+        {
+            activa.Texto = texto;
+            ProgramarGuardadoSesion();
+        }
+    }
+
+    private void ProgramarGuardadoSesion()
+    {
+        _guardadoSesion?.Cancel();
+        _guardadoSesion = new CancellationTokenSource();
+        var token = _guardadoSesion.Token;
+
+        _ = Task.Delay(1000, token).ContinueWith(async t =>
+        {
+            if (!t.IsCanceled)
+            {
+                await GuardarSesionAsync();
+            }
+        }, TaskScheduler.Default);
+    }
+
+    private Task GuardarSesionAsync() => sesiones.GuardarAsync(_pestanas.Guardar(Conexion.Conexion.Id));
+
+    private string Posicion(PestanaModelo pestana) => $"pestaña {_pestanas.Posicion(pestana)} de {_pestanas.Pestanas.Count}";
+
+    private PestanaModelo AbrirPestana(string? baseDatos, string texto = "", string? archivo = null, string? titulo = null)
+    {
+        var pestana = _pestanas.Abrir(baseDatos, texto, archivo, titulo);
+        pestana.Sesion = Conexion.NuevaSesion();
+        return pestana;
+    }
+
+    private PestanaModelo PestanaParaContenido(string? baseDatos, string? titulo = null)
+    {
+        if (_pestanas.Activa is { EstaVacia: true, Ejecutando: false } vacia)
+        {
+            vacia.BaseDatos = baseDatos ?? vacia.BaseDatos;
+            vacia.Titulo = titulo;
+            return vacia;
+        }
+
+        return AbrirPestana(baseDatos ?? Conexion.Conexion.BaseDatosInicial, titulo: titulo);
+    }
+
+    [JSInvokable]
+    public Task NuevaConsulta(string? baseDatos)
+    {
+        return InvokeAsync(async () =>
+        {
+            var baseNueva = string.IsNullOrWhiteSpace(baseDatos) ? Conexion.Conexion.BaseDatosInicial : baseDatos;
+            var activa = _pestanas.Activa;
+
+            if (activa is null)
+            {
+                AbrirPestana(baseNueva);
+                _enfocarEditor = true;
+                StateHasChanged();
+                await GuardarSesionAsync();
+                await anunciador.AnunciarAsync($"Consulta abierta en {baseNueva ?? "la base predeterminada"}.");
+                return;
+            }
+
+            var baseAnterior = activa.BaseDatos;
+            var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+            var avisoPendientes = proveedor.Capacidades.SesionPorBase
+                && activa.Sesion is not null
+                && proveedor.TieneCambiosPendientes(activa.Sesion)
+                && !string.Equals(baseAnterior, baseNueva, StringComparison.Ordinal)
+                    ? $" Ojo: {baseAnterior ?? "la base anterior"} sigue con cambios sin confirmar en su propia sesión; vuelve a ella para hacer COMMIT o ROLLBACK, o decide al cerrar la pestaña."
+                    : "";
+
+            activa.BaseDatos = baseNueva;
+            _enfocarEditor = true;
+            StateHasChanged();
+            await GuardarSesionAsync();
+
+            await anunciador.AnunciarAsync($"{activa.Nombre} ahora usa {baseNueva ?? "la base predeterminada"}. Se conserva el texto del editor.{avisoPendientes}");
+        });
+    }
+
+    [JSInvokable]
+    public Task NuevaPestana(string? baseDatos)
+    {
+        return InvokeAsync(async () =>
+        {
+            var baseNueva = string.IsNullOrWhiteSpace(baseDatos) ? _pestanas.Activa?.BaseDatos ?? Conexion.Conexion.BaseDatosInicial : baseDatos;
+            var pestana = AbrirPestana(baseNueva);
+            _enfocarEditor = true;
+            StateHasChanged();
+            await GuardarSesionAsync();
+            await anunciador.AnunciarAsync($"Pestaña nueva: {pestana.Nombre} en {baseNueva ?? "la base predeterminada"}, {Posicion(pestana)}.");
+        });
+    }
+
+    [JSInvokable]
+    public Task CambiarPestana(int desplazamiento)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_pestanas.Pestanas.Count == 0)
+            {
+                await anunciador.AnunciarAsync("No hay pestañas de consulta abiertas.");
+                return;
+            }
+
+            if (_pestanas.Pestanas.Count == 1)
+            {
+                await anunciador.AnunciarAsync($"Solo hay una pestaña: {_pestanas.Activa!.Etiqueta}.");
+                return;
+            }
+
+            var pestana = _pestanas.Mover(desplazamiento)!;
+            _enfocarEditor = true;
+            StateHasChanged();
+            await GuardarSesionAsync();
+            await anunciador.AnunciarAsync($"{pestana.Etiqueta}, {Posicion(pestana)}.");
+        });
+    }
+
+    private async Task ActivarPestanaAsync(PestanaModelo pestana, bool enfocarEditor)
+    {
+        _pestanas.Activar(pestana);
+
+        if (enfocarEditor)
+        {
+            _enfocarEditor = true;
+        }
+        else
+        {
+            _enfocarPestana = $"pestana-{pestana.Id}";
+        }
+
+        StateHasChanged();
+        await GuardarSesionAsync();
+    }
+
+    private async Task TeclaPestanasAsync(KeyboardEventArgs e)
+    {
+        var activa = _pestanas.Activa;
+
+        if (activa is null)
+        {
+            return;
+        }
+
+        var indice = _pestanas.Pestanas.IndexOf(activa);
+        var total = _pestanas.Pestanas.Count;
+        var destino = e.Key switch
+        {
+            "ArrowRight" => (indice + 1) % total,
+            "ArrowLeft" => (indice - 1 + total) % total,
+            "Home" => 0,
+            "End" => total - 1,
+            _ => -1
+        };
+
+        if (destino >= 0)
+        {
+            await ActivarPestanaAsync(_pestanas.Pestanas[destino], false);
+        }
+    }
+
+    [JSInvokable]
+    public Task CerrarPestana()
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_pestanas.Activa is not { } pestana)
+            {
+                await anunciador.AnunciarAsync("No hay pestañas de consulta abiertas.");
+                return;
+            }
+
+            await CerrarPestanaAsync(pestana);
+        });
+    }
+
+    private async Task CerrarPestanaAsync(PestanaModelo pestana)
+    {
+        if (pestana.Ejecutando)
+        {
+            await anunciador.AnunciarAsync($"{pestana.Nombre} está ejecutando. Espera a que termine o cancélala antes de cerrarla.");
+            return;
+        }
+
+        if (pestana.Modificado && !string.IsNullOrWhiteSpace(pestana.Texto))
+        {
+            var respuesta = archivos.PreguntarGuardarCambios(pestana.Nombre);
+
+            if (respuesta == RespuestaGuardar.Cancelar
+                || respuesta == RespuestaGuardar.Guardar && !await GuardarComoAsync(pestana, false))
+            {
+                _enfocarEditor = true;
+                StateHasChanged();
+                return;
+            }
+        }
+
+        if (pestana.Sesion is not null && proveedores.Obtener(Conexion.Conexion.Motor).TieneCambiosPendientes(pestana.Sesion))
+        {
+            _pestanaPorCerrar = pestana;
+            StateHasChanged();
+            return;
+        }
+
+        await QuitarPestanaAsync(pestana, null);
+    }
+
+    private void NoCerrarPestana()
+    {
+        _pestanaPorCerrar = null;
+        _enfocarEditor = true;
+    }
+
+    private async Task TerminarCierreAsync(bool confirmar)
+    {
+        var pestana = _pestanaPorCerrar!;
+        _pestanaPorCerrar = null;
+        await QuitarPestanaAsync(pestana, confirmar);
+    }
+
+    private async Task QuitarPestanaAsync(PestanaModelo pestana, bool? confirmar)
+    {
+        string? mensaje = null;
+
+        if (pestana.Sesion is not null)
+        {
+            mensaje = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(pestana.Sesion, confirmar ?? false);
+        }
+
+        var activa = _pestanas.Cerrar(pestana);
+        StateHasChanged();
+        await GuardarSesionAsync();
+
+        var prefijo = confirmar is null || mensaje is null ? "" : $"{mensaje} ";
+
+        if (activa is null)
+        {
+            if (_explorador is not null)
+            {
+                await _explorador.EnfocarAsync();
+            }
+
+            await Task.Delay(400);
+            await anunciador.AnunciarAsync($"{prefijo}Pestaña {pestana.Nombre} cerrada. No quedan consultas abiertas.");
+            return;
+        }
+
+        _enfocarEditor = true;
+        StateHasChanged();
+        await Task.Delay(400);
+        await anunciador.AnunciarAsync($"{prefijo}Pestaña {pestana.Nombre} cerrada. Ahora estás en {activa.Etiqueta}, {Posicion(activa)}.");
+    }
+
+    [JSInvokable]
+    public Task Ejecutar(string? texto, int inicio, int fin)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_pestanas.Activa is not { } activa || texto is null)
+            {
+                await anunciador.AnunciarAsync("No hay una consulta abierta. Ponte sobre una base de datos y pulsa Control+N.");
+                return;
+            }
+
+            await EjecutarScriptAsync(activa, texto, inicio, fin, false);
+        });
+    }
+
+    [JSInvokable]
+    public Task AbrirArchivo(string? textoActual)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (textoActual is not null && _pestanas.Activa is { } actual)
+            {
+                actual.Texto = textoActual;
+            }
+
+            var ruta = archivos.ElegirParaAbrir("Abrir archivo SQL", ArchivosService.FiltroSql);
+
+            if (ruta is null)
+            {
+                await anunciador.AnunciarAsync("Apertura cancelada.");
+                return;
+            }
+
+            try
+            {
+                var texto = await archivos.LeerAsync(ruta);
+                var pestana = PestanaParaContenido(_pestanas.Activa?.BaseDatos ?? Conexion.Conexion.BaseDatosInicial);
+
+                pestana.Texto = texto;
+                pestana.TextoGuardado = texto;
+                pestana.Archivo = ruta;
+                pestana.Titulo = null;
+                _enfocarEditorInicio = true;
+                StateHasChanged();
+                await GuardarSesionAsync();
+
+                await Task.Delay(600);
+                var lineas = texto.TrimEnd().Split('\n').Length;
+                await anunciador.AnunciarAsync($"Archivo {pestana.Nombre} abierto en {pestana.BaseDatos ?? "la base predeterminada"}, {lineas} líneas, {Posicion(pestana)}.");
+            }
+            catch (Exception ex)
+            {
+                await anunciador.AnunciarUrgenteAsync($"No se pudo abrir el archivo. {ex.Message}");
+            }
+        });
+    }
+
+    [JSInvokable]
+    public Task GuardarArchivo(string? textoActual, bool comoNuevo)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_pestanas.Activa is not { } activa)
+            {
+                await anunciador.AnunciarAsync("No hay una consulta abierta para guardar.");
+                return;
+            }
+
+            if (textoActual is not null)
+            {
+                activa.Texto = textoActual;
+            }
+
+            await GuardarComoAsync(activa, comoNuevo);
+        });
+    }
+
+    private async Task<bool> GuardarComoAsync(PestanaModelo pestana, bool comoNuevo)
+    {
+        var ruta = !comoNuevo && pestana.Archivo is not null
+            ? pestana.Archivo
+            : archivos.ElegirParaGuardar("Guardar consulta SQL", ArchivosService.FiltroSql, pestana.Archivo is null ? "consulta.sql" : pestana.Nombre, "sql");
+
+        if (ruta is null)
+        {
+            await anunciador.AnunciarAsync("Guardado cancelado.");
+            return false;
+        }
+
+        try
+        {
+            await archivos.GuardarAsync(ruta, pestana.Texto);
+            pestana.Archivo = ruta;
+            pestana.TextoGuardado = pestana.Texto;
+            StateHasChanged();
+            await GuardarSesionAsync();
+            await anunciador.AnunciarAsync($"Guardado en {Path.GetFileName(ruta)}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo guardar el archivo. {ex.Message}");
+            return false;
+        }
+    }
+
+    [JSInvokable]
+    public Task BuscarObjeto(string? baseDatos)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_explorador is not null)
+            {
+                await _explorador.AbrirBuscarObjetoAsync(baseDatos ?? _pestanas.Activa?.BaseDatos);
+            }
+        });
+    }
+
+    [JSInvokable]
+    public Task AbrirBusqueda()
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_pestanas.Activa is null || _editorConsulta is null)
+            {
+                await anunciador.AnunciarAsync("No hay ninguna consulta abierta donde buscar.");
+                return;
+            }
+
+            await _editorConsulta.AbrirBusquedaAsync();
+        });
+    }
+
+    [JSInvokable]
+    public Task BuscarSiguiente(bool atras)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_pestanas.Activa is null || _editorConsulta is null)
+            {
+                await anunciador.AnunciarAsync("No hay ninguna consulta abierta donde buscar.");
+                return;
+            }
+
+            await _editorConsulta.BuscarSiguienteAsync(atras);
+        });
+    }
+
+    [JSInvokable]
+    public Task AbrirHistorial()
+    {
+        return InvokeAsync(async () =>
+        {
+            _historialAbierto = true;
+            _entradasHistorial = null;
+            StateHasChanged();
+
+            _entradasHistorial = await historial.ListaAsync(Conexion.Conexion.Id);
+            StateHasChanged();
+
+            if (_entradasHistorial.Count > 0)
+            {
+                await Task.Delay(100);
+                await js.InvokeVoidAsync("miGestor.enfocar", "historial-0");
+            }
+        });
+    }
+
+    private void CerrarHistorial()
+    {
+        _historialAbierto = false;
+        _enfocarEditor = _pestanas.Activa is not null;
+    }
+
+    private async Task UsarEntradaAsync(EntradaHistorialModelo entrada)
+    {
+        _historialAbierto = false;
+        var pestana = PestanaParaContenido(entrada.BaseDatos);
+        pestana.Texto = entrada.Texto;
+        pestana.TextoGuardado = entrada.Texto;
+        _enfocarEditorInicio = true;
+        StateHasChanged();
+        await GuardarSesionAsync();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"Consulta del historial en {pestana.Nombre}, en {entrada.BaseDatos ?? "la base predeterminada"}, {Posicion(pestana)}. Pulsa F5 para ejecutarla.");
+    }
+
+    private async Task BorrarHistorialAsync()
+    {
+        await historial.BorrarAsync(Conexion.Conexion.Id);
+        _entradasHistorial = [];
+        await anunciador.AnunciarAsync("Historial borrado.");
+    }
+
+    private static string DescribirEntrada(EntradaHistorialModelo entrada)
+    {
+        var fecha = entrada.Fecha.Date == DateTime.Today ? $"hoy {entrada.Fecha:HH:mm}"
+            : entrada.Fecha.Date == DateTime.Today.AddDays(-1) ? $"ayer {entrada.Fecha:HH:mm}"
+            : entrada.Fecha.ToString("dd/MM HH:mm");
+
+        var primeraLinea = entrada.Texto.Split('\n').Select(l => l.Trim())
+            .FirstOrDefault(l => l.Length > 0 && !l.StartsWith("--") && !l.StartsWith("USE ", StringComparison.OrdinalIgnoreCase) && !l.Equals("GO", StringComparison.OrdinalIgnoreCase))
+            ?? entrada.Texto.Trim();
+
+        if (primeraLinea.Length > 80)
+        {
+            primeraLinea = primeraLinea[..80] + "…";
+        }
+
+        return $"{fecha}, {entrada.BaseDatos ?? "base predeterminada"}: {primeraLinea}. {entrada.Resumen}";
+    }
+
+    private async Task AbrirScriptAsync(ScriptAbiertoModelo script)
+    {
+        var pestana = PestanaParaContenido(script.BaseDatos, script.Descripcion);
+        pestana.Texto = script.Texto;
+        pestana.TextoGuardado = script.Texto;
+        ProgramarGuardadoSesion();
+
+        if (script.Ejecutar)
+        {
+            StateHasChanged();
+            await EjecutarScriptAsync(pestana, script.Texto, 0, 0, true);
+            return;
+        }
+
+        _enfocarEditorInicio = true;
+        StateHasChanged();
+        await Task.Delay(600);
+
+        var lineas = script.Texto.TrimEnd().Split('\n').Length;
+        await anunciador.AnunciarAsync($"{script.Descripcion} en el editor, {lineas} líneas, {Posicion(pestana)}.");
+    }
+
+    private async Task EjecutarScriptAsync(PestanaModelo pestana, string texto, int inicio, int fin, bool enfocarResultados)
+    {
+        if (pestana.Ejecutando)
+        {
+            await anunciador.AnunciarAsync($"{pestana.Nombre} todavía está ejecutando.");
+            return;
+        }
+
+        pestana.Texto = texto;
+        var haySeleccion = fin > inicio;
+        var script = haySeleccion ? texto[inicio..fin] : texto;
+
+        if (string.IsNullOrWhiteSpace(script))
+        {
+            await anunciador.AnunciarAsync("El editor está vacío.");
+            return;
+        }
+
+        var lineaInicial = haySeleccion ? texto[..inicio].Count(c => c == '\n') + 1 : 1;
+        var baseEjecucion = pestana.BaseDatos;
+        var cancelacion = new CancellationTokenSource();
+        pestana.Sesion ??= Conexion.NuevaSesion();
+
+        pestana.Ejecutando = true;
+        pestana.Cancelacion = cancelacion;
+        StateHasChanged();
+        await anunciador.AnunciarAsync(haySeleccion ? "Ejecutando la selección…" : "Ejecutando…");
+
+        try
+        {
+            var resultado = await proveedores.Obtener(Conexion.Conexion.Motor)
+                .EjecutarAsync(pestana.Sesion, pestana.BaseDatos, script, lineaInicial, cancelacion.Token);
+            pestana.Resultado = resultado;
+
+            var cambioBase = resultado.BaseDatosFinal is not null
+                && !string.Equals(resultado.BaseDatosFinal, pestana.BaseDatos, StringComparison.OrdinalIgnoreCase);
+
+            if (cambioBase)
+            {
+                pestana.BaseDatos = resultado.BaseDatosFinal;
+            }
+
+            var (mensaje, urgente) = TextoResultado(resultado);
+            var avisoTransaccion = (pestana.CambiosPendientes, resultado.CambiosPendientes) switch
+            {
+                (false, true) => "Quedan cambios sin confirmar: COMMIT los guarda y ROLLBACK los deshace. ",
+                (true, false) => "Ya no quedan cambios sin confirmar. ",
+                _ => ""
+            };
+            pestana.CambiosPendientes = resultado.CambiosPendientes;
+
+            await historial.AgregarAsync(new EntradaHistorialModelo
+            {
+                Fecha = DateTime.Now,
+                ConexionId = Conexion.Conexion.Id,
+                BaseDatos = baseEjecucion,
+                Texto = script,
+                Resumen = mensaje
+            });
+            await GuardarSesionAsync();
+
+            var esActiva = pestana == _pestanas.Activa;
+
+            if (enfocarResultados && esActiva)
+            {
+                pestana.Ejecutando = false;
+                _enfocarResultados = true;
+                StateHasChanged();
+                await Task.Delay(600);
+            }
+
+            var prefijo = (esActiva ? "" : $"{pestana.Nombre} terminó. ")
+                + (cambioBase && !enfocarResultados ? $"La consulta ahora usa {resultado.BaseDatosFinal}. " : "")
+                + avisoTransaccion;
+
+            if (urgente)
+            {
+                await anunciador.AnunciarUrgenteAsync(prefijo + mensaje);
+            }
+            else
+            {
+                await anunciador.AnunciarAsync(prefijo + mensaje);
+            }
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo ejecutar. {ex.Message}");
+        }
+        finally
+        {
+            pestana.Ejecutando = false;
+            pestana.Cancelacion = null;
+            cancelacion.Dispose();
+            StateHasChanged();
+        }
+    }
+
+    private void CancelarEjecucion()
+    {
+        _pestanas.Activa?.Cancelacion?.Cancel();
+    }
+
+    private static (string Mensaje, bool Urgente) TextoResultado(ResultadoEjecucionModelo resultado)
+    {
+        var tiempo = $"{resultado.Duracion.TotalMilliseconds:N0} milisegundos";
+        var errores = resultado.Errores.ToList();
+
+        if (errores.Count > 0)
+        {
+            var primero = errores[0];
+            var linea = primero.Linea is int l ? $", línea {l}" : "";
+            var cantidad = errores.Count == 1 ? "1 error" : $"{errores.Count} errores";
+            return ($"Ejecutado con {cantidad} en {tiempo}. Primero{linea}: {primero.Texto}", true);
+        }
+
+        if (resultado.Cancelado)
+        {
+            return ($"Ejecución cancelada a los {tiempo}.", false);
+        }
+
+        if (resultado.Conjuntos.Count == 1)
+        {
+            return ($"Terminado en {tiempo}, {TextoFilas(resultado.Conjuntos[0].TotalFilas)}.", false);
+        }
+
+        if (resultado.Conjuntos.Count > 1)
+        {
+            var filas = NarradorTablaService.Unir(resultado.Conjuntos.Select(c => c.TotalFilas.ToString("N0")));
+            return ($"Terminado en {tiempo}, {resultado.Conjuntos.Count} resultados, con {filas} filas.", false);
+        }
+
+        if (resultado.FilasAfectadas > 0)
+        {
+            var afectadas = resultado.FilasAfectadas == 1 ? "1 fila afectada" : $"{resultado.FilasAfectadas:N0} filas afectadas";
+            return ($"Terminado en {tiempo}, {afectadas}.", false);
+        }
+
+        var ultimaSentencia = resultado.Mensajes.LastOrDefault(m => m.Tipo == TipoMensaje.Informacion && m.Numero is null && m.Linea is not null);
+
+        return ultimaSentencia is not null
+            ? ($"Terminado en {tiempo}. {ultimaSentencia.Texto}", false)
+            : ($"Terminado en {tiempo}. Comandos completados correctamente.", false);
+    }
+
+    private void AbrirNuevaTabla(SolicitudTablaModelo solicitud)
+    {
+        _baseNuevaTabla = solicitud.BaseDatos;
+        _definicionInicial = solicitud.Definicion;
+        _originalTabla = solicitud.Original;
+        _mensajeInicial = solicitud.Mensaje;
+        _versionFormulario++;
+    }
+
+    private async Task AbrirEditorFilasAsync(NodoArbolModelo nodo)
+    {
+        if (_editorFilas?.CambiosPendientes > 0)
+        {
+            await anunciador.AnunciarAsync($"El panel de {_filasTabla!.NombreCompleto} tiene cambios sin confirmar. Confírmalos o deshazlos antes de editar otra tabla.");
+            return;
+        }
+
+        _filasBase = nodo.BaseDatos;
+        _filasTabla = nodo.Tabla;
+        _versionFilas++;
+    }
+
+    private async Task CerrarEditorFilasAsync()
+    {
+        _filasTabla = null;
+        _filasBase = null;
+        StateHasChanged();
+
+        if (_explorador is not null)
+        {
+            await _explorador.EnfocarAsync();
+        }
+    }
+
+    private async Task TablaModificadaAsync(string aviso)
+    {
+        var baseDatos = _baseNuevaTabla!;
+        var definicion = _definicionInicial!;
+        var original = _originalTabla!;
+        _baseNuevaTabla = null;
+        _originalTabla = null;
+        StateHasChanged();
+
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+        var tabla = new TablaModelo
+        {
+            Esquema = original.Tabla.Esquema,
+            Nombre = MiGestorBDAccesible.Core.Definicion.ComparadorTablaService.NombreFinal(definicion.Nombre, original.Tabla.Nombre, proveedor.NombreGuardado),
+            EsquemaPredeterminado = original.Tabla.EsquemaPredeterminado
+        };
+
+        if (_explorador is not null)
+        {
+            await _explorador.MostrarTablaAsync(baseDatos, tabla, aviso);
+        }
+    }
+
+    private async Task TablaCreadaAsync(MiGestorBDAccesible.Core.Definicion.DefinicionTablaModelo definicion)
+    {
+        var baseDatos = _baseNuevaTabla!;
+        _baseNuevaTabla = null;
+        StateHasChanged();
+
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+        var tabla = new TablaModelo
+        {
+            Esquema = proveedor.NombreGuardado(definicion.Esquema),
+            Nombre = proveedor.NombreGuardado(definicion.Nombre),
+            EsquemaPredeterminado = proveedor.EsquemaPredeterminado(Conexion)
+        };
+        var columnas = definicion.Columnas.Count == 1 ? "1 columna" : $"{definicion.Columnas.Count} columnas";
+
+        if (_explorador is not null)
+        {
+            await _explorador.MostrarTablaAsync(baseDatos, tabla, $"Tabla {tabla.NombreCompleto} creada con {columnas}.");
+        }
+    }
+
+    private async Task CancelarNuevaTablaAsync()
+    {
+        _baseNuevaTabla = null;
+        StateHasChanged();
+
+        if (_explorador is not null)
+        {
+            await _explorador.EnfocarAsync();
+        }
+    }
+
+    private static string TextoFilas(long filas) => filas == 1 ? "1 fila" : $"{filas:N0} filas";
+
+    private async Task LeerModeloAsync(string baseDatos, bool abrirJoin)
+    {
+        if (_lecturaModelo is not null)
+        {
+            await anunciador.AnunciarAsync($"Ya estoy leyendo el modelo de {_baseLeyendo}. Espera a que termine o cancela la lectura.");
+            return;
+        }
+
+        if (abrirJoin && _modelo?.BaseDatos == baseDatos)
+        {
+            AbrirCaminoJoin();
+            return;
+        }
+
+        _lecturaModelo = new CancellationTokenSource();
+        _dependencias = null;
+        _baseLeyendo = baseDatos;
+        _avanceModelo = "Preparando la lectura…";
+        _descripcion = null;
+        _enfocarCancelarLectura = true;
+        StateHasChanged();
+        await anunciador.AnunciarAsync($"Leyendo el modelo de {baseDatos}. Escape cancela.");
+
+        var avance = new Progress<AvanceLecturaModelo>(a =>
+        {
+            _avanceModelo = $"Leídos {a.Leidos} de {a.Total} objetos.";
+            StateHasChanged();
+        });
+
+        try
+        {
+            var modelo = await LectorModeloService.LeerAsync(proveedores.Obtener(Conexion.Conexion.Motor), Conexion, baseDatos, avance, _lecturaModelo.Token);
+            _modelo = modelo;
+            _descripcionModelo = narradorModelo.Describir(modelo, Conexion.Conexion.Motor);
+            _tablaModeloEnfocar = null;
+            _versionModelo++;
+            _lecturaModelo = null;
+
+            if (abrirJoin)
+            {
+                AbrirCaminoJoin();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _lecturaModelo = null;
+            StateHasChanged();
+            await anunciador.AnunciarAsync("Lectura del modelo cancelada.");
+            await EnfocarExploradorAsync();
+        }
+        catch (Exception ex)
+        {
+            _lecturaModelo = null;
+            StateHasChanged();
+            await anunciador.AnunciarUrgenteAsync($"No se pudo leer el modelo de {baseDatos}. {ex.Message}");
+            await EnfocarExploradorAsync();
+        }
+    }
+
+    private void CancelarLecturaModelo() => _lecturaModelo?.Cancel();
+
+    private void TeclaLecturaModelo(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CancelarLecturaModelo();
+        }
+    }
+
+    private async Task EnfocarExploradorAsync()
+    {
+        if (_explorador is not null)
+        {
+            await _explorador.EnfocarAsync();
+        }
+    }
+
+    private void DescribirTablaModelo(int indice)
+    {
+        _dependencias = null;
+        _descripcion = narrador.Describir(_modelo!.Tablas[indice], proveedores.Obtener(Conexion.Conexion.Motor).Capacidades.Terminos);
+        _temasDescripcion = "concepto:tabla|concepto:clave-principal|concepto:llave-foranea|concepto:uno-a-muchos|concepto:muchos-a-muchos|concepto:indice";
+        _tablaModeloEnfocar = indice;
+    }
+
+    private void VolverAlModeloAsync()
+    {
+        _dependencias = null;
+        _descripcion = null;
+        _versionModelo++;
+    }
+
+    private void AbrirCaminoJoin()
+    {
+        _joinAbierto = true;
+        _caminos = null;
+        _joinDesde = 0;
+        _joinHasta = Math.Min(1, (_modelo?.Tablas.Count ?? 1) - 1);
+    }
+
+    private void CerrarCaminoJoin()
+    {
+        _joinAbierto = false;
+        _caminos = null;
+        _descripcion = null;
+        _tablaModeloEnfocar = null;
+        _versionModelo++;
+    }
+
+    private string TituloCaminos()
+    {
+        var desde = _modelo!.Tablas[_joinDesde].Tabla.NombreCorto();
+        var hasta = _modelo.Tablas[_joinHasta].Tabla.NombreCorto();
+
+        if (_joinDesde == _joinHasta)
+        {
+            return "Elegiste la misma tabla en Desde y en Hasta: no hace falta ningún JOIN.";
+        }
+
+        return _caminos!.Count switch
+        {
+            0 => $"No hay ningún camino de llaves foráneas entre {desde} y {hasta}.",
+            1 => $"Camino de {desde} a {hasta}",
+            var n => $"{n} caminos igual de cortos de {desde} a {hasta}"
+        };
+    }
+
+    private void BuscarCaminoAsync()
+    {
+        _caminos = AnalizadorModeloService.CaminosJoin(_modelo!, _modelo!.Tablas[_joinDesde].Tabla, _modelo.Tablas[_joinHasta].Tabla);
+        _enfocarCaminos = true;
+    }
+
+    private async Task AbrirCaminoAsync(int indice)
+    {
+        var desde = _modelo!.Tablas[_joinDesde].Tabla;
+        var hasta = _modelo.Tablas[_joinHasta].Tabla;
+        var sql = AnalizadorModeloService.ConsultaJoin(proveedores.Obtener(Conexion.Conexion.Motor).Dialecto, desde, _caminos![indice]);
+        var baseDatos = _modelo.BaseDatos;
+
+        _joinAbierto = false;
+        _caminos = null;
+        await AbrirScriptAsync(new ScriptAbiertoModelo(baseDatos, sql, false, $"JOIN de {desde.NombreCorto()} a {hasta.NombreCorto()}"));
+    }
+
+    private async Task GuardarModeloAsync()
+    {
+        var ruta = archivos.ElegirParaGuardar("Guardar la descripción del modelo", ArchivosService.FiltroHtml, $"Modelo de {_modelo!.BaseDatos}.html", "html");
+
+        if (ruta is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await archivos.GuardarAsync(ruta, NarradorModeloService.Html(_descripcionModelo!));
+            await anunciador.AnunciarAsync($"Modelo guardado en {Path.GetFileName(ruta)}.");
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo guardar el archivo. {ex.Message}");
+        }
+    }
+
+    private async Task VerDependenciasAsync(NodoArbolModelo nodo)
+    {
+        var objetivo = nodo.Objeto is { } objeto ? DependenciasService.DesdeObjeto(objeto) : DependenciasService.DesdeTabla(nodo.Tabla!);
+
+        try
+        {
+            var dependencias = await DependenciasService.LeerAsync(proveedores.Obtener(Conexion.Conexion.Motor), Conexion, nodo.BaseDatos!, objetivo);
+            _baseDependencias = nodo.BaseDatos;
+            _nombreDependencias = objetivo.Tabla is { } tabla && objetivo.Tipo == TipoResultadoBusqueda.Disparador
+                ? $"{objetivo.Nombre}, de la tabla {tabla.NombreCompleto}"
+                : objetivo.NombreCompleto;
+            _quienUsa = objetivo.Tipo is TipoResultadoBusqueda.Tabla or TipoResultadoBusqueda.Vista or TipoResultadoBusqueda.Funcion ? "Quién la usa" : "Quién lo usa";
+            _dependencias = dependencias;
+            _descripcion = null;
+            _versionDependencias++;
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudieron leer las dependencias de {nodo.Texto}. {ex.Message}");
+        }
+    }
+
+    private async Task IrADependenciaAsync(ResultadoBusquedaObjetoModelo objeto)
+    {
+        if (_explorador is not null && _baseDependencias is not null)
+        {
+            await _explorador.UbicarAsync(_baseDependencias, objeto);
+        }
+    }
+
+    private async Task DescribirAsync(NodoArbolModelo nodo)
+    {
+        _dependencias = null;
+
+        try
+        {
+            var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+
+            if (nodo.Objeto is { } objeto)
+            {
+                var detalleObjeto = await proveedor.ObtenerDetalleObjetoAsync(Conexion, nodo.BaseDatos!, objeto);
+                _descripcion = narradorObjetos.Describir(detalleObjeto, Conexion.Conexion.Motor);
+                _temasDescripcion = string.Join("|", objeto.Tipo.TemasAyuda());
+                return;
+            }
+
+            var detalle = await proveedor.ObtenerDetalleTablaAsync(Conexion, nodo.BaseDatos!, nodo.Tabla!);
+            _descripcion = narrador.Describir(detalle, proveedor.Capacidades.Terminos);
+            _temasDescripcion = "concepto:tabla|concepto:clave-principal|concepto:llave-foranea|concepto:uno-a-muchos|concepto:muchos-a-muchos|concepto:indice";
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo describir {nodo.Texto}. {ex.Message}");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        foreach (var pestana in _pestanas.Pestanas)
+        {
+            pestana.Cancelacion?.Cancel();
+        }
+
+        _guardadoSesion?.Cancel();
+        await GuardarSesionAsync();
+
+        try
+        {
+            await js.InvokeVoidAsync("miGestor.registrarEspacio", null);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+
+        _referencia?.Dispose();
+    }
+}

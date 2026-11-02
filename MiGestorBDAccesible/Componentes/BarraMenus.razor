@@ -1,0 +1,292 @@
+@implements IDisposable
+@inject AnunciadorService anunciador
+@inject IJSRuntime js
+
+<div class="barra-menus" inert="@Inerte">
+    <ul role="menubar" aria-label="Menú principal" @ref="_barra" @onkeydown="TeclaAsync">
+        @for (var i = 0; i < _menus.Length; i++)
+        {
+            var indice = i;
+            var menu = _menus[i];
+            var abierto = _abierto && _menu == indice;
+            <li role="none">
+                <button role="menuitem" id="@($"barra-{indice}")" tabindex="-1"
+                        aria-haspopup="menu" aria-expanded="@(abierto ? "true" : "false")"
+                        @onclick="() => AlternarAsync(indice)">@menu.Titulo</button>
+                @if (abierto)
+                {
+                    <ul role="menu" aria-label="@menu.Titulo">
+                        @for (var j = 0; j < menu.Opciones.Length; j++)
+                        {
+                            var opcion = menu.Opciones[j];
+                            var posicion = j;
+                            var disponible = Disponible(opcion);
+                            <li role="none">
+                                <button role="menuitem" id="@($"barra-{indice}-{posicion}")" tabindex="-1"
+                                        aria-disabled="@(disponible ? null : "true")"
+                                        aria-label="@(opcion.Atajo is null ? opcion.Texto : $"{opcion.Texto}, {opcion.Atajo}")"
+                                        @onclick="() => ElegirAsync(opcion)">
+                                    <span>@opcion.Texto</span>
+                                    @if (opcion.Atajo is not null)
+                                    {
+                                        <span class="atajo">@opcion.Atajo</span>
+                                    }
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter] public bool Inerte { get; set; }
+
+    private enum Requiere { Nada, Conexion, Pestana, Ejecucion }
+
+    private record Opcion(string Texto, string? Atajo, string Accion, Requiere Requiere);
+
+    private record Menu(string Titulo, Opcion[] Opciones);
+
+    private record EstadoMenu(bool Conectado, bool Pestana, bool Ejecutando);
+
+    private static readonly Menu[] _menus =
+    [
+        new("Archivo",
+        [
+            new("Nueva consulta", "Control+N", "nuevaConsulta", Requiere.Conexion),
+            new("Nueva pestaña", "Control+T", "nuevaPestana", Requiere.Conexion),
+            new("Abrir archivo…", "Control+O", "abrirArchivo", Requiere.Conexion),
+            new("Guardar", "Control+S", "guardar", Requiere.Pestana),
+            new("Guardar como…", "Control+Mayúsculas+S", "guardarComo", Requiere.Pestana),
+            new("Cerrar pestaña", "Control+W", "cerrarPestana", Requiere.Pestana),
+            new("Desconectar", null, "desconectar", Requiere.Conexion),
+            new("Salir", null, "salir", Requiere.Nada)
+        ]),
+        new("Editar",
+        [
+            new("Buscar y reemplazar…", "Control+F", "buscar", Requiere.Pestana),
+            new("Buscar siguiente", "F3", "buscarSiguiente", Requiere.Pestana),
+            new("Buscar objeto…", "Control+B", "buscarObjeto", Requiere.Conexion),
+            new("Historial de consultas…", "Control+H", "historial", Requiere.Conexion)
+        ]),
+        new("Consulta",
+        [
+            new("Ejecutar", "F5", "ejecutar", Requiere.Pestana),
+            new("Cancelar la ejecución", null, "cancelar", Requiere.Ejecucion)
+        ]),
+        new("Ayuda",
+        [
+            new("Ayuda", "F1", "ayuda", Requiere.Nada),
+            new("Atajos de teclado", null, "atajos", Requiere.Nada),
+            new("Manual de usuario", null, "manual", Requiere.Nada),
+            new("Acerca de Mi Gestor BD Accesible", null, "acercaDe", Requiere.Nada)
+        ])
+    ];
+
+    private DotNetObjectReference<BarraMenus>? _referencia;
+    private ElementReference _barra;
+    private EstadoMenu _estado = new(false, false, false);
+    private int _menu;
+    private int _opcion;
+    private bool _activa;
+    private bool _abierto;
+    private string? _enfocar;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _referencia = DotNetObjectReference.Create(this);
+            await js.InvokeVoidAsync("miGestor.registrarBarra", _referencia, _barra);
+        }
+
+        if (_enfocar is { } id)
+        {
+            _enfocar = null;
+            await js.InvokeVoidAsync("miGestor.enfocar", id);
+        }
+    }
+
+    [JSInvokable]
+    public Task Activar()
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_activa)
+            {
+                await SalirAsync(true);
+                return;
+            }
+
+            await ActualizarEstadoAsync();
+            _activa = true;
+            _abierto = false;
+            _menu = 0;
+            _enfocar = "barra-0";
+            StateHasChanged();
+        });
+    }
+
+    [JSInvokable]
+    public Task Desactivar()
+    {
+        return InvokeAsync(() =>
+        {
+            _activa = false;
+            _abierto = false;
+            StateHasChanged();
+        });
+    }
+
+    private async Task ActualizarEstadoAsync()
+    {
+        _estado = await js.InvokeAsync<EstadoMenu>("miGestor.estadoMenu");
+    }
+
+    private bool Disponible(Opcion opcion) => opcion.Requiere switch
+    {
+        Requiere.Conexion => _estado.Conectado,
+        Requiere.Pestana => _estado.Pestana,
+        Requiere.Ejecucion => _estado.Ejecutando,
+        _ => true
+    };
+
+    private async Task AlternarAsync(int indice)
+    {
+        if (!_activa)
+        {
+            await js.InvokeVoidAsync("miGestor.recordarFocoMenu");
+            await ActualizarEstadoAsync();
+            _activa = true;
+        }
+
+        if (_abierto && _menu == indice)
+        {
+            _abierto = false;
+            _enfocar = $"barra-{indice}";
+            return;
+        }
+
+        Abrir(indice, 0);
+    }
+
+    private void Abrir(int indice, int opcion)
+    {
+        _menu = indice;
+        _abierto = true;
+        _opcion = opcion;
+        _enfocar = $"barra-{indice}-{opcion}";
+    }
+
+    private void Mover(int desplazamiento)
+    {
+        _menu = (_menu + desplazamiento + _menus.Length) % _menus.Length;
+
+        if (_abierto)
+        {
+            Abrir(_menu, 0);
+        }
+        else
+        {
+            _enfocar = $"barra-{_menu}";
+        }
+    }
+
+    private async Task TeclaAsync(KeyboardEventArgs e)
+    {
+        var total = _menus[_menu].Opciones.Length;
+
+        switch (e.Key)
+        {
+            case "ArrowRight":
+                Mover(1);
+                break;
+
+            case "ArrowLeft":
+                Mover(-1);
+                break;
+
+            case "ArrowDown" when !_abierto:
+            case "Enter" when !_abierto:
+            case " " when !_abierto:
+                Abrir(_menu, 0);
+                break;
+
+            case "ArrowUp" when !_abierto:
+                Abrir(_menu, total - 1);
+                break;
+
+            case "ArrowDown":
+                Abrir(_menu, (_opcion + 1) % total);
+                break;
+
+            case "ArrowUp":
+                Abrir(_menu, (_opcion - 1 + total) % total);
+                break;
+
+            case "Home" when _abierto:
+                Abrir(_menu, 0);
+                break;
+
+            case "End" when _abierto:
+                Abrir(_menu, total - 1);
+                break;
+
+            case "Enter":
+            case " ":
+                await ElegirAsync(_menus[_menu].Opciones[_opcion]);
+                break;
+
+            case "Escape" when _abierto:
+                _abierto = false;
+                _enfocar = $"barra-{_menu}";
+                break;
+
+            case "Escape":
+            case "Tab":
+                await SalirAsync(true);
+                break;
+        }
+    }
+
+    private async Task SalirAsync(bool volverFoco)
+    {
+        _activa = false;
+        _abierto = false;
+        StateHasChanged();
+
+        if (volverFoco)
+        {
+            await js.InvokeVoidAsync("miGestor.volverFocoMenu");
+        }
+    }
+
+    private async Task ElegirAsync(Opcion opcion)
+    {
+        if (!Disponible(opcion))
+        {
+            var motivo = opcion.Requiere switch
+            {
+                Requiere.Conexion => "necesita una conexión abierta",
+                Requiere.Pestana => "necesita una consulta abierta",
+                _ => "solo se puede mientras una consulta se está ejecutando"
+            };
+
+            await anunciador.AnunciarAsync($"{opcion.Texto.TrimEnd('…')}: no disponible, {motivo}.");
+            return;
+        }
+
+        _activa = false;
+        _abierto = false;
+        StateHasChanged();
+        await js.InvokeVoidAsync("miGestor.ejecutarMenu", opcion.Accion);
+    }
+
+    public void Dispose()
+    {
+        _referencia?.Dispose();
+    }
+}

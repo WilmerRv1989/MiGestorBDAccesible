@@ -1,0 +1,2612 @@
+@using MiGestorBDAccesible.Core.Definicion
+@using MiGestorBDAccesible.Core.Descripcion
+@using MiGestorBDAccesible.Core.Estructura
+@using MiGestorBDAccesible.Modelos
+@inject ProveedoresService proveedores
+@inject NarradorTablaService narrador
+@inject NarradorObjetoService narradorObjetos
+@inject ComprobadorModificacionService comprobador
+@inject AnunciadorService anunciador
+@inject ValidadorTablaService validador
+@inject IJSRuntime js
+
+@if (_raiz is null)
+{
+    <p>Cargando el explorador…</p>
+}
+else
+{
+    <ul role="tree" aria-label="Explorador de objetos" class="arbol" @ref="_arbol" @onkeydown="TeclaAsync">
+        @Nodo(_raiz, 1, 1)
+    </ul>
+
+    @if (_menuNodo is not null)
+    {
+        <MenuContextual Titulo="@($"Acciones de {_menuNodo.Texto}")"
+                        Elementos="_elementosMenu"
+                        AlCerrar="CerrarMenu" />
+    }
+
+    @if (_busquedaObjeto is not null && _buscarAbierto)
+    {
+        <DialogoBuscarObjeto Conexion="Conexion"
+                             Estado="_busquedaObjeto"
+                             Bases="_basesBusqueda"
+                             EtiquetaBase="@(Conexion.Conexion.Motor == TipoMotor.Oracle ? "Esquema" : "Base de datos")"
+                             DisparadoresBase="@_proveedor.Capacidades.TituloDisparadoresBase.Replace("Disparadores ", "")"
+                             AlElegir="ElegirResultadoBusquedaAsync"
+                             AlCancelar="CerrarBuscarObjetoAsync" />
+    }
+}
+
+@switch (_dialogo)
+{
+    case Dialogo.NuevaBase:
+        <DialogoAccion Titulo="Nueva base de datos" AlCancelar="CerrarDialogo">
+            <div class="campo">
+                <label for="nombre-base">Nombre de la base de datos</label>
+                <input id="nombre-base" @bind="_nombreBase" @bind:event="oninput"
+                           data-foco-inicial autocomplete="off" aria-describedby="sql-nueva-base" />
+            </div>
+            <p class="ayuda">Se ejecutará este SQL:</p>
+            <pre id="sql-nueva-base"><code>@_proveedor.ScriptCrearBaseDatos(string.IsNullOrWhiteSpace(_nombreBase) ? "Nombre" : _nombreBase.Trim())</code></pre>
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="principal" disabled="@(_procesando || string.IsNullOrWhiteSpace(_nombreBase))" @onclick="CrearBaseAsync">Crear base de datos</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.EliminarBase:
+        <DialogoAccion Titulo="@($"Eliminar la base de datos {_nodoDialogo!.BaseDatos}")" EsAlerta="true" AlCancelar="CerrarDialogo">
+            <p>Se borrará la base de datos @_nodoDialogo.BaseDatos con todas sus tablas y datos. No se puede deshacer. Antes se cierran las conexiones abiertas a esa base.</p>
+            <div class="campo">
+                <label for="confirmar-base">Para confirmar, escribe el nombre de la base de datos</label>
+                <input id="confirmar-base" @bind="_confirmacion" @bind:event="oninput"
+                           data-foco-inicial autocomplete="off" aria-describedby="sql-eliminar-base" />
+            </div>
+            <p class="ayuda">Se ejecutará este SQL:</p>
+            <pre id="sql-eliminar-base"><code>@_proveedor.ScriptEliminarBaseDatos(_nodoDialogo.BaseDatos!)</code></pre>
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="peligro" disabled="@(_procesando || _confirmacion?.Trim() != _nodoDialogo.BaseDatos)" @onclick="EliminarBaseAsync">Eliminar base de datos</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.NuevaLlave:
+        <DialogoAccion Titulo="@($"Nueva llave foránea en {_nodoDialogo!.Tabla!.NombreCompleto}")" AlCancelar="CerrarDialogo">
+            @if (_detalleDialogo is null)
+            {
+                <p>Revisando la tabla…</p>
+            }
+            else
+            {
+                <div class="campo" data-ayuda="concepto:llave-foranea">
+                    <label for="llave-columna">Columna de @_detalleDialogo.Tabla.NombreCorto() que va a apuntar</label>
+                    <select id="llave-columna" data-foco-inicial value="@_llaveColumna" @onchange="e => _llaveColumna = e.Value?.ToString() ?? string.Empty">
+                        <option value="">Elige una…</option>
+                        @foreach (var columna in _detalleDialogo.Columnas)
+                        {
+                            <option value="@columna.Nombre">@columna.Nombre: @columna.TipoDatos</option>
+                        }
+                    </select>
+                </div>
+                <div class="campo" data-ayuda="concepto:llave-foranea">
+                    <label for="llave-destino">Tabla y columna a la que apunta</label>
+                    <select id="llave-destino" value="@(_llaveReferencia.ColumnaDestino.Length == 0 ? string.Empty : $"{_llaveReferencia.TablaDestino.NombreCompleto}.{_llaveReferencia.ColumnaDestino}")" @onchange="e => ElegirDestinoLlave(e.Value?.ToString())">
+                        <option value="">Elige una…</option>
+                        @foreach (var destino in _destinosDialogo)
+                        {
+                            <option value="@destino.Clave">@destino.Descripcion</option>
+                        }
+                    </select>
+                </div>
+                <div class="campo" data-ayuda="concepto:reglas-referenciales">
+                    <label for="llave-borrar">Al borrar una fila de la tabla destino (ON DELETE)</label>
+                    <select id="llave-borrar" value="@_llaveReferencia.AlEliminar" @onchange="e => _llaveReferencia.AlEliminar = Enum.Parse<ReglaReferencial>(e.Value!.ToString()!)">
+                        @foreach (var regla in _proveedor.Capacidades.ReglasAlEliminar)
+                        {
+                            <option value="@regla">@regla.Explicacion(true)</option>
+                        }
+                    </select>
+                </div>
+                @if (_proveedor.Capacidades.ReglasAlActualizar.Count > 0)
+                {
+                    <div class="campo" data-ayuda="concepto:reglas-referenciales">
+                        <label for="llave-actualizar">Al cambiar la clave en la tabla destino (ON UPDATE)</label>
+                        <select id="llave-actualizar" value="@_llaveReferencia.AlActualizar" @onchange="e => _llaveReferencia.AlActualizar = Enum.Parse<ReglaReferencial>(e.Value!.ToString()!)">
+                            @foreach (var regla in _proveedor.Capacidades.ReglasAlActualizar)
+                            {
+                                <option value="@regla">@regla.Explicacion(false)</option>
+                            }
+                        </select>
+                    </div>
+                }
+                <div class="campo casilla">
+                    <input id="llave-comprobar" type="checkbox" checked="@_llaveComprobar" @onchange="e => _llaveComprobar = (bool)e.Value!" />
+                    <label for="llave-comprobar">Comprobar las filas que ya existen (@_proveedor.Capacidades.Terminos.ComprobarExistentes)</label>
+                </div>
+                <p class="ayuda">Se ejecutará este SQL:</p>
+                <pre><code>@(SqlNuevaLlave() ?? "Elige la columna y el destino para ver el SQL.")</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="principal" disabled="@(_procesando || _detalleDialogo is null)" @onclick="CrearLlaveAsync">Crear llave foránea</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.Intermedia:
+        <DialogoAccion Titulo="Asistente de tabla intermedia" AlCancelar="CerrarDialogo">
+            <p>Una tabla intermedia relaciona dos tablas de muchos a muchos. Elige las dos tablas; después podrás agregar columnas extra, como una cantidad, en el formulario de Nueva tabla.</p>
+            <div class="campo" data-ayuda="concepto:muchos-a-muchos">
+                <label for="intermedia-a">Primera tabla</label>
+                <select id="intermedia-a" data-foco-inicial value="@_intermediaA" @onchange="e => ElegirTablaIntermedia(true, e.Value?.ToString())">
+                    <option value="">Elige una…</option>
+                    @foreach (var destino in _destinosDialogo)
+                    {
+                        <option value="@destino.Clave">@destino.Descripcion</option>
+                    }
+                </select>
+            </div>
+            <div class="campo" data-ayuda="concepto:muchos-a-muchos">
+                <label for="intermedia-b">Segunda tabla</label>
+                <select id="intermedia-b" value="@_intermediaB" @onchange="e => ElegirTablaIntermedia(false, e.Value?.ToString())">
+                    <option value="">Elige una…</option>
+                    @foreach (var destino in _destinosDialogo)
+                    {
+                        <option value="@destino.Clave">@destino.Descripcion</option>
+                    }
+                </select>
+            </div>
+            <div class="campo">
+                <label for="intermedia-nombre">Nombre de la tabla intermedia</label>
+                <input id="intermedia-nombre" value="@_intermediaNombre" autocomplete="off"
+                       @oninput="e => { _intermediaNombre = e.Value?.ToString() ?? string.Empty; _intermediaNombreEditado = true; }"
+                       aria-describedby="ayuda-intermedia" />
+                <span id="ayuda-intermedia" class="ayuda">Se propone uniendo los nombres de las dos tablas; puedes cambiarlo.</span>
+            </div>
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="principal" @onclick="PrepararIntermediaAsync">Preparar tabla intermedia</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.EliminarTabla:
+        <DialogoAccion Titulo="@($"Eliminar la tabla {_nodoDialogo!.Tabla!.NombreCompleto}")" EsAlerta="true" AlCancelar="CerrarDialogo">
+            @if (_detalleDialogo is null)
+            {
+                <p>Revisando la tabla…</p>
+            }
+            else
+            {
+                <p>
+                    Se borrará la tabla @_detalleDialogo.Tabla.NombreCompleto con sus @_detalleDialogo.Filas.ToString("N0") filas.
+                    @(_proveedor.Capacidades.TienePapelera && !_purgar
+                        ? $"Irá a la papelera de reciclaje de {Conexion.Conexion.Motor.Nombre()}: podrás recuperarla con FLASHBACK TABLE {_detalleDialogo.Tabla.Nombre} TO BEFORE DROP."
+                        : "No se puede deshacer.")
+                </p>
+                @if (_usanDialogo is not null && DependenciasService.AvisoEliminar(_usanDialogo, "esta tabla") is { } avisoTabla)
+                {
+                    <p class="error">@avisoTabla</p>
+                }
+                @if (_detalleDialogo.Referencias.Count > 0)
+                {
+                    <p class="error">Atención: @NarradorTablaService.Unir(_detalleDialogo.Referencias.Select(r => $"{r.TablaOrigen.NombreCorto()} (llave {r.Nombre})")) apunta a esta tabla. @Conexion.Conexion.Motor.Nombre() rechazará el borrado mientras existan esas llaves foráneas.</p>
+                }
+                @if (_proveedor.TieneCambiosPendientes(Conexion))
+                {
+                    <p class="error">Una pestaña de consulta tiene cambios sin confirmar. Si tocan esta tabla, @Conexion.Conexion.Motor.Nombre() rechazará el borrado hasta que hagas COMMIT o ROLLBACK en esa pestaña.</p>
+                }
+                @if (_proveedor.Capacidades.TienePapelera)
+                {
+                    <div class="campo casilla">
+                        <input id="purgar-tabla" type="checkbox" checked="@_purgar" @onchange="e => _purgar = (bool)e.Value!" />
+                        <label for="purgar-tabla">Borrar definitivamente, sin pasar por la papelera (PURGE)</label>
+                    </div>
+                }
+                <p class="ayuda">Se ejecutará este SQL:</p>
+                <pre><code>@_proveedor.ScriptEliminarTabla(_detalleDialogo.Tabla, _purgar)</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="peligro" disabled="@(_procesando || _detalleDialogo is null)" @onclick="EliminarTablaAsync">Sí, eliminar la tabla</button>
+                <button data-foco-inicial @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.NuevoIndice:
+        <DialogoAccion Titulo="@($"Nuevo índice en {_nodoDialogo!.Tabla!.NombreCompleto}")" AlCancelar="CerrarDialogo">
+            @if (_detalleDialogo is null)
+            {
+                <p>Revisando la tabla…</p>
+            }
+            else
+            {
+                var disponibles = _detalleDialogo.Columnas.Where(c => !c.EsCalculada && !_defIndice.Columnas.Any(x => x.Nombre == c.Nombre) && !_defIndice.Incluidas.Contains(c.Nombre)).ToList();
+                var repetido = IndiceRepetido();
+
+                <div class="campo" data-ayuda="concepto:indice">
+                    <label for="indice-nombre">Nombre del índice</label>
+                    <input id="indice-nombre" autocomplete="off" value="@_defIndice.Nombre"
+                           @oninput="e => { _defIndice.Nombre = e.Value?.ToString() ?? string.Empty; _nombreIndiceEditado = true; }" />
+                </div>
+                <fieldset data-ayuda="concepto:indice">
+                    <legend>Columnas del índice (@_defIndice.Columnas.Count)</legend>
+                    <p class="ayuda">El orden importa: un índice por Apellido y Nombre sirve para buscar por Apellido, o por Apellido y Nombre, pero no solo por Nombre.</p>
+                    @if (_defIndice.Columnas.Count == 0)
+                    {
+                        <p>Todavía no elegiste columnas.</p>
+                    }
+                    else
+                    {
+                        <ul class="lista-columnas">
+                            @for (var i = 0; i < _defIndice.Columnas.Count; i++)
+                            {
+                                var indice = i;
+                                var columna = _defIndice.Columnas[i];
+                                <li>
+                                    <span>@(indice + 1). @columna.Nombre, @(columna.Descendente ? "descendente (DESC)" : "ascendente (ASC)")</span>
+                                    <div class="acciones">
+                                        <button id="@($"indice-col-{indice}-orden")" aria-label="@($"Cambiar {columna.Nombre} a {(columna.Descendente ? "ascendente" : "descendente")}")" @onclick="() => CambiarOrdenIndice(indice)">Cambiar orden</button>
+                                        <button id="@($"indice-col-{indice}-subir")" aria-label="@($"Subir {columna.Nombre}")" disabled="@(indice == 0)" @onclick="() => MoverColumnaIndice(indice, -1)">Subir</button>
+                                        <button id="@($"indice-col-{indice}-bajar")" aria-label="@($"Bajar {columna.Nombre}")" disabled="@(indice == _defIndice.Columnas.Count - 1)" @onclick="() => MoverColumnaIndice(indice, 1)">Bajar</button>
+                                        <button aria-label="@($"Quitar {columna.Nombre} del índice")" @onclick="() => QuitarColumnaIndice(indice)">Quitar</button>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    <div class="campo">
+                        <label for="indice-columna">Columna para agregar</label>
+                        <select id="indice-columna" data-foco-inicial value="@_columnaIndiceElegida" @onchange="e => _columnaIndiceElegida = e.Value?.ToString() ?? string.Empty">
+                            <option value="">Elige una…</option>
+                            @foreach (var columna in disponibles)
+                            {
+                                <option value="@columna.Nombre">@columna.Nombre: @columna.TipoDatos</option>
+                            }
+                        </select>
+                    </div>
+                    <button id="indice-agregar" @onclick="AgregarColumnaIndiceAsync">Agregar al índice</button>
+                </fieldset>
+                <div class="campo casilla" data-ayuda="concepto:unique">
+                    <input id="indice-unico" type="checkbox" checked="@_defIndice.EsUnico" @onchange="e => { _defIndice.EsUnico = (bool)e.Value!; _comprobacionesDialogo = []; }" />
+                    <label for="indice-unico">Valor único, no se puede repetir (UNIQUE)</label>
+                </div>
+                @if (TieneOpcionesAvanzadas())
+                {
+                    var agrupado = _detalleDialogo.Indices.FirstOrDefault(i => i.EsAgrupado);
+                    <fieldset data-ayuda="concepto:indice">
+                        <legend>Opciones avanzadas</legend>
+                        @if (_proveedor.Capacidades.Terminos.TieneIndicesAgrupados)
+                        {
+                            @if (agrupado is null)
+                            {
+                                <div class="campo casilla">
+                                    <input id="indice-agrupado" type="checkbox" checked="@_defIndice.EsAgrupado" @onchange="e => _defIndice.EsAgrupado = (bool)e.Value!" />
+                                    <label for="indice-agrupado">Agrupado (CLUSTERED): ordena la tabla por estas columnas; solo puede haber uno</label>
+                                </div>
+                            }
+                            else
+                            {
+                                <p>La tabla ya tiene el índice agrupado @agrupado.Nombre, así que este será no agrupado (NONCLUSTERED).</p>
+                            }
+                        }
+                        @if (_proveedor.Capacidades.IndiceIncluye)
+                        {
+                            <p class="ayuda">Columnas incluidas (INCLUDE): se guardan en el índice para que algunas consultas no tengan que leer la tabla, pero no sirven para buscar.</p>
+                            @foreach (var incluida in _defIndice.Incluidas.ToList())
+                            {
+                                <div class="acciones">
+                                    <span>Incluida: @incluida</span>
+                                    <button aria-label="@($"Quitar {incluida} de las incluidas")" @onclick="() => _defIndice.Incluidas.Remove(incluida)">Quitar</button>
+                                </div>
+                            }
+                            <div class="campo">
+                                <label for="indice-incluida">Columna incluida para agregar, opcional</label>
+                                <select id="indice-incluida" value="@_incluidaElegida" @onchange="e => _incluidaElegida = e.Value?.ToString() ?? string.Empty">
+                                    <option value="">Ninguna</option>
+                                    @foreach (var columna in disponibles)
+                                    {
+                                        <option value="@columna.Nombre">@columna.Nombre: @columna.TipoDatos</option>
+                                    }
+                                </select>
+                            </div>
+                            <button @onclick="AgregarIncluidaAsync">Incluir columna</button>
+                        }
+                        @if (_proveedor.Capacidades.IndiceFiltrado)
+                        {
+                            <div class="campo">
+                                <label for="indice-filtro">Solo algunas filas (WHERE), opcional</label>
+                                <input id="indice-filtro" autocomplete="off" value="@_defIndice.Filtro" aria-describedby="ayuda-filtro"
+                                       @oninput="e => { _defIndice.Filtro = e.Value?.ToString(); _comprobacionesDialogo = []; }" />
+                                <span id="ayuda-filtro" class="ayuda">Por ejemplo, Activo = 1. El índice solo tendrá las filas que cumplan la condición.</span>
+                            </div>
+                        }
+                        @if (_proveedor.Capacidades.MetodosIndice.Count > 0)
+                        {
+                            <div class="campo">
+                                <label for="indice-metodo">Método (USING)</label>
+                                <select id="indice-metodo" value="@(_defIndice.Metodo ?? "btree")" @onchange="e => _defIndice.Metodo = e.Value?.ToString()">
+                                    @foreach (var (nombre, explicacion) in _proveedor.Capacidades.MetodosIndice)
+                                    {
+                                        <option value="@nombre">@nombre: @explicacion</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        @if (_proveedor.Capacidades.IndiceConcurrente)
+                        {
+                            <div class="campo casilla">
+                                <input id="indice-concurrente" type="checkbox" checked="@_defIndice.Concurrente" @onchange="e => _defIndice.Concurrente = (bool)e.Value!" />
+                                <label for="indice-concurrente">Sin bloquear la tabla mientras se crea (CONCURRENTLY): tarda más, pero se puede seguir escribiendo en ella</label>
+                            </div>
+                        }
+                    </fieldset>
+                }
+                @if (repetido is not null)
+                {
+                    <p class="error">Ya existe el índice @repetido.Nombre con las mismas columnas en el mismo orden; otro igual no acelerará nada.</p>
+                }
+                <p class="ayuda">Un índice acelera las búsquedas por estas columnas, pero hace algo más lentos los INSERT y UPDATE.</p>
+                @ListaComprobaciones()
+                <p class="ayuda">Se ejecutará este SQL:</p>
+                <pre><code>@(_defIndice.Columnas.Count == 0 ? "Agrega al menos una columna para ver el SQL." : _proveedor.ScriptCrearIndice(DefinicionIndiceFinal()))</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="principal" disabled="@(_procesando || _detalleDialogo is null)" @onclick="CrearIndiceAsync">Crear índice</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.NuevoCheck:
+        <DialogoAccion Titulo="@($"Nueva restricción CHECK en {_nodoDialogo!.Tabla!.NombreCompleto}")" AlCancelar="CerrarDialogo">
+            @if (_detalleDialogo is null)
+            {
+                <p>Revisando la tabla…</p>
+            }
+            else
+            {
+                <div class="campo" data-ayuda="concepto:check">
+                    <label for="check-nombre">Nombre de la restricción</label>
+                    <input id="check-nombre" autocomplete="off" value="@_defCheck.Nombre"
+                           @oninput="e => { _defCheck.Nombre = e.Value?.ToString() ?? string.Empty; _nombreCheckEditado = true; }" />
+                </div>
+                <fieldset data-ayuda="concepto:check">
+                    <legend>Cómo escribir la condición</legend>
+                    <div class="campo casilla">
+                        <input id="check-modo-asistente" type="radio" name="check-modo" checked="@_checkConAsistente" @onchange="() => { _checkConAsistente = true; _comprobacionesDialogo = []; }" />
+                        <label for="check-modo-asistente">Con el asistente</label>
+                    </div>
+                    <div class="campo casilla">
+                        <input id="check-modo-manual" type="radio" name="check-modo" checked="@(!_checkConAsistente)" @onchange="() => { _checkConAsistente = false; _comprobacionesDialogo = []; }" />
+                        <label for="check-modo-manual">A mano</label>
+                    </div>
+                </fieldset>
+                @if (_checkConAsistente)
+                {
+                    <div class="campo" data-ayuda="concepto:check">
+                        <label for="check-columna">Columna</label>
+                        <select id="check-columna" data-foco-inicial value="@_checkColumna" @onchange="e => { _checkColumna = e.Value?.ToString() ?? string.Empty; ActualizarNombreCheck(); _comprobacionesDialogo = []; }">
+                            <option value="">Elige una…</option>
+                            @foreach (var columna in _detalleDialogo.Columnas.Where(c => !c.EsCalculada))
+                            {
+                                <option value="@columna.Nombre">@columna.Nombre: @columna.TipoDatos</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="campo">
+                        <label for="check-comparacion">Comparación</label>
+                        <select id="check-comparacion" value="@_checkComparacion" @onchange="e => { _checkComparacion = Enum.Parse<ComparacionCheck>(e.Value!.ToString()!); _comprobacionesDialogo = []; }">
+                            @foreach (var comparacion in Enum.GetValues<ComparacionCheck>())
+                            {
+                                <option value="@comparacion">@comparacion.Texto()</option>
+                            }
+                        </select>
+                    </div>
+                    @if (_checkComparacion.UsaValor())
+                    {
+                        <div class="campo">
+                            <label for="check-valor">@(_checkComparacion switch { ComparacionCheck.Entre => "Desde", ComparacionCheck.EnLista => "Valores separados por comas", _ => "Valor" })</label>
+                            <input id="check-valor" autocomplete="off" value="@_checkValor" aria-describedby="ayuda-check-valor"
+                                   @oninput="e => { _checkValor = e.Value?.ToString() ?? string.Empty; _comprobacionesDialogo = []; }" />
+                            <span id="ayuda-check-valor" class="ayuda">Escribe los textos y las fechas sin comillas: la app las agrega.</span>
+                        </div>
+                        @if (_checkComparacion == ComparacionCheck.Entre)
+                        {
+                            <div class="campo">
+                                <label for="check-valor2">Hasta</label>
+                                <input id="check-valor2" autocomplete="off" value="@_checkValor2" @oninput="e => { _checkValor2 = e.Value?.ToString() ?? string.Empty; _comprobacionesDialogo = []; }" />
+                            </div>
+                        }
+                    }
+                }
+                else
+                {
+                    <div class="campo" data-ayuda="concepto:check">
+                        <label for="check-condicion">Condición</label>
+                        <textarea id="check-condicion" rows="3" spellcheck="false" aria-describedby="ayuda-check-condicion"
+                                  value="@_checkManual" @oninput="e => { _checkManual = e.Value?.ToString() ?? string.Empty; _comprobacionesDialogo = []; }"></textarea>
+                        <span id="ayuda-check-condicion" class="ayuda">@EjemplosCheck()</span>
+                    </div>
+                }
+                <p class="ayuda">Si la columna admite NULL, las filas con NULL siempre pasan: un CHECK solo rechaza lo que da falso.</p>
+                <div class="campo casilla">
+                    <input id="check-comprobar" type="checkbox" checked="@_defCheck.ComprobarExistentes" @onchange="e => { _defCheck.ComprobarExistentes = (bool)e.Value!; _comprobacionesDialogo = []; }" />
+                    <label for="check-comprobar">Comprobar las filas que ya existen (@_proveedor.Capacidades.Terminos.ComprobarExistentes)</label>
+                </div>
+                @ListaComprobaciones()
+                <p class="ayuda">Se ejecutará este SQL:</p>
+                <pre><code>@(CondicionCheck() is null ? "Completa la condición para ver el SQL." : _proveedor.ScriptCrearCheck(DefinicionCheckFinal()))</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="principal" disabled="@(_procesando || _detalleDialogo is null)" @onclick="CrearCheckAsync">Crear restricción</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.EliminarIndice:
+        <DialogoAccion Titulo="@($"Eliminar el índice {_nodoDialogo!.Indice!.Nombre}")" EsAlerta="true" AlCancelar="CerrarDialogo">
+            <p>Se borrará el índice @_nodoDialogo.Indice.Nombre de @_nodoDialogo.Padre!.Padre!.Tabla!.NombreCompleto. Los datos no se tocan; las búsquedas por esas columnas pueden volverse más lentas.</p>
+            @if (_avisoEliminarIndice is not null)
+            {
+                <p class="error">@_avisoEliminarIndice</p>
+            }
+            <p class="ayuda">Se ejecutará este SQL:</p>
+            <pre><code>@_proveedor.ScriptEliminarIndice(_nodoDialogo.Padre.Padre.Tabla, _nodoDialogo.Indice)</code></pre>
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="peligro" disabled="@_procesando" @onclick="EliminarIndiceAsync">Sí, eliminar el índice</button>
+                <button data-foco-inicial @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.EliminarCheck:
+        <DialogoAccion Titulo="@($"Eliminar la restricción CHECK {_nodoDialogo!.Check!.Nombre}")" EsAlerta="true" AlCancelar="CerrarDialogo">
+            <p>Se borrará la restricción @_nodoDialogo.Check.Nombre (@NarradorTablaService.QuitarParentesisExternos(_nodoDialogo.Check.Definicion)). Desde entonces se aceptarán valores que antes se rechazaban.</p>
+            <p class="ayuda">Se ejecutará este SQL:</p>
+            <pre><code>@_proveedor.ScriptEliminarCheck(_nodoDialogo.Padre!.Padre!.Tabla!, _nodoDialogo.Check.Nombre)</code></pre>
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="peligro" disabled="@_procesando" @onclick="EliminarCheckAsync">Sí, eliminar la restricción</button>
+                <button data-foco-inicial @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.EliminarObjeto:
+        <DialogoAccion Titulo="@($"Eliminar {_nodoDialogo!.Objeto!.Tipo.ConArticulo()} {_nodoDialogo.Objeto.NombreCompleto}")" EsAlerta="true" AlCancelar="CerrarDialogo">
+            <p>
+                Se borrará @_nodoDialogo.Objeto.Tipo.ConArticulo() @_nodoDialogo.Objeto.NombreCompleto@(_nodoDialogo.Objeto.Tipo == TipoObjeto.Paquete ? " con su cuerpo (PACKAGE BODY)" : "").
+                No se puede deshacer.
+            </p>
+            @if (_usanDialogo is null)
+            {
+                <p>Revisando qué objetos lo usan…</p>
+            }
+            else if (DependenciasService.AvisoEliminar(_usanDialogo, EsteObjeto(_nodoDialogo.Objeto.Tipo)) is { } avisoObjeto)
+            {
+                <p class="error">@avisoObjeto O @Conexion.Conexion.Motor.Nombre() rechazará el borrado.</p>
+            }
+            else
+            {
+                <p>Según el catálogo, ningún objeto usa @_nodoDialogo.Objeto.NombreCompleto.</p>
+            }
+            @if (_proveedor.TieneCambiosPendientes(Conexion))
+            {
+                <p class="error">Una pestaña de consulta tiene cambios sin confirmar. Si usan @_nodoDialogo.Objeto.NombreCompleto, @Conexion.Conexion.Motor.Nombre() rechazará el borrado hasta que hagas COMMIT o ROLLBACK en esa pestaña.</p>
+            }
+            <p class="ayuda">Se ejecutará este SQL:</p>
+            <pre><code>@_proveedor.ScriptEliminarObjeto(_nodoDialogo.Objeto)</code></pre>
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="peligro" disabled="@_procesando" @onclick="EliminarObjetoAsync">Sí, eliminar @_nodoDialogo.Objeto.Tipo.ConArticulo()</button>
+                <button data-foco-inicial @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.EjecutarObjeto:
+        <DialogoAccion Titulo="@($"Ejecutar {_nodoDialogo!.Objeto!.Tipo.ConArticulo()} {_nodoDialogo.Objeto.NombreCompleto}")" AlCancelar="CerrarDialogo">
+            @if (_detalleObjeto is null)
+            {
+                <p>Revisando los parámetros…</p>
+            }
+            else if (NarradorObjetoService.EsFuncionDisparador(_detalleObjeto))
+            {
+                <p>Esta función devuelve @_detalleObjeto.Retorno: la ejecuta un disparador cuando ocurre su evento, no se puede llamar directamente.</p>
+            }
+            else
+            {
+                var entradas = _detalleObjeto.Parametros.Where(p => p.Direccion != DireccionParametro.Salida).ToList();
+                var salidas = _detalleObjeto.Parametros.Where(p => p.Direccion != DireccionParametro.Entrada).ToList();
+
+                @if (entradas.Count == 0)
+                {
+                    <p>No necesita valores de entrada.</p>
+                }
+                else
+                {
+                    <p class="ayuda" id="ayuda-parametros">Deja un campo vacío para enviar NULL. Escribe los textos y las fechas sin comillas, por ejemplo 2026-01-31: la app agrega las comillas.</p>
+                    @for (var i = 0; i < entradas.Count; i++)
+                    {
+                        var parametro = entradas[i];
+                        <div class="campo">
+                            <label for="@($"parametro-{i}")">@parametro.Nombre (@parametro.TipoDatos@(parametro.Direccion == DireccionParametro.EntradaSalida ? ", de entrada y salida" : ""))</label>
+                            <input id="@($"parametro-{i}")" autocomplete="off" aria-describedby="ayuda-parametros"
+                                   value="@(_valoresParametros.GetValueOrDefault(parametro.Nombre))"
+                                   @oninput="e => _valoresParametros[parametro.Nombre] = e.Value?.ToString()" />
+                        </div>
+                    }
+                }
+
+                @if (salidas.Count > 0)
+                {
+                    <p>@(Conexion.Conexion.Motor == TipoMotor.PostgreSql
+                        ? $"Los valores de salida ({NarradorTablaService.Unir(salidas.Select(s => s.Nombre))}) aparecerán en los resultados."
+                        : $"Los valores de salida ({NarradorTablaService.Unir(salidas.Select(s => s.Nombre))}) aparecerán en el panel de mensajes.")</p>
+                }
+
+                <p class="ayuda">Se escribirá y ejecutará este SQL en el editor:</p>
+                <pre><code>@_proveedor.ScriptLlamada(_detalleObjeto, _valoresParametros)</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button id="boton-ejecutar-objeto" class="principal" disabled="@(_detalleObjeto is null || NarradorObjetoService.EsFuncionDisparador(_detalleObjeto))" @onclick="EjecutarObjetoAsync">Ejecutar</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.HabilitarDisparador:
+        <DialogoAccion Titulo="@($"Habilitar o deshabilitar el disparador {_nodoDialogo!.Objeto!.NombreCompleto}")" AlCancelar="CerrarDialogo">
+            @if (_detalleObjeto is null)
+            {
+                <p>Revisando el disparador…</p>
+            }
+            else
+            {
+                var habilitado = _detalleObjeto.Habilitado != false;
+                <p>El disparador está @(habilitado ? "habilitado: se ejecuta en cada evento" : "deshabilitado: no se ejecuta hasta que lo habilites").</p>
+                <p class="ayuda">Se ejecutará este SQL:</p>
+                <pre><code>@_proveedor.ScriptHabilitarDisparador(_nodoDialogo.Objeto, !habilitado)</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button id="boton-habilitar" class="principal" disabled="@(_procesando || _detalleObjeto is null)" @onclick="CambiarDisparadorAsync">@(_detalleObjeto?.Habilitado == false ? "Habilitar disparador" : "Deshabilitar disparador")</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+
+    case Dialogo.ReiniciarSecuencia:
+        <DialogoAccion Titulo="@($"Reiniciar la secuencia {_nodoDialogo!.Objeto!.NombreCompleto}")" AlCancelar="CerrarDialogo">
+            @if (_detalleObjeto is null)
+            {
+                <p>Revisando la secuencia…</p>
+            }
+            else
+            {
+                <p>@(_detalleObjeto.ValorActual is { } actual ? $"El último valor entregado es {actual}." : "La secuencia todavía no informa un valor actual.") El próximo valor que entregue será el que escribas aquí.</p>
+                <div class="campo">
+                    <label for="valor-secuencia">Valor con el que vuelve a empezar</label>
+                    <input id="valor-secuencia" inputmode="numeric" autocomplete="off" aria-describedby="sql-reiniciar"
+                           value="@_valorSecuencia" @oninput="e => _valorSecuencia = e.Value?.ToString() ?? string.Empty" />
+                </div>
+                <p class="ayuda">Se ejecutará este SQL:</p>
+                <pre id="sql-reiniciar"><code>@(long.TryParse(_valorSecuencia.Trim(), out var valor) ? _proveedor.ScriptReiniciarSecuencia(_nodoDialogo.Objeto, valor) : "Escribe un número entero para ver el SQL.")</code></pre>
+            }
+            <ErrorDialogo Mensaje="@_errorDialogo" />
+            <div class="acciones">
+                <button class="principal" disabled="@(_procesando || _detalleObjeto is null)" @onclick="ReiniciarSecuenciaAsync">Reiniciar secuencia</button>
+                <button @onclick="CerrarDialogo">Cancelar</button>
+            </div>
+        </DialogoAccion>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired] public ConexionActiva Conexion { get; set; } = default!;
+    [Parameter] public EventCallback<NodoArbolModelo> AlDescribir { get; set; }
+    [Parameter] public EventCallback<string?> AlNuevaConsulta { get; set; }
+    [Parameter] public EventCallback<ScriptAbiertoModelo> AlAbrirScript { get; set; }
+    [Parameter] public EventCallback<SolicitudTablaModelo> AlNuevaTabla { get; set; }
+    [Parameter] public EventCallback<NodoArbolModelo> AlEditarFilas { get; set; }
+    [Parameter] public EventCallback<string> AlDescribirModelo { get; set; }
+    [Parameter] public EventCallback<string> AlCaminoJoin { get; set; }
+    [Parameter] public EventCallback<NodoArbolModelo> AlVerDependencias { get; set; }
+
+    private enum Dialogo { Ninguno, NuevaBase, EliminarBase, EliminarTabla, NuevaLlave, Intermedia, EliminarObjeto, EjecutarObjeto, HabilitarDisparador, ReiniciarSecuencia, NuevoIndice, NuevoCheck, EliminarIndice, EliminarCheck }
+
+    private IProveedorBaseDatos _proveedor = default!;
+    private NodoArbolModelo? _raiz;
+    private NodoArbolModelo? _carpetaBases;
+    private NodoArbolModelo? _menuNodo;
+    private List<ElementoMenuModelo> _elementosMenu = [];
+    private Dialogo _dialogo = Dialogo.Ninguno;
+    private NodoArbolModelo? _nodoDialogo;
+    private DetalleTablaModelo? _detalleDialogo;
+    private List<DependenciaModelo>? _usanDialogo;
+    private DetalleObjetoModelo? _detalleObjeto;
+    private Dictionary<string, string?> _valoresParametros = [];
+    private string _valorSecuencia = "";
+    private DefinicionIndiceModelo _defIndice = new();
+    private bool _nombreIndiceEditado;
+    private string _columnaIndiceElegida = "";
+    private string _incluidaElegida = "";
+    private DefinicionCheckModelo _defCheck = new();
+    private bool _nombreCheckEditado;
+    private bool _checkConAsistente = true;
+    private string _checkColumna = "";
+    private ComparacionCheck _checkComparacion = ComparacionCheck.MayorOIgual;
+    private string _checkValor = "";
+    private string _checkValor2 = "";
+    private string _checkManual = "";
+    private string? _avisoEliminarIndice;
+    private List<ComprobacionModelo> _comprobacionesDialogo = [];
+    private readonly Dictionary<string, DefinicionIndiceModelo> _borradoresIndice = [];
+    private readonly Dictionary<string, (DefinicionCheckModelo, bool, string, ComparacionCheck, string, string, string)> _borradoresCheck = [];
+    private string? _nombreBase;
+    private string? _confirmacion;
+    private string? _errorDialogo;
+    private bool _procesando;
+    private bool _purgar;
+    private List<DestinoLlaveModelo> _destinosDialogo = [];
+    private string _llaveColumna = "";
+    private ReferenciaModelo _llaveReferencia = new();
+    private bool _llaveComprobar = true;
+    private string _intermediaA = "";
+    private string _intermediaB = "";
+    private string _intermediaNombre = "";
+    private bool _intermediaNombreEditado;
+    private NodoArbolModelo? _activo;
+    private EstadoBusquedaObjetoModelo? _busquedaObjeto;
+    private List<string> _basesBusqueda = [];
+    private bool _buscarAbierto;
+    private string? _enfocarPendiente;
+    private bool _arbolPreparado;
+    private ElementReference _arbol;
+
+    private RenderFragment Nodo(NodoArbolModelo nodo, int posicion, int total) => __builder =>
+    {
+        var activo = nodo == _activo;
+
+        <li id="@nodo.Id"
+            role="treeitem"
+            aria-labelledby="@($"{nodo.Id}-texto")"
+            aria-level="@nodo.Nivel"
+            aria-posinset="@posicion"
+            aria-setsize="@total"
+            aria-expanded="@(nodo.PuedeExpandirse ? (nodo.Expandido ? "true" : "false") : null)"
+            aria-selected="@(activo ? "true" : "false")"
+            aria-busy="@(nodo.Cargando ? "true" : null)"
+            tabindex="@(activo ? 0 : -1)"
+            class="@(activo ? "activo" : null)"
+            data-ayuda="@(nodo.TemasAyuda.Count > 0 ? string.Join("|", nodo.TemasAyuda) : null)"
+            data-base="@nodo.BaseDatos"
+            @onfocus="() => _activo = nodo"
+            @onclick="() => ClicAsync(nodo)"
+            @onclick:stopPropagation="true"
+            @oncontextmenu="() => AbrirMenuAsync(nodo)"
+            @oncontextmenu:preventDefault="true"
+            @oncontextmenu:stopPropagation="true">
+            <span id="@($"{nodo.Id}-texto")" class="texto-nodo">@nodo.Texto@(nodo.Cargando ? " (cargando…)" : "")</span>
+
+            @if (nodo.Expandido && nodo.Hijos is { Count: > 0 } hijos)
+            {
+                <ul role="group">
+                    @for (var i = 0; i < hijos.Count; i++)
+                    {
+                        @Nodo(hijos[i], i + 1, hijos.Count)
+                    }
+                </ul>
+            }
+        </li>
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+
+        var raiz = new NodoArbolModelo
+        {
+            Texto = $"{Conexion.Conexion.Nombre}, {Conexion.Servidor.Producto}",
+            Tipo = TipoNodo.Servidor,
+            Expandido = true
+        };
+
+        var carpetaBases = new NodoArbolModelo
+        {
+            Texto = _proveedor.Capacidades.ContenedoresTitulo,
+            Tipo = TipoNodo.Carpeta,
+            Padre = raiz,
+            CargarHijos = CargarBasesDatosAsync
+        };
+
+        raiz.Hijos = [carpetaBases];
+        _carpetaBases = carpetaBases;
+
+        await ExpandirAsync(carpetaBases);
+
+        _raiz = raiz;
+        var preferida = Conexion.Conexion.BaseDatosInicial ?? _proveedor.EsquemaPredeterminado(Conexion);
+        var bases = carpetaBases.Hijos?.Where(n => n.Tipo == TipoNodo.BaseDatos).ToList() ?? [];
+        _activo = bases.FirstOrDefault(n => string.Equals(n.BaseDatos, preferida, StringComparison.OrdinalIgnoreCase))
+            ?? bases.FirstOrDefault()
+            ?? carpetaBases;
+        _enfocarPendiente = _activo.Id;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_raiz is not null && !_arbolPreparado && !string.IsNullOrEmpty(_arbol.Id))
+        {
+            _arbolPreparado = true;
+            await js.InvokeVoidAsync("miGestor.prepararArbol", _arbol);
+        }
+
+        if (_enfocarPendiente is not null)
+        {
+            var id = _enfocarPendiente;
+            _enfocarPendiente = null;
+            await js.InvokeVoidAsync("miGestor.enfocar", id);
+        }
+    }
+
+    private async Task TeclaAsync(KeyboardEventArgs e)
+    {
+        if (_activo is null || _raiz is null)
+        {
+            return;
+        }
+
+        var visibles = Visibles();
+        var indice = visibles.IndexOf(_activo);
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                Activar(visibles[Math.Min(indice + 1, visibles.Count - 1)]);
+                break;
+
+            case "ArrowUp":
+                Activar(visibles[Math.Max(indice - 1, 0)]);
+                break;
+
+            case "Home":
+                Activar(visibles[0]);
+                break;
+
+            case "End":
+                Activar(visibles[^1]);
+                break;
+
+            case "ArrowRight":
+                if (_activo.PuedeExpandirse && !_activo.Expandido)
+                {
+                    await ExpandirAsync(_activo);
+                }
+                else if (_activo.Expandido && _activo.Hijos is { Count: > 0 } hijos)
+                {
+                    Activar(hijos[0]);
+                }
+                break;
+
+            case "ArrowLeft":
+                if (_activo.Expandido && _activo.Padre is not null)
+                {
+                    _activo.Expandido = false;
+                }
+                else if (_activo.Padre is not null)
+                {
+                    Activar(_activo.Padre);
+                }
+                break;
+
+            case "Enter":
+                await AccionPrincipalAsync(_activo);
+                break;
+
+            case "ContextMenu":
+                await AbrirMenuAsync(_activo);
+                break;
+
+            case "F10" when e.ShiftKey:
+                await AbrirMenuAsync(_activo);
+                break;
+        }
+    }
+
+    private async Task AbrirMenuAsync(NodoArbolModelo nodo)
+    {
+        _activo = nodo;
+        var elementos = ElementosMenu(nodo);
+
+        if (elementos.Count == 0)
+        {
+            await anunciador.AnunciarAsync("No hay acciones para este elemento.");
+            return;
+        }
+
+        _elementosMenu = elementos.Select(e => e.Accion is not { } accion
+            ? e
+            : new ElementoMenuModelo
+            {
+                Texto = e.Texto,
+                EsPeligro = e.EsPeligro,
+                Accion = () => InvokeAsync(async () =>
+                {
+                    await accion();
+                    StateHasChanged();
+                })
+            }).ToList();
+        _menuNodo = nodo;
+    }
+
+    private void CerrarMenu()
+    {
+        var nodo = _menuNodo;
+        _menuNodo = null;
+
+        if (nodo is not null)
+        {
+            Activar(nodo);
+        }
+    }
+
+    private List<ElementoMenuModelo> ElementosMenu(NodoArbolModelo nodo)
+    {
+        var elementos = new List<ElementoMenuModelo>();
+
+        switch (nodo.Tipo)
+        {
+            case TipoNodo.Servidor:
+                elementos.Add(new() { Texto = "Nueva consulta", Accion = () => AlNuevaConsulta.InvokeAsync(null) });
+
+                if (_proveedor.Capacidades.PuedeCrearContenedores)
+                {
+                    elementos.Add(new() { Texto = "Nueva base de datos…", Accion = AbrirNuevaBaseAsync });
+                }
+
+                elementos.Add(ElementoMenuModelo.Separador());
+                elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(_carpetaBases!) });
+                break;
+
+            case TipoNodo.BaseDatos:
+                elementos.Add(new() { Texto = "Nueva consulta", Accion = () => AlNuevaConsulta.InvokeAsync(nodo.BaseDatos) });
+
+                if (!nodo.EsSistema && nodo.CargarHijos is not null && _proveedor.Capacidades.PuedeDisenarTablas)
+                {
+                    elementos.Add(new() { Texto = "Nueva tabla…", Accion = () => AlNuevaTabla.InvokeAsync(new SolicitudTablaModelo(nodo.BaseDatos!)) });
+                    elementos.Add(new() { Texto = "Asistente de tabla intermedia…", Accion = () => AbrirIntermediaAsync(nodo) });
+                }
+
+                if (!nodo.EsSistema && nodo.CargarHijos is not null)
+                {
+                    elementos.Add(ElementoMenuModelo.Separador());
+                    elementos.Add(new() { Texto = "Describir el modelo", Accion = () => AlDescribirModelo.InvokeAsync(nodo.BaseDatos!) });
+                    elementos.Add(new() { Texto = "Camino de JOIN…", Accion = () => AlCaminoJoin.InvokeAsync(nodo.BaseDatos!) });
+                    elementos.Add(new() { Texto = "Buscar objeto…", Accion = () => AbrirBuscarObjetoAsync(nodo.BaseDatos) });
+                }
+
+                elementos.Add(ElementoMenuModelo.Separador());
+                elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(nodo) });
+
+                if (!nodo.EsSistema && _proveedor.Capacidades.PuedeCrearContenedores)
+                {
+                    elementos.Add(ElementoMenuModelo.Separador());
+                    elementos.Add(new() { Texto = "Eliminar base de datos…", EsPeligro = true, Accion = () => AbrirEliminarBaseAsync(nodo) });
+                }
+                break;
+
+            case TipoNodo.Tabla:
+                AgregarAccionesTabla(elementos, nodo, true);
+                break;
+
+            case TipoNodo.Objeto:
+                AgregarAccionesObjeto(elementos, nodo);
+                break;
+
+            case TipoNodo.Carpeta when nodo == _carpetaBases:
+                if (_proveedor.Capacidades.PuedeCrearContenedores)
+                {
+                    elementos.Add(new() { Texto = "Nueva base de datos…", Accion = AbrirNuevaBaseAsync });
+                }
+
+                elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(nodo) });
+                break;
+
+            default:
+                var tabla = Ancestro(nodo, TipoNodo.Tabla);
+
+                if (tabla is not null)
+                {
+                    if (nodo.Indice is not null)
+                    {
+                        elementos.Add(new() { Texto = "Eliminar índice…", EsPeligro = true, Accion = () => AbrirEliminarIndiceAsync(nodo) });
+                        elementos.Add(ElementoMenuModelo.Separador());
+                    }
+                    else if (nodo.Check is not null)
+                    {
+                        elementos.Add(new() { Texto = "Eliminar restricción CHECK…", EsPeligro = true, Accion = () => AbrirEliminarCheckAsync(nodo) });
+                        elementos.Add(ElementoMenuModelo.Separador());
+                    }
+
+                    AgregarAccionesTabla(elementos, tabla, false);
+                }
+                else if (nodo.BaseDatos is not null && nodo.TipoCarpeta is not null)
+                {
+                    elementos.Add(new() { Texto = "Nueva consulta", Accion = () => AlNuevaConsulta.InvokeAsync(nodo.BaseDatos) });
+                    elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(nodo) });
+                }
+                else if (nodo.BaseDatos is not null && nodo.Tipo == TipoNodo.Carpeta)
+                {
+                    elementos.Add(new() { Texto = "Nueva consulta", Accion = () => AlNuevaConsulta.InvokeAsync(nodo.BaseDatos) });
+
+                    if (nodo.Padre is { EsSistema: false } && nodo.TipoCarpeta is null && _proveedor.Capacidades.PuedeDisenarTablas)
+                    {
+                        elementos.Add(new() { Texto = "Nueva tabla…", Accion = () => AlNuevaTabla.InvokeAsync(new SolicitudTablaModelo(nodo.BaseDatos!)) });
+                        elementos.Add(new() { Texto = "Asistente de tabla intermedia…", Accion = () => AbrirIntermediaAsync(nodo) });
+                    }
+
+                    elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(nodo) });
+                }
+                else if (nodo.Tipo == TipoNodo.Carpeta)
+                {
+                    elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(_carpetaBases!) });
+                }
+                break;
+        }
+
+        return elementos;
+    }
+
+    private RenderFragment ListaComprobaciones() => __builder =>
+    {
+        @if (_comprobacionesDialogo.Count > 0)
+        {
+            <h3 id="titulo-comprobaciones-dialogo" tabindex="-1">Comprobaciones (@_comprobacionesDialogo.Count)</h3>
+            <ul class="lista-mensajes">
+                @foreach (var comprobacion in _comprobacionesDialogo)
+                {
+                    <li class="error">
+                        @comprobacion.Mensaje
+                        @if (comprobacion.ConsultaFilas is { } consulta)
+                        {
+                            <button aria-label="@($"Ver esas filas: {comprobacion.Mensaje}")" @onclick="() => VerFilasDialogoAsync(consulta)">Ver esas filas</button>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    };
+
+    private async Task AbrirNuevoIndiceAsync(NodoArbolModelo tabla)
+    {
+        if (!await PrepararDialogoTablaAsync(tabla, Dialogo.NuevoIndice))
+        {
+            return;
+        }
+
+        if (_borradoresIndice.Remove(tabla.Tabla!.NombreCompleto, out var borrador))
+        {
+            _defIndice = borrador;
+            _nombreIndiceEditado = true;
+            await anunciador.AnunciarAsync("Se recuperó lo que habías preparado para este índice.");
+        }
+        else
+        {
+            _defIndice = new DefinicionIndiceModelo { Tabla = tabla.Tabla! };
+            _nombreIndiceEditado = false;
+        }
+
+        _enfocarPendiente = "indice-columna";
+        StateHasChanged();
+    }
+
+    private async Task AbrirNuevoCheckAsync(NodoArbolModelo tabla)
+    {
+        if (!await PrepararDialogoTablaAsync(tabla, Dialogo.NuevoCheck))
+        {
+            return;
+        }
+
+        if (_borradoresCheck.Remove(tabla.Tabla!.NombreCompleto, out var borrador))
+        {
+            (_defCheck, _checkConAsistente, _checkColumna, _checkComparacion, _checkValor, _checkValor2, _checkManual) = borrador;
+            _nombreCheckEditado = true;
+            await anunciador.AnunciarAsync("Se recuperó lo que habías preparado para esta restricción.");
+        }
+        else
+        {
+            _defCheck = new DefinicionCheckModelo { Tabla = tabla.Tabla! };
+            _nombreCheckEditado = false;
+            _checkConAsistente = true;
+            _checkColumna = "";
+            _checkComparacion = ComparacionCheck.MayorOIgual;
+            _checkValor = "";
+            _checkValor2 = "";
+            _checkManual = "";
+        }
+
+        _enfocarPendiente = _checkConAsistente ? "check-columna" : "check-condicion";
+        StateHasChanged();
+    }
+
+    private async Task<bool> PrepararDialogoTablaAsync(NodoArbolModelo tabla, Dialogo dialogo)
+    {
+        _nodoDialogo = tabla;
+        _detalleDialogo = null;
+        _errorDialogo = null;
+        _comprobacionesDialogo = [];
+        _columnaIndiceElegida = "";
+        _incluidaElegida = "";
+        _dialogo = dialogo;
+        StateHasChanged();
+
+        try
+        {
+            _detalleDialogo = await _proveedor.ObtenerDetalleTablaAsync(Conexion, tabla.BaseDatos!, tabla.Tabla!);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _errorDialogo = $"No se pudo revisar la tabla. {ex.Message}";
+            StateHasChanged();
+            return false;
+        }
+    }
+
+    private bool TieneOpcionesAvanzadas()
+    {
+        var capacidades = _proveedor.Capacidades;
+        return capacidades.Terminos.TieneIndicesAgrupados || capacidades.IndiceIncluye || capacidades.IndiceFiltrado
+            || capacidades.MetodosIndice.Count > 0 || capacidades.IndiceConcurrente;
+    }
+
+    private IndiceModelo? IndiceRepetido()
+    {
+        var columnas = _defIndice.Columnas.Select(c => c.Nombre).ToList();
+
+        return columnas.Count == 0
+            ? null
+            : _detalleDialogo?.Indices.FirstOrDefault(i => i.ColumnasClave.SequenceEqual(columnas, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private void ActualizarNombreIndice()
+    {
+        if (!_nombreIndiceEditado && _nodoDialogo?.Tabla is { } tabla)
+        {
+            _defIndice.Nombre = _defIndice.Columnas.Count == 0 ? "" : $"IX_{tabla.Nombre}_{string.Join("_", _defIndice.Columnas.Select(c => c.Nombre))}";
+        }
+    }
+
+    private async Task AgregarColumnaIndiceAsync()
+    {
+        if (_columnaIndiceElegida.Length == 0)
+        {
+            await anunciador.AnunciarUrgenteAsync("Elige primero una columna de la lista.");
+            return;
+        }
+
+        var nombre = _columnaIndiceElegida;
+        _defIndice.Columnas.Add(new ColumnaDefinicionIndiceModelo { Nombre = nombre });
+        _columnaIndiceElegida = "";
+        _comprobacionesDialogo = [];
+        ActualizarNombreIndice();
+        _enfocarPendiente = "indice-columna";
+        StateHasChanged();
+        await Task.Delay(300);
+        await anunciador.AnunciarAsync($"{nombre} agregada al índice: es la columna {_defIndice.Columnas.Count}. {IndiceRepetido()?.Nombre switch { null => "", var n => $"Ojo: el índice {n} ya tiene estas mismas columnas." }}");
+    }
+
+    private void CambiarOrdenIndice(int indice)
+    {
+        _defIndice.Columnas[indice].Descendente = !_defIndice.Columnas[indice].Descendente;
+        _enfocarPendiente = $"indice-col-{indice}-orden";
+    }
+
+    private void MoverColumnaIndice(int indice, int direccion)
+    {
+        var columna = _defIndice.Columnas[indice];
+        _defIndice.Columnas.RemoveAt(indice);
+        _defIndice.Columnas.Insert(indice + direccion, columna);
+        _comprobacionesDialogo = [];
+        ActualizarNombreIndice();
+        var destino = indice + direccion;
+        var boton = direccion < 0 ? (destino > 0 ? "subir" : "bajar") : (destino < _defIndice.Columnas.Count - 1 ? "bajar" : "subir");
+        _enfocarPendiente = $"indice-col-{destino}-{boton}";
+        _ = anunciador.AnunciarAsync($"{columna.Nombre} ahora es la columna {destino + 1} de {_defIndice.Columnas.Count}.");
+    }
+
+    private void QuitarColumnaIndice(int indice)
+    {
+        var columna = _defIndice.Columnas[indice];
+        _defIndice.Columnas.RemoveAt(indice);
+        _comprobacionesDialogo = [];
+        ActualizarNombreIndice();
+        _enfocarPendiente = "indice-columna";
+        _ = anunciador.AnunciarAsync($"{columna.Nombre} quitada del índice. Quedan {_defIndice.Columnas.Count}.");
+    }
+
+    private async Task AgregarIncluidaAsync()
+    {
+        if (_incluidaElegida.Length == 0)
+        {
+            await anunciador.AnunciarUrgenteAsync("Elige primero la columna que quieres incluir.");
+            return;
+        }
+
+        _defIndice.Incluidas.Add(_incluidaElegida);
+        await anunciador.AnunciarAsync($"{_incluidaElegida} incluida en el índice.");
+        _incluidaElegida = "";
+    }
+
+    private DefinicionIndiceModelo DefinicionIndiceFinal() => new()
+    {
+        Tabla = _defIndice.Tabla,
+        Nombre = _defIndice.Nombre,
+        Columnas = _defIndice.Columnas,
+        EsUnico = _defIndice.EsUnico,
+        EsAgrupado = _defIndice.EsAgrupado && _detalleDialogo?.Indices.Any(i => i.EsAgrupado) == false,
+        Incluidas = _proveedor.Capacidades.IndiceIncluye ? _defIndice.Incluidas : [],
+        Filtro = _proveedor.Capacidades.IndiceFiltrado ? _defIndice.Filtro : null,
+        Metodo = _defIndice.Metodo,
+        Concurrente = _defIndice.Concurrente
+    };
+
+    private async Task CrearIndiceAsync()
+    {
+        if (_defIndice.Columnas.Count == 0)
+        {
+            _errorDialogo = "Agrega al menos una columna al índice.";
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_defIndice.Nombre))
+        {
+            _errorDialogo = "Escribe el nombre del índice.";
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        var definicion = DefinicionIndiceFinal();
+
+        if (!await ComprobarDialogoAsync(() => comprobador.ComprobarIndiceAsync(_proveedor, Conexion, _nodoDialogo!.BaseDatos!, definicion)))
+        {
+            return;
+        }
+
+        var tabla = _nodoDialogo!;
+
+        if (!await EjecutarDialogoAsync(tabla.BaseDatos, _proveedor.ScriptCrearIndice(definicion)))
+        {
+            return;
+        }
+
+        await TerminarDialogoTablaAsync(tabla, $"Índice {_proveedor.NombreGuardado(definicion.Nombre)} creado sobre {NarradorTablaService.Unir(definicion.Columnas.Select(c => c.Nombre))}.");
+    }
+
+    private string? CondicionCheck()
+    {
+        if (!_checkConAsistente)
+        {
+            return string.IsNullOrWhiteSpace(_checkManual) ? null : _checkManual.Trim();
+        }
+
+        var columna = _detalleDialogo?.Columnas.FirstOrDefault(c => c.Nombre == _checkColumna);
+
+        return columna is null
+            ? null
+            : AsistenteCheckService.Condicion(_proveedor.Dialecto, columna.Nombre, columna.TipoDatos, _checkComparacion, _checkValor, _checkValor2);
+    }
+
+    private void ActualizarNombreCheck()
+    {
+        if (!_nombreCheckEditado && _nodoDialogo?.Tabla is { } tabla)
+        {
+            _defCheck.Nombre = _checkColumna.Length == 0 ? "" : $"CK_{tabla.Nombre}_{_checkColumna}";
+        }
+    }
+
+    private DefinicionCheckModelo DefinicionCheckFinal() => new()
+    {
+        Tabla = _defCheck.Tabla,
+        Nombre = string.IsNullOrWhiteSpace(_defCheck.Nombre) ? $"CK_{_defCheck.Tabla.Nombre}" : _defCheck.Nombre,
+        Condicion = CondicionCheck() ?? "",
+        ComprobarExistentes = _defCheck.ComprobarExistentes
+    };
+
+    private string EjemplosCheck()
+    {
+        var ejemplos = new List<string>();
+        var columnas = _detalleDialogo?.Columnas ?? [];
+        var d = _proveedor.Dialecto;
+
+        if (columnas.FirstOrDefault(c => EsNumero(c.TipoDatos)) is { } numero)
+        {
+            ejemplos.Add($"{d.Columna(numero.Nombre)} >= 0");
+        }
+
+        if (columnas.FirstOrDefault(c => EsTexto(c.TipoDatos)) is { } texto)
+        {
+            ejemplos.Add($"{d.Columna(texto.Nombre)} IN ('A', 'B')");
+        }
+
+        if (columnas.Count(c => EsFecha(c.TipoDatos)) >= 2)
+        {
+            var fechas = columnas.Where(c => EsFecha(c.TipoDatos)).Take(2).ToList();
+            ejemplos.Add($"{d.Columna(fechas[1].Nombre)} >= {d.Columna(fechas[0].Nombre)}");
+        }
+
+        return ejemplos.Count == 0
+            ? "Escríbela como en un WHERE, usando las columnas de la tabla."
+            : $"Escríbela como en un WHERE. Por ejemplo: {string.Join("; o ", ejemplos)}.";
+
+        static bool EsNumero(string tipo) => System.Text.RegularExpressions.Regex.IsMatch(tipo, @"^(int|bigint|smallint|tinyint|decimal|numeric|money|float|real|integer|number|double)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        static bool EsTexto(string tipo) => System.Text.RegularExpressions.Regex.IsMatch(tipo, @"char|text", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        static bool EsFecha(string tipo) => System.Text.RegularExpressions.Regex.IsMatch(tipo, @"date|time", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
+    private async Task CrearCheckAsync()
+    {
+        var condicion = CondicionCheck();
+
+        if (condicion is null)
+        {
+            _errorDialogo = _checkConAsistente ? "Elige la columna y escribe el valor de la condición." : "Escribe la condición.";
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        var definicion = DefinicionCheckFinal();
+
+        if (!await ComprobarDialogoAsync(() => comprobador.ComprobarCheckAsync(_proveedor, Conexion, _nodoDialogo!.BaseDatos!, definicion)))
+        {
+            return;
+        }
+
+        var tabla = _nodoDialogo!;
+
+        if (!await EjecutarDialogoAsync(tabla.BaseDatos, _proveedor.ScriptCrearCheck(definicion)))
+        {
+            return;
+        }
+
+        await TerminarDialogoTablaAsync(tabla, $"Restricción CHECK {_proveedor.NombreGuardado(definicion.Nombre)} creada: {condicion}.");
+    }
+
+    private async Task<bool> ComprobarDialogoAsync(Func<Task<List<ComprobacionModelo>>> comprobar)
+    {
+        _procesando = true;
+        _errorDialogo = null;
+        StateHasChanged();
+
+        try
+        {
+            _comprobacionesDialogo = await comprobar();
+        }
+        catch (Exception ex)
+        {
+            _procesando = false;
+            _errorDialogo = $"No se pudo revisar los datos con esa condición. {ex.Message}";
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return false;
+        }
+
+        _procesando = false;
+
+        if (_comprobacionesDialogo.Count == 0)
+        {
+            return true;
+        }
+
+        _enfocarPendiente = "titulo-comprobaciones-dialogo";
+        StateHasChanged();
+        await Task.Delay(400);
+        var cantidad = _comprobacionesDialogo.Count == 1 ? "1 problema" : $"{_comprobacionesDialogo.Count} problemas";
+        await anunciador.AnunciarUrgenteAsync($"No se puede crear todavía: {cantidad}. {_comprobacionesDialogo[0].Mensaje}");
+        return false;
+    }
+
+    private async Task VerFilasDialogoAsync(string consulta)
+    {
+        var tabla = _nodoDialogo!;
+
+        if (_dialogo == Dialogo.NuevoIndice)
+        {
+            _borradoresIndice[tabla.Tabla!.NombreCompleto] = _defIndice;
+        }
+        else
+        {
+            _borradoresCheck[tabla.Tabla!.NombreCompleto] = (_defCheck, _checkConAsistente, _checkColumna, _checkComparacion, _checkValor, _checkValor2, _checkManual);
+        }
+
+        CerrarDialogo();
+        await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(tabla.BaseDatos, consulta, true, "Filas que impiden el cambio"));
+    }
+
+    private async Task TerminarDialogoTablaAsync(NodoArbolModelo tabla, string aviso)
+    {
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        _comprobacionesDialogo = [];
+        await RecargarAsync(tabla);
+        Activar(tabla);
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync(aviso);
+    }
+
+    private async Task AbrirEliminarIndiceAsync(NodoArbolModelo nodo)
+    {
+        var indice = nodo.Indice!;
+
+        if (indice.EsClavePrincipal || indice.EsRestriccionUnica)
+        {
+            await anunciador.AnunciarAsync($"El índice {indice.Nombre} sostiene {(indice.EsClavePrincipal ? "la clave principal" : "una restricción de valor único (UNIQUE)")}. Para quitarlo usa Modificar tabla.");
+            return;
+        }
+
+        _nodoDialogo = nodo;
+        _errorDialogo = null;
+        _avisoEliminarIndice = null;
+        _dialogo = Dialogo.EliminarIndice;
+        StateHasChanged();
+
+        if (indice.EsUnico)
+        {
+            try
+            {
+                var tabla = nodo.Padre!.Padre!;
+                var detalle = await _proveedor.ObtenerDetalleTablaAsync(Conexion, tabla.BaseDatos!, tabla.Tabla!);
+                var usan = detalle.Referencias.Where(r => r.ColumnasDestino.SequenceEqual(indice.ColumnasClave, StringComparer.OrdinalIgnoreCase)).ToList();
+
+                if (usan.Count > 0)
+                {
+                    _avisoEliminarIndice = $"Atención: {NarradorTablaService.Unir(usan.Select(r => $"la llave foránea {r.Nombre} de {r.TablaOrigen.NombreCorto()}"))} usa este índice único. {Conexion.Conexion.Motor.Nombre()} rechazará el borrado mientras exista.";
+                    StateHasChanged();
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private Task AbrirEliminarCheckAsync(NodoArbolModelo nodo)
+    {
+        _nodoDialogo = nodo;
+        _errorDialogo = null;
+        _dialogo = Dialogo.EliminarCheck;
+        return Task.CompletedTask;
+    }
+
+    private async Task EliminarIndiceAsync()
+    {
+        var nodo = _nodoDialogo!;
+        var tabla = nodo.Padre!.Padre!;
+
+        if (await EjecutarDialogoAsync(tabla.BaseDatos, _proveedor.ScriptEliminarIndice(tabla.Tabla!, nodo.Indice!)))
+        {
+            await TerminarDialogoTablaAsync(tabla, $"Índice {nodo.Indice!.Nombre} eliminado.");
+        }
+    }
+
+    private async Task EliminarCheckAsync()
+    {
+        var nodo = _nodoDialogo!;
+        var tabla = nodo.Padre!.Padre!;
+
+        if (await EjecutarDialogoAsync(tabla.BaseDatos, _proveedor.ScriptEliminarCheck(tabla.Tabla!, nodo.Check!.Nombre)))
+        {
+            await TerminarDialogoTablaAsync(tabla, $"Restricción CHECK {nodo.Check!.Nombre} eliminada.");
+        }
+    }
+
+    private void AgregarAccionesTabla(List<ElementoMenuModelo> elementos, NodoArbolModelo tabla, bool completo)
+    {
+        var nombre = tabla.Tabla!.NombreCompleto;
+        var sufijo = completo ? "" : $" de {nombre}";
+
+        elementos.Add(new() { Texto = completo ? "Describir" : $"Describir {nombre}", Accion = () => AlDescribir.InvokeAsync(tabla) });
+        elementos.Add(new() { Texto = $"Ver dependencias{sufijo}", Accion = () => AlVerDependencias.InvokeAsync(tabla) });
+        elementos.Add(new() { Texto = $"Seleccionar las primeras 100 filas{sufijo}", Accion = () => AbrirScriptAsync(tabla, TipoScript.SeleccionarPrimeras) });
+
+        if (completo)
+        {
+            elementos.Add(new() { Texto = "Editar filas…", Accion = () => AlEditarFilas.InvokeAsync(tabla) });
+        }
+
+        if (!completo)
+        {
+            return;
+        }
+
+        elementos.Add(new() { Texto = "Nueva consulta", Accion = () => AlNuevaConsulta.InvokeAsync(tabla.BaseDatos) });
+        elementos.Add(ElementoMenuModelo.Separador());
+
+        foreach (var tipo in new[] { TipoScript.Crear, TipoScript.Seleccionar, TipoScript.Insertar, TipoScript.Actualizar, TipoScript.Eliminar, TipoScript.EliminarTabla })
+        {
+            elementos.Add(new() { Texto = $"Generar script {tipo.Nombre()}", Accion = () => AbrirScriptAsync(tabla, tipo) });
+        }
+
+        if (_proveedor.Capacidades.PuedeDisenarTablas)
+        {
+            elementos.Add(ElementoMenuModelo.Separador());
+            elementos.Add(new() { Texto = "Nueva llave foránea…", Accion = () => AbrirNuevaLlaveAsync(tabla) });
+            elementos.Add(new() { Texto = "Nuevo índice…", Accion = () => AbrirNuevoIndiceAsync(tabla) });
+            elementos.Add(new() { Texto = "Nueva restricción CHECK…", Accion = () => AbrirNuevoCheckAsync(tabla) });
+            elementos.Add(new() { Texto = "Modificar tabla…", Accion = () => ModificarTablaAsync(tabla) });
+        }
+
+        elementos.Add(ElementoMenuModelo.Separador());
+        elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(tabla) });
+        elementos.Add(ElementoMenuModelo.Separador());
+        elementos.Add(new() { Texto = "Eliminar tabla…", EsPeligro = true, Accion = () => AbrirEliminarTablaAsync(tabla) });
+    }
+
+    private void AgregarAccionesObjeto(List<ElementoMenuModelo> elementos, NodoArbolModelo nodo)
+    {
+        var objeto = nodo.Objeto!;
+
+        elementos.Add(new() { Texto = "Describir", Accion = () => AlDescribir.InvokeAsync(nodo) });
+
+        if (objeto.Tipo != TipoObjeto.Secuencia)
+        {
+            elementos.Add(new() { Texto = "Ver dependencias", Accion = () => AlVerDependencias.InvokeAsync(nodo) });
+        }
+
+        if (objeto.Tipo == TipoObjeto.Vista)
+        {
+            elementos.Add(new() { Texto = "Seleccionar las primeras 100 filas", Accion = () => SeleccionarVistaAsync(nodo) });
+        }
+
+        if (objeto.Tipo is TipoObjeto.Procedimiento or TipoObjeto.Funcion)
+        {
+            elementos.Add(new() { Texto = "Ejecutar…", Accion = () => AbrirDialogoObjetoAsync(nodo, Dialogo.EjecutarObjeto) });
+        }
+
+        elementos.Add(new() { Texto = "Generar script CREATE", Accion = () => AbrirScriptObjetoAsync(nodo) });
+
+        if (objeto.Tipo == TipoObjeto.Disparador)
+        {
+            elementos.Add(new() { Texto = "Habilitar o deshabilitar…", Accion = () => AbrirDialogoObjetoAsync(nodo, Dialogo.HabilitarDisparador) });
+        }
+
+        if (objeto.Tipo == TipoObjeto.Secuencia)
+        {
+            elementos.Add(new() { Texto = "Reiniciar…", Accion = () => AbrirDialogoObjetoAsync(nodo, Dialogo.ReiniciarSecuencia) });
+        }
+
+        elementos.Add(new() { Texto = "Nueva consulta", Accion = () => AlNuevaConsulta.InvokeAsync(nodo.BaseDatos) });
+        elementos.Add(ElementoMenuModelo.Separador());
+        elementos.Add(new() { Texto = "Actualizar", Accion = () => ActualizarAsync(nodo) });
+        elementos.Add(ElementoMenuModelo.Separador());
+        elementos.Add(new() { Texto = $"Eliminar {objeto.Tipo.Singular()}…", EsPeligro = true, Accion = () => AbrirDialogoObjetoAsync(nodo, Dialogo.EliminarObjeto) });
+    }
+
+    private async Task SeleccionarVistaAsync(NodoArbolModelo nodo)
+    {
+        try
+        {
+            var detalle = await _proveedor.ObtenerDetalleObjetoAsync(Conexion, nodo.BaseDatos!, nodo.Objeto!);
+            await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(nodo.BaseDatos, _proveedor.ScriptSeleccionarPrimeras(detalle), true,
+                $"Primeras 100 filas de {nodo.Objeto!.NombreCompleto}"));
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo consultar la vista. {ex.Message}");
+        }
+    }
+
+    private async Task AbrirScriptObjetoAsync(NodoArbolModelo nodo)
+    {
+        try
+        {
+            var script = await _proveedor.GenerarScriptObjetoAsync(Conexion, nodo.BaseDatos!, nodo.Objeto!);
+            await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(nodo.BaseDatos, script, false,
+                $"Script CREATE {nodo.Objeto!.Tipo.DeArticulo()} {nodo.Objeto.NombreCompleto}"));
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo generar el script. {ex.Message}");
+        }
+    }
+
+    private async Task AbrirDialogoObjetoAsync(NodoArbolModelo nodo, Dialogo dialogo)
+    {
+        _nodoDialogo = nodo;
+        _detalleObjeto = null;
+        _errorDialogo = null;
+        _valoresParametros = [];
+        _valorSecuencia = "";
+        _dialogo = dialogo;
+        StateHasChanged();
+
+        if (dialogo == Dialogo.EliminarObjeto)
+        {
+            _usanDialogo = null;
+            _usanDialogo = await UsanAsync(nodo.BaseDatos!, DependenciasService.DesdeObjeto(nodo.Objeto!)) ?? [];
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            _detalleObjeto = await _proveedor.ObtenerDetalleObjetoAsync(Conexion, nodo.BaseDatos!, nodo.Objeto!);
+        }
+        catch (Exception ex)
+        {
+            _errorDialogo = $"No se pudo revisar {nodo.Objeto!.Tipo.ConArticulo()}. {ex.Message}";
+            StateHasChanged();
+            return;
+        }
+
+        _valorSecuencia = _detalleObjeto.Inicio ?? _detalleObjeto.Minimo ?? "1";
+        _enfocarPendiente = dialogo switch
+        {
+            Dialogo.EjecutarObjeto when _detalleObjeto.Parametros.Any(p => p.Direccion != DireccionParametro.Salida)
+                && !NarradorObjetoService.EsFuncionDisparador(_detalleObjeto) => "parametro-0",
+            Dialogo.EjecutarObjeto => "boton-ejecutar-objeto",
+            Dialogo.HabilitarDisparador => "boton-habilitar",
+            _ => "valor-secuencia"
+        };
+        StateHasChanged();
+    }
+
+    private async Task EjecutarObjetoAsync()
+    {
+        var nodo = _nodoDialogo!;
+        var script = _proveedor.ScriptLlamada(_detalleObjeto!, _valoresParametros);
+
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(nodo.BaseDatos, script, true, $"Llamada a {nodo.Objeto!.NombreCompleto}"));
+    }
+
+    private async Task EliminarObjetoAsync()
+    {
+        var nodo = _nodoDialogo!;
+        var objeto = nodo.Objeto!;
+
+        if (!await EjecutarDialogoAsync(nodo.BaseDatos, _proveedor.ScriptEliminarObjeto(objeto)))
+        {
+            return;
+        }
+
+        var destino = nodo.Padre!;
+
+        while (destino.CargarHijos is null && destino.Padre is not null)
+        {
+            destino = destino.Padre;
+        }
+
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await RecargarAsync(destino);
+        Activar(destino);
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"{Mayuscula(objeto.Tipo.ConArticulo())} {objeto.NombreCompleto} se eliminó.");
+    }
+
+    private async Task CambiarDisparadorAsync()
+    {
+        var nodo = _nodoDialogo!;
+        var habilitar = _detalleObjeto!.Habilitado == false;
+
+        if (!await EjecutarDialogoAsync(nodo.BaseDatos, _proveedor.ScriptHabilitarDisparador(nodo.Objeto!, habilitar)))
+        {
+            return;
+        }
+
+        CerrarDialogo();
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"Disparador {nodo.Objeto!.NombreCompleto} {(habilitar ? "habilitado" : "deshabilitado")}.");
+    }
+
+    private async Task ReiniciarSecuenciaAsync()
+    {
+        if (!long.TryParse(_valorSecuencia.Trim(), out var valor))
+        {
+            _errorDialogo = "Escribe un número entero, por ejemplo 1000.";
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        var nodo = _nodoDialogo!;
+
+        if (!await EjecutarDialogoAsync(nodo.BaseDatos, _proveedor.ScriptReiniciarSecuencia(nodo.Objeto!, valor)))
+        {
+            return;
+        }
+
+        CerrarDialogo();
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"Secuencia {nodo.Objeto!.NombreCompleto} reiniciada: el próximo valor será {valor}.");
+    }
+
+    private static string Mayuscula(string texto) => texto.Length == 0 ? texto : char.ToUpper(texto[0]) + texto[1..];
+
+    private async Task ModificarTablaAsync(NodoArbolModelo tabla)
+    {
+        try
+        {
+            var detalle = await _proveedor.ObtenerDetalleTablaAsync(Conexion, tabla.BaseDatos!, tabla.Tabla!);
+            var definicion = ComparadorTablaService.DesdeDetalle(detalle, _proveedor.TiposDatos);
+            await AlNuevaTabla.InvokeAsync(new SolicitudTablaModelo(tabla.BaseDatos!, definicion, null, detalle));
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo leer la tabla. {ex.Message}");
+        }
+    }
+
+    private static NodoArbolModelo? Ancestro(NodoArbolModelo nodo, TipoNodo tipo)
+    {
+        var actual = nodo.Padre;
+
+        while (actual is not null && actual.Tipo != tipo)
+        {
+            actual = actual.Padre;
+        }
+
+        return actual;
+    }
+
+    private async Task AbrirScriptAsync(NodoArbolModelo tabla, TipoScript tipo)
+    {
+        try
+        {
+            var script = await _proveedor.GenerarScriptAsync(Conexion, tabla.BaseDatos!, tabla.Tabla!, tipo);
+            var descripcion = tipo == TipoScript.SeleccionarPrimeras
+                ? $"Primeras 100 filas de {tabla.Tabla!.NombreCompleto}"
+                : $"Script {tipo.Nombre()} de {tabla.Tabla!.NombreCompleto}";
+
+            await AlAbrirScript.InvokeAsync(new ScriptAbiertoModelo(tabla.BaseDatos, script, tipo == TipoScript.SeleccionarPrimeras, descripcion));
+        }
+        catch (Exception ex)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo generar el script. {ex.Message}");
+        }
+    }
+
+    private async Task ActualizarAsync(NodoArbolModelo nodo)
+    {
+        var destino = nodo;
+
+        while (destino.CargarHijos is null && destino.Padre is not null)
+        {
+            destino = destino.Padre;
+        }
+
+        await RecargarAsync(destino);
+        Activar(destino);
+
+        var cantidad = destino.Hijos?.Count(h => h.Tipo != TipoNodo.Mensaje) ?? 0;
+        await anunciador.AnunciarAsync($"{destino.Texto} actualizado: {cantidad} {(cantidad == 1 ? "elemento" : "elementos")}.");
+    }
+
+    public Task MostrarTablaAsync(string baseDatos, TablaModelo tabla, string aviso)
+    {
+        return InvokeAsync(async () =>
+        {
+            var nodoBase = Visitar(_carpetaBases!).FirstOrDefault(n =>
+                n.Tipo == TipoNodo.BaseDatos && string.Equals(n.BaseDatos, baseDatos, StringComparison.OrdinalIgnoreCase));
+
+            if (nodoBase is null)
+            {
+                await anunciador.AnunciarAsync(aviso);
+                return;
+            }
+
+            await ExpandirAsync(nodoBase);
+            var carpeta = nodoBase.Hijos?.FirstOrDefault(h => h.Tipo == TipoNodo.Carpeta && h.CargarHijos is not null);
+
+            if (carpeta is null)
+            {
+                Activar(nodoBase);
+            }
+            else
+            {
+                await RecargarAsync(carpeta);
+                var nodoTabla = carpeta.Hijos?.FirstOrDefault(h =>
+                    h.Tabla is not null && string.Equals(h.Tabla.NombreCompleto, tabla.NombreCompleto, StringComparison.OrdinalIgnoreCase));
+                Activar(nodoTabla ?? carpeta);
+            }
+
+            StateHasChanged();
+            await Task.Delay(600);
+            await anunciador.AnunciarAsync(aviso);
+        });
+    }
+
+    private static IEnumerable<NodoArbolModelo> Visitar(NodoArbolModelo nodo)
+    {
+        yield return nodo;
+
+        foreach (var hijo in nodo.Hijos ?? [])
+        {
+            foreach (var descendiente in Visitar(hijo))
+            {
+                yield return descendiente;
+            }
+        }
+    }
+
+    private async Task<List<DependenciaModelo>?> UsanAsync(string baseDatos, ResultadoBusquedaObjetoModelo objetivo)
+    {
+        try
+        {
+            return await DependenciasService.ObjetosQueUsanAsync(_proveedor, Conexion, baseDatos, objetivo);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static string EsteObjeto(TipoObjeto tipo) =>
+        tipo.ConArticulo() is var articulo && articulo.StartsWith("la ") ? $"esta {articulo[3..]}" : $"este {tipo.ConArticulo()[3..]}";
+
+    public Task UbicarAsync(string baseDatos, ResultadoBusquedaObjetoModelo resultado)
+    {
+        return InvokeAsync(async () =>
+        {
+            var nodoBase = NodosBase().FirstOrDefault(n => string.Equals(n.BaseDatos, baseDatos, StringComparison.OrdinalIgnoreCase));
+
+            if (nodoBase is null)
+            {
+                return;
+            }
+
+            await ExpandirAsync(nodoBase);
+            var (destino, ultimo, ruta) = await BuscarNodoAsync(nodoBase, resultado);
+            await TerminarUbicacionAsync(resultado, destino, ultimo, ruta);
+        });
+    }
+
+    private async Task TerminarUbicacionAsync(ResultadoBusquedaObjetoModelo resultado, NodoArbolModelo? destino, NodoArbolModelo ultimo, string? ruta)
+    {
+        Activar(destino ?? ultimo);
+        StateHasChanged();
+        await Task.Delay(600);
+
+        if (destino is null)
+        {
+            await anunciador.AnunciarAsync($"No encontré {BuscadorObjetosService.Describir(resultado)} en el árbol. Prueba con Actualizar.");
+        }
+        else if (ruta is not null)
+        {
+            await anunciador.AnunciarAsync(ruta);
+        }
+    }
+
+    public Task AbrirBuscarObjetoAsync(string? baseDatos)
+    {
+        return InvokeAsync(async () =>
+        {
+            if (_carpetaBases is null)
+            {
+                return;
+            }
+
+            await ExpandirAsync(_carpetaBases);
+            _basesBusqueda = NodosBase().Select(n => n.BaseDatos!).ToList();
+
+            if (_basesBusqueda.Count == 0)
+            {
+                await anunciador.AnunciarAsync("No hay bases de datos donde buscar.");
+                return;
+            }
+
+            _busquedaObjeto ??= new EstadoBusquedaObjetoModelo();
+            var elegida = _basesBusqueda.FirstOrDefault(b => string.Equals(b, baseDatos, StringComparison.OrdinalIgnoreCase))
+                ?? _basesBusqueda.FirstOrDefault(b => b == _busquedaObjeto.BaseDatos)
+                ?? _basesBusqueda[0];
+
+            if (elegida != _busquedaObjeto.BaseDatos)
+            {
+                _busquedaObjeto.BaseDatos = elegida;
+                _busquedaObjeto.Resultados = null;
+            }
+
+            await js.InvokeVoidAsync("miGestor.recordarFoco");
+            _buscarAbierto = true;
+            StateHasChanged();
+        });
+    }
+
+    private IEnumerable<NodoArbolModelo> NodosBase() =>
+        (_carpetaBases?.Hijos ?? []).Where(n => n.Tipo == TipoNodo.BaseDatos && !n.EsSistema && n.BaseDatos is not null);
+
+    private async Task CerrarBuscarObjetoAsync()
+    {
+        _buscarAbierto = false;
+        StateHasChanged();
+        await js.InvokeVoidAsync("miGestor.volverFoco");
+    }
+
+    private async Task ElegirResultadoBusquedaAsync(ResultadoBusquedaObjetoModelo resultado)
+    {
+        var baseDatos = _busquedaObjeto!.BaseDatos;
+        var nodoBase = NodosBase().FirstOrDefault(n => string.Equals(n.BaseDatos, baseDatos, StringComparison.OrdinalIgnoreCase));
+
+        if (nodoBase is null)
+        {
+            await CerrarBuscarObjetoAsync();
+            return;
+        }
+
+        await ExpandirAsync(nodoBase);
+        var (destino, ultimo, ruta) = await BuscarNodoAsync(nodoBase, resultado);
+
+        _buscarAbierto = false;
+        await TerminarUbicacionAsync(resultado, destino, ultimo, ruta);
+    }
+
+    private async Task<(NodoArbolModelo? Destino, NodoArbolModelo Ultimo, string? Ruta)> BuscarNodoAsync(NodoArbolModelo nodoBase, ResultadoBusquedaObjetoModelo resultado)
+    {
+        static bool Igual(string? a, string? b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+
+        if (resultado.Tipo == TipoResultadoBusqueda.Tabla || resultado.Tabla is not null)
+        {
+            var tabla = resultado.Tabla ?? new TablaModelo { Esquema = resultado.Esquema, Nombre = resultado.Nombre };
+            var carpetaTablas = nodoBase.Hijos?.FirstOrDefault(h => h.Tipo == TipoNodo.Carpeta && h.TipoCarpeta is null && h.CargarHijos is not null);
+
+            if (carpetaTablas is null)
+            {
+                return (null, nodoBase, null);
+            }
+
+            await ExpandirAsync(carpetaTablas);
+            var nodoTabla = carpetaTablas.Hijos?.FirstOrDefault(h => h.Tabla is not null && Igual(h.Tabla.NombreCompleto, tabla.NombreCompleto));
+
+            if (nodoTabla is null || resultado.Tipo == TipoResultadoBusqueda.Tabla)
+            {
+                return (nodoTabla, carpetaTablas, null);
+            }
+
+            await ExpandirAsync(nodoTabla);
+
+            (Func<NodoArbolModelo, bool> EsCarpeta, Func<NodoArbolModelo, bool> EsHijo) criterio = resultado.Tipo switch
+            {
+                TipoResultadoBusqueda.Columna => (c => c.Texto.StartsWith("Columnas"), h => Igual(h.Nombre, resultado.Nombre)),
+                TipoResultadoBusqueda.Indice => (c => c.Texto.StartsWith("Índices"), h => Igual(h.Indice?.Nombre, resultado.Nombre)),
+                TipoResultadoBusqueda.Check => (c => c.Texto.StartsWith("Restricciones CHECK"), h => Igual(h.Check?.Nombre, resultado.Nombre)),
+                TipoResultadoBusqueda.Disparador => (c => c.Texto.StartsWith("Disparadores"), h => Igual(h.Objeto?.Nombre, resultado.Nombre)),
+                _ => (c => c.Texto == "Llaves", h => Igual(h.Nombre, resultado.Nombre))
+            };
+
+            var subcarpeta = nodoTabla.Hijos?.FirstOrDefault(criterio.EsCarpeta);
+
+            if (subcarpeta is null)
+            {
+                return (null, nodoTabla, null);
+            }
+
+            await ExpandirAsync(subcarpeta);
+            var titulo = subcarpeta.Texto.Split(" (")[0];
+            return (subcarpeta.Hijos?.FirstOrDefault(criterio.EsHijo), subcarpeta, $"En {titulo} de {nodoTabla.Texto}.");
+        }
+
+        var tipo = resultado.Tipo switch
+        {
+            TipoResultadoBusqueda.Vista => TipoObjeto.Vista,
+            TipoResultadoBusqueda.Procedimiento => TipoObjeto.Procedimiento,
+            TipoResultadoBusqueda.Funcion => TipoObjeto.Funcion,
+            TipoResultadoBusqueda.Paquete or TipoResultadoBusqueda.Subprograma => TipoObjeto.Paquete,
+            TipoResultadoBusqueda.Secuencia => TipoObjeto.Secuencia,
+            _ => TipoObjeto.Disparador
+        };
+
+        var carpeta = nodoBase.Hijos?.FirstOrDefault(h => h.TipoCarpeta == tipo);
+
+        if (carpeta is null)
+        {
+            return (null, nodoBase, null);
+        }
+
+        await ExpandirAsync(carpeta);
+        var nombre = resultado.Tipo == TipoResultadoBusqueda.Subprograma ? resultado.Detalle : resultado.Nombre;
+        var destino = carpeta.Hijos?.FirstOrDefault(h => h.Objeto is { } o &&
+            (resultado.Id is not null && o.Id is not null
+                ? o.Id == resultado.Id
+                : Igual(o.Nombre, nombre) && (o.Esquema == "" || resultado.Esquema == "" || Igual(o.Esquema, resultado.Esquema))));
+
+        return (destino, carpeta, resultado.Tipo == TipoResultadoBusqueda.Subprograma ? $"{resultado.Nombre} está dentro de este paquete." : null);
+    }
+
+    public Task EnfocarAsync()
+    {
+        return InvokeAsync(() =>
+        {
+            if (_activo is not null)
+            {
+                Activar(_activo);
+                StateHasChanged();
+            }
+        });
+    }
+
+    private async Task RecargarAsync(NodoArbolModelo nodo)
+    {
+        nodo.Hijos = null;
+        nodo.Expandido = false;
+        await ExpandirAsync(nodo);
+    }
+
+    private Task AbrirNuevaBaseAsync()
+    {
+        _nodoDialogo = _activo;
+        _nombreBase = "";
+        _errorDialogo = null;
+        _dialogo = Dialogo.NuevaBase;
+        return Task.CompletedTask;
+    }
+
+    private Task AbrirEliminarBaseAsync(NodoArbolModelo nodo)
+    {
+        _nodoDialogo = nodo;
+        _confirmacion = "";
+        _errorDialogo = null;
+        _dialogo = Dialogo.EliminarBase;
+        return Task.CompletedTask;
+    }
+
+    private async Task AbrirEliminarTablaAsync(NodoArbolModelo nodo)
+    {
+        _nodoDialogo = nodo;
+        _detalleDialogo = null;
+        _usanDialogo = null;
+        _errorDialogo = null;
+        _purgar = false;
+        _dialogo = Dialogo.EliminarTabla;
+        StateHasChanged();
+
+        try
+        {
+            _detalleDialogo = await _proveedor.ObtenerDetalleTablaAsync(Conexion, nodo.BaseDatos!, nodo.Tabla!);
+            _usanDialogo = await UsanAsync(nodo.BaseDatos!, DependenciasService.DesdeTabla(nodo.Tabla!));
+        }
+        catch (Exception ex)
+        {
+            _errorDialogo = $"No se pudo revisar la tabla. {ex.Message}";
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task<bool> CargarDestinosAsync(string baseDatos)
+    {
+        try
+        {
+            _destinosDialogo = await _proveedor.ObtenerDestinosLlaveAsync(Conexion, baseDatos);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _errorDialogo = $"No se pudieron leer las tablas. {ex.Message}";
+            return false;
+        }
+    }
+
+    private async Task AbrirNuevaLlaveAsync(NodoArbolModelo tabla)
+    {
+        _nodoDialogo = tabla;
+        _detalleDialogo = null;
+        _errorDialogo = null;
+        _llaveColumna = "";
+        _llaveReferencia = new ReferenciaModelo();
+        _llaveComprobar = true;
+        _dialogo = Dialogo.NuevaLlave;
+        StateHasChanged();
+
+        if (await CargarDestinosAsync(tabla.BaseDatos!))
+        {
+            try
+            {
+                _detalleDialogo = await _proveedor.ObtenerDetalleTablaAsync(Conexion, tabla.BaseDatos!, tabla.Tabla!);
+            }
+            catch (Exception ex)
+            {
+                _errorDialogo = $"No se pudo revisar la tabla. {ex.Message}";
+            }
+        }
+
+        _enfocarPendiente = _detalleDialogo is null ? null : "llave-columna";
+        StateHasChanged();
+    }
+
+    private void ElegirDestinoLlave(string? clave)
+    {
+        var destino = _destinosDialogo.FirstOrDefault(d => d.Clave == clave);
+
+        if (destino is null)
+        {
+            _llaveReferencia.ColumnaDestino = "";
+            return;
+        }
+
+        _llaveReferencia.TablaDestino = destino.Tabla;
+        _llaveReferencia.ColumnaDestino = destino.Columna;
+        _llaveReferencia.TipoDestino = destino.TipoDatos;
+    }
+
+    private string? SqlNuevaLlave() =>
+        _nodoDialogo?.Tabla is null || _llaveColumna.Length == 0 || _llaveReferencia.ColumnaDestino.Length == 0
+            ? null
+            : _proveedor.ScriptCrearLlaveForanea(new DefinicionLlaveForaneaModelo
+            {
+                TablaOrigen = _nodoDialogo.Tabla,
+                ColumnaOrigen = _llaveColumna,
+                Referencia = _llaveReferencia,
+                ComprobarExistentes = _llaveComprobar
+            });
+
+    private async Task CrearLlaveAsync()
+    {
+        var columna = _detalleDialogo?.Columnas.FirstOrDefault(c => c.Nombre == _llaveColumna);
+
+        if (columna is null)
+        {
+            _errorDialogo = "Elige la columna de esta tabla que va a apuntar.";
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        var problemas = validador.ValidarReferencia(columna.Nombre, columna.TipoDatos, columna.PermiteNulos,
+            columna.ValorPredeterminado is not null, _llaveReferencia, _proveedor.Capacidades.Terminos);
+
+        if (problemas.Count > 0)
+        {
+            _errorDialogo = string.Join(" ", problemas.Select(p => p.Mensaje));
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        var tabla = _nodoDialogo!;
+
+        if (!await EjecutarDialogoAsync(tabla.BaseDatos, SqlNuevaLlave()!))
+        {
+            return;
+        }
+
+        var destino = $"{_llaveReferencia.TablaDestino.NombreCorto()}.{_llaveReferencia.ColumnaDestino}";
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await RecargarAsync(tabla);
+        Activar(tabla);
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"Llave foránea creada: {columna.Nombre} apunta a {destino}.");
+    }
+
+    private async Task AbrirIntermediaAsync(NodoArbolModelo nodo)
+    {
+        _nodoDialogo = nodo;
+        _errorDialogo = null;
+        _intermediaA = "";
+        _intermediaB = "";
+        _intermediaNombre = "";
+        _intermediaNombreEditado = false;
+        _dialogo = Dialogo.Intermedia;
+        StateHasChanged();
+
+        await CargarDestinosAsync(nodo.BaseDatos!);
+        _destinosDialogo = _destinosDialogo.Where(d => d.EsClavePrincipal).ToList();
+        StateHasChanged();
+    }
+
+    private void ElegirTablaIntermedia(bool primera, string? clave)
+    {
+        if (primera)
+        {
+            _intermediaA = clave ?? "";
+        }
+        else
+        {
+            _intermediaB = clave ?? "";
+        }
+
+        var a = _destinosDialogo.FirstOrDefault(d => d.Clave == _intermediaA);
+        var b = _destinosDialogo.FirstOrDefault(d => d.Clave == _intermediaB);
+
+        if (!_intermediaNombreEditado && a is not null && b is not null)
+        {
+            _intermediaNombre = $"{a.Tabla.Nombre}{_proveedor.Capacidades.Terminos.SeparadorNombres}{b.Tabla.Nombre}";
+        }
+    }
+
+    private async Task PrepararIntermediaAsync()
+    {
+        var a = _destinosDialogo.FirstOrDefault(d => d.Clave == _intermediaA);
+        var b = _destinosDialogo.FirstOrDefault(d => d.Clave == _intermediaB);
+
+        _errorDialogo = a is null || b is null ? "Elige las dos tablas que vas a relacionar."
+            : a.Clave == b.Clave ? "Elige dos tablas distintas."
+            : string.IsNullOrWhiteSpace(_intermediaNombre) ? "Escribe el nombre de la tabla intermedia."
+            : null;
+
+        if (_errorDialogo is not null)
+        {
+            await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+            return;
+        }
+
+        var definicion = new DefinicionTablaModelo { Nombre = _intermediaNombre.Trim(), Esquema = _proveedor.EsquemaPredeterminado(Conexion) };
+
+        foreach (var destino in new[] { a!, b! })
+        {
+            var columna = new DefinicionColumnaModelo
+            {
+                Nombre = $"{destino.Tabla.Nombre}{_proveedor.Capacidades.Terminos.SeparadorNombres}{destino.Columna}",
+                EsClavePrincipal = true,
+                Referencia = new ReferenciaModelo
+                {
+                    TablaDestino = destino.Tabla,
+                    ColumnaDestino = destino.Columna,
+                    TipoDestino = destino.TipoDatos
+                }
+            };
+
+            columna.AplicarTipo(destino.TipoDatos, _proveedor.TiposDatos);
+            definicion.Columnas.Add(columna);
+        }
+
+        var nodo = _nodoDialogo!;
+        var mensaje = $"Tabla intermedia preparada: {definicion.Nombre}, con {definicion.Columnas[0].Nombre} y {definicion.Columnas[1].Nombre} como clave compuesta y llaves foráneas hacia {a!.Tabla.NombreCorto()} y {b!.Tabla.NombreCorto()}. Agrega las columnas extra que necesites, como una cantidad, y pulsa Crear tabla.";
+
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await AlNuevaTabla.InvokeAsync(new SolicitudTablaModelo(nodo.BaseDatos!, definicion, mensaje));
+    }
+
+    private void CerrarDialogo()
+    {
+        var nodo = _nodoDialogo;
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        _detalleDialogo = null;
+        _detalleObjeto = null;
+        _comprobacionesDialogo = [];
+        _procesando = false;
+
+        if (nodo is not null)
+        {
+            Activar(nodo);
+        }
+    }
+
+    private async Task<bool> EjecutarDialogoAsync(string? baseDatos, string sql)
+    {
+        _procesando = true;
+        _errorDialogo = null;
+        StateHasChanged();
+
+        var resultado = await _proveedor.EjecutarAsync(Conexion, baseDatos, sql, 1);
+        var error = resultado.Errores.FirstOrDefault();
+        _procesando = false;
+
+        if (error is null)
+        {
+            return true;
+        }
+
+        _errorDialogo = $"No se pudo completar. {error.Texto}";
+        await anunciador.AnunciarUrgenteAsync(_errorDialogo);
+        return false;
+    }
+
+    private async Task CrearBaseAsync()
+    {
+        var nombre = _nombreBase?.Trim() ?? "";
+
+        if (nombre.Length == 0 || !await EjecutarDialogoAsync(_proveedor.BaseDatosAdministracion, _proveedor.ScriptCrearBaseDatos(nombre)))
+        {
+            return;
+        }
+
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await RecargarAsync(_carpetaBases!);
+
+        var nueva = _carpetaBases!.Hijos?.FirstOrDefault(h => string.Equals(h.BaseDatos, nombre, StringComparison.OrdinalIgnoreCase));
+        Activar(nueva ?? _carpetaBases);
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"Base de datos {nombre} creada.");
+    }
+
+    private async Task EliminarBaseAsync()
+    {
+        var nombre = _nodoDialogo!.BaseDatos!;
+
+        if (!await EjecutarDialogoAsync(_proveedor.BaseDatosAdministracion, _proveedor.ScriptEliminarBaseDatos(nombre)))
+        {
+            return;
+        }
+
+        _proveedor.ReiniciarConexiones();
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await RecargarAsync(_carpetaBases!);
+        Activar(_carpetaBases!);
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync($"Base de datos {nombre} eliminada.");
+    }
+
+    private async Task EliminarTablaAsync()
+    {
+        var nodo = _nodoDialogo!;
+
+        if (!await EjecutarDialogoAsync(nodo.BaseDatos, _proveedor.ScriptEliminarTabla(nodo.Tabla!, _purgar)))
+        {
+            return;
+        }
+
+        var carpeta = nodo.Padre!;
+        _dialogo = Dialogo.Ninguno;
+        _nodoDialogo = null;
+        await RecargarAsync(carpeta);
+        Activar(carpeta);
+        StateHasChanged();
+
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync(_proveedor.Capacidades.TienePapelera && !_purgar
+            ? $"Tabla {nodo.Tabla!.NombreCompleto} eliminada; quedó en la papelera de reciclaje."
+            : $"Tabla {nodo.Tabla!.NombreCompleto} eliminada.");
+    }
+
+    private async Task ClicAsync(NodoArbolModelo nodo)
+    {
+        Activar(nodo);
+        await AccionPrincipalAsync(nodo);
+    }
+
+    private async Task AccionPrincipalAsync(NodoArbolModelo nodo)
+    {
+        if (nodo.Tipo is TipoNodo.Tabla or TipoNodo.Objeto)
+        {
+            await AlDescribir.InvokeAsync(nodo);
+        }
+        else if (nodo.PuedeExpandirse && nodo.Padre is not null)
+        {
+            if (nodo.Expandido)
+            {
+                nodo.Expandido = false;
+            }
+            else
+            {
+                await ExpandirAsync(nodo);
+            }
+        }
+    }
+
+    private void Activar(NodoArbolModelo nodo)
+    {
+        _activo = nodo;
+        _enfocarPendiente = nodo.Id;
+    }
+
+    private async Task ExpandirAsync(NodoArbolModelo nodo)
+    {
+        if (nodo.Hijos is null && nodo.CargarHijos is not null)
+        {
+            nodo.Cargando = true;
+            StateHasChanged();
+
+            try
+            {
+                var carga = nodo.CargarHijos(nodo);
+
+                if (await Task.WhenAny(carga, Task.Delay(1000)) != carga)
+                {
+                    await anunciador.AnunciarAsync($"Cargando {nodo.Texto}…");
+                }
+
+                var hijos = await carga;
+                nodo.Hijos = hijos.Count > 0 ? hijos : [Mensaje("Vacío", nodo)];
+            }
+            catch (Exception ex)
+            {
+                nodo.Hijos = [Mensaje($"No se pudo cargar: {ex.Message}", nodo)];
+                await anunciador.AnunciarUrgenteAsync($"No se pudo cargar {nodo.Texto}. {ex.Message}");
+            }
+            finally
+            {
+                nodo.Cargando = false;
+            }
+        }
+
+        nodo.Expandido = true;
+    }
+
+    private List<NodoArbolModelo> Visibles()
+    {
+        var lista = new List<NodoArbolModelo>();
+        Agregar(_raiz!, lista);
+        return lista;
+
+        static void Agregar(NodoArbolModelo nodo, List<NodoArbolModelo> lista)
+        {
+            lista.Add(nodo);
+
+            if (nodo.Expandido && nodo.Hijos is not null)
+            {
+                foreach (var hijo in nodo.Hijos)
+                {
+                    Agregar(hijo, lista);
+                }
+            }
+        }
+    }
+
+    private async Task<List<NodoArbolModelo>> CargarBasesDatosAsync(NodoArbolModelo carpeta)
+    {
+        var bases = await _proveedor.ObtenerBasesDatosAsync(Conexion);
+        var nodos = bases.Where(b => !b.EsSistema).Select(b => NodoBaseDatos(b, carpeta)).ToList();
+        var sistema = bases.Where(b => b.EsSistema).ToList();
+
+        if (sistema.Count > 0)
+        {
+            var carpetaSistema = new NodoArbolModelo
+            {
+                Texto = _proveedor.Capacidades.ContenedoresSistemaTitulo,
+                Tipo = TipoNodo.Carpeta,
+                Padre = carpeta
+            };
+
+            carpetaSistema.Hijos = sistema.Select(b => NodoBaseDatos(b, carpetaSistema)).ToList();
+            nodos.Add(carpetaSistema);
+        }
+
+        return nodos;
+    }
+
+    private NodoArbolModelo NodoBaseDatos(BaseDatosModelo baseDatos, NodoArbolModelo padre) => new()
+    {
+        Texto = baseDatos.EnLinea ? baseDatos.Nombre : $"{baseDatos.Nombre} (sin acceso)",
+        Tipo = TipoNodo.BaseDatos,
+        Padre = padre,
+        BaseDatos = baseDatos.Nombre,
+        EsSistema = baseDatos.EsSistema,
+        CargarHijos = baseDatos.EnLinea ? CargarCarpetasBaseDatosAsync : null
+    };
+
+    private async Task<List<NodoArbolModelo>> CargarCarpetasBaseDatosAsync(NodoArbolModelo nodoBase)
+    {
+        List<NodoArbolModelo> carpetas =
+        [
+            new()
+            {
+                Texto = "Tablas",
+                Tipo = TipoNodo.Carpeta,
+                Padre = nodoBase,
+                TemasAyuda = ["concepto:tabla"],
+                BaseDatos = nodoBase.BaseDatos,
+                CargarHijos = CargarTablasAsync
+            }
+        ];
+
+        Dictionary<TipoObjeto, int>? cuentas = null;
+
+        try
+        {
+            cuentas = await _proveedor.ContarObjetosAsync(Conexion, nodoBase.BaseDatos!);
+        }
+        catch (Exception ex) when (ex is not ConexionPerdidaException)
+        {
+        }
+
+        foreach (var tipo in _proveedor.Capacidades.TiposObjeto)
+        {
+            carpetas.Add(CarpetaObjetos(tipo, tipo.Plural(), nodoBase, cuentas?.GetValueOrDefault(tipo)));
+        }
+
+        if (cuentas?.GetValueOrDefault(TipoObjeto.Disparador) > 0)
+        {
+            carpetas.Add(CarpetaObjetos(TipoObjeto.Disparador, _proveedor.Capacidades.TituloDisparadoresBase, nodoBase, cuentas[TipoObjeto.Disparador]));
+        }
+
+        return carpetas;
+    }
+
+    private NodoArbolModelo CarpetaObjetos(TipoObjeto tipo, string titulo, NodoArbolModelo nodoBase, int? cantidad) => new()
+    {
+        Texto = cantidad is null ? titulo : $"{titulo} ({cantidad})",
+        Tipo = TipoNodo.Carpeta,
+        Padre = nodoBase,
+        TemasAyuda = tipo.TemasAyuda(),
+        BaseDatos = nodoBase.BaseDatos,
+        TipoCarpeta = tipo,
+        CargarHijos = carpeta => CargarObjetosAsync(carpeta, tipo, titulo)
+    };
+
+    private async Task<List<NodoArbolModelo>> CargarObjetosAsync(NodoArbolModelo carpeta, TipoObjeto tipo, string titulo)
+    {
+        var objetos = await _proveedor.ObtenerObjetosAsync(Conexion, carpeta.BaseDatos!, tipo);
+        carpeta.Texto = $"{titulo} ({objetos.Count})";
+        return objetos.Select(o => NodoObjeto(o, carpeta)).ToList();
+    }
+
+    private static NodoArbolModelo NodoObjeto(ObjetoBaseDatosModelo objeto, NodoArbolModelo padre) => new()
+    {
+        Texto = objeto.Materializada ? $"{objeto.Texto} (materializada)" : objeto.Texto,
+        Tipo = TipoNodo.Objeto,
+        Padre = padre,
+        BaseDatos = padre.BaseDatos,
+        Objeto = objeto,
+        TemasAyuda = objeto.Tipo.TemasAyuda()
+    };
+
+    private async Task<List<NodoArbolModelo>> CargarTablasAsync(NodoArbolModelo carpeta)
+    {
+        var tablas = await _proveedor.ObtenerTablasAsync(Conexion, carpeta.BaseDatos!);
+
+        return tablas.Select(t => new NodoArbolModelo
+        {
+            Texto = t.NombreCompleto,
+            Tipo = TipoNodo.Tabla,
+            Padre = carpeta,
+            BaseDatos = carpeta.BaseDatos,
+            Tabla = t,
+            TemasAyuda = ["concepto:tabla", "concepto:clave-principal", "concepto:llave-foranea"],
+            CargarHijos = CargarPartesTablaAsync
+        }).ToList();
+    }
+
+    private async Task<List<NodoArbolModelo>> CargarPartesTablaAsync(NodoArbolModelo nodoTabla)
+    {
+        var detalle = await _proveedor.ObtenerDetalleTablaAsync(Conexion, nodoTabla.BaseDatos!, nodoTabla.Tabla!);
+        var disparadores = await _proveedor.ObtenerDisparadoresTablaAsync(Conexion, nodoTabla.BaseDatos!, nodoTabla.Tabla!);
+
+        var carpetas = new List<NodoArbolModelo>
+        {
+            Carpeta($"Columnas ({detalle.Columnas.Count})", nodoTabla, ["concepto:tabla", "concepto:null"],
+                padre => detalle.Columnas.Select(c =>
+                    Elemento(narrador.DescribirColumna(c, detalle, _proveedor.Capacidades.Terminos), padre, TemasColumna(c, detalle), c.Nombre))),
+
+            Carpeta("Llaves", nodoTabla, ["concepto:clave-principal", "concepto:llave-foranea", "concepto:unique"],
+                padre => Llaves(detalle).Select(l => Elemento(l.Texto, padre, l.Temas, l.Nombre))),
+
+            Carpeta($"Índices ({detalle.Indices.Count})", nodoTabla, ["concepto:indice"],
+                padre => detalle.Indices.Select(i => new NodoArbolModelo
+                {
+                    Texto = NarradorTablaService.DescribirIndice(i, _proveedor.Capacidades.Terminos),
+                    Tipo = TipoNodo.Elemento,
+                    Padre = padre,
+                    TemasAyuda = ["concepto:indice"],
+                    Indice = i
+                }))
+        };
+
+        if (detalle.Restricciones.Count > 0)
+        {
+            carpetas.Add(Carpeta($"Restricciones CHECK ({detalle.Restricciones.Count})", nodoTabla, ["concepto:check"],
+                padre => detalle.Restricciones.Select(r => new NodoArbolModelo
+                {
+                    Texto = $"{r.Nombre}: {NarradorTablaService.QuitarParentesisExternos(r.Definicion)}",
+                    Tipo = TipoNodo.Elemento,
+                    Padre = padre,
+                    TemasAyuda = ["concepto:check"],
+                    Check = r
+                })));
+        }
+
+        var carpetaDisparadores = new NodoArbolModelo
+        {
+            Texto = $"Disparadores ({disparadores.Count})",
+            Tipo = TipoNodo.Carpeta,
+            Padre = nodoTabla,
+            BaseDatos = nodoTabla.BaseDatos,
+            TemasAyuda = TipoObjeto.Disparador.TemasAyuda()
+        };
+        carpetaDisparadores.Hijos = disparadores.Count > 0
+            ? disparadores.Select(d => NodoObjeto(d, carpetaDisparadores)).ToList()
+            : [Mensaje("Ninguno", carpetaDisparadores)];
+        carpetas.Add(carpetaDisparadores);
+
+        return carpetas;
+    }
+
+    private static List<string> TemasColumna(ColumnaModelo columna, DetalleTablaModelo detalle)
+    {
+        var comparador = StringComparer.OrdinalIgnoreCase;
+        var temas = new List<string> { $"tipo:{columna.TipoDatos}" };
+
+        if (detalle.ClavePrincipal?.ColumnasClave.Contains(columna.Nombre, comparador) == true)
+        {
+            temas.Add("concepto:clave-principal");
+        }
+
+        if (columna.EsIdentidad)
+        {
+            temas.Add("concepto:identity");
+        }
+
+        if (detalle.LlavesForaneas.Any(l => l.ColumnasOrigen.Contains(columna.Nombre, comparador)))
+        {
+            temas.Add("concepto:llave-foranea");
+        }
+
+        if (detalle.Indices.Any(i => i.EsUnico && !i.EsClavePrincipal && i.ColumnasClave.Contains(columna.Nombre, comparador)))
+        {
+            temas.Add("concepto:unique");
+        }
+
+        if (columna.EsCalculada)
+        {
+            temas.Add("concepto:columna-calculada");
+        }
+
+        if (columna.ValorPredeterminado is not null)
+        {
+            temas.Add("concepto:default");
+        }
+
+        temas.Add("concepto:null");
+        return temas;
+    }
+
+    private static IEnumerable<(string Texto, List<string> Temas, string Nombre)> Llaves(DetalleTablaModelo detalle)
+    {
+        if (detalle.ClavePrincipal is { } clave)
+        {
+            yield return ($"Clave principal (PRIMARY KEY) {clave.Nombre}: {NarradorTablaService.Unir(clave.ColumnasClave)}",
+                ["concepto:clave-principal"], clave.Nombre);
+        }
+
+        foreach (var llave in detalle.LlavesForaneas)
+        {
+            var destino = NarradorTablaService.Unir(llave.ColumnasDestino.Select(c => $"{llave.TablaDestino.NombreCorto()}.{c}"));
+            yield return ($"Llave foránea (FOREIGN KEY) {llave.Nombre}: {NarradorTablaService.Unir(llave.ColumnasOrigen)} hacia {destino}",
+                ["concepto:llave-foranea", "concepto:reglas-referenciales", "concepto:uno-a-muchos"], llave.Nombre);
+        }
+
+        foreach (var indice in detalle.Indices.Where(i => i.EsRestriccionUnica))
+        {
+            yield return ($"Restricción de valor único (UNIQUE) {indice.Nombre}: {NarradorTablaService.Unir(indice.ColumnasClave)}",
+                ["concepto:unique"], indice.Nombre);
+        }
+    }
+
+    private static NodoArbolModelo Carpeta(string texto, NodoArbolModelo padre, List<string> temas,
+        Func<NodoArbolModelo, IEnumerable<NodoArbolModelo>> crearHijos)
+    {
+        var carpeta = new NodoArbolModelo { Texto = texto, Tipo = TipoNodo.Carpeta, Padre = padre, TemasAyuda = temas };
+        var hijos = crearHijos(carpeta).ToList();
+        carpeta.Hijos = hijos.Count > 0 ? hijos : [Mensaje("Ninguna", carpeta)];
+        return carpeta;
+    }
+
+    private static NodoArbolModelo Elemento(string texto, NodoArbolModelo padre, List<string> temas, string? nombre = null) =>
+        new() { Texto = texto, Tipo = TipoNodo.Elemento, Padre = padre, TemasAyuda = temas, Nombre = nombre };
+
+    private static NodoArbolModelo Mensaje(string texto, NodoArbolModelo padre) =>
+        new() { Texto = texto, Tipo = TipoNodo.Mensaje, Padre = padre };
+}

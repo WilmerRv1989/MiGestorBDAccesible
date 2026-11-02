@@ -1,0 +1,43 @@
+@implements IDisposable
+@inject AnunciadorService anunciador
+
+<div class="solo-lector" role="status" aria-live="polite" aria-atomic="true">@_mensajeNormal</div>
+<div class="solo-lector" role="alert" aria-live="assertive" aria-atomic="true">@_mensajeUrgente</div>
+
+@code {
+    private string _mensajeNormal = "";
+    private string _mensajeUrgente = "";
+
+    protected override void OnInitialized()
+    {
+        anunciador.AnuncioSolicitado += MostrarAsync;
+    }
+
+    private async Task MostrarAsync(string mensaje, bool urgente)
+    {
+        await InvokeAsync(async () =>
+        {
+            _mensajeNormal = "";
+            _mensajeUrgente = "";
+            StateHasChanged();
+
+            await Task.Delay(150);
+
+            if (urgente)
+            {
+                _mensajeUrgente = mensaje;
+            }
+            else
+            {
+                _mensajeNormal = mensaje;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        anunciador.AnuncioSolicitado -= MostrarAsync;
+    }
+}

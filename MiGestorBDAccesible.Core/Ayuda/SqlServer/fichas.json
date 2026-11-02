@@ -1,0 +1,1344 @@
+{
+  "motor": "SQL Server",
+  "fichas": [
+    {
+      "id": "tipo:enteros",
+      "categoria": "tipo",
+      "titulo": "int, bigint, smallint y tinyint: números enteros",
+      "alias": ["int", "bigint", "smallint", "tinyint", "integer", "entero"],
+      "resumen": "Guardan números sin decimales. Se diferencian en el rango de valores que admiten y en cuánto espacio ocupan.",
+      "secciones": [
+        {
+          "titulo": "Rangos",
+          "parrafos": [
+            "tinyint: de 0 a 255. Ocupa 1 byte. Sirve para valores pequeños, como una edad o un número de piso.",
+            "smallint: de menos 32 768 a 32 767. Ocupa 2 bytes.",
+            "int: de menos 2 147 483 648 a 2 147 483 647, unos 2 mil millones. Ocupa 4 bytes. Es el más usado, por ejemplo para los Id.",
+            "bigint: hasta unos 9 trillones, positivos o negativos. Ocupa 8 bytes. Se usa cuando int se queda corto, como en tablas con muchísimas filas."
+          ]
+        },
+        {
+          "titulo": "Cómo elegir",
+          "parrafos": [
+            "Usa int por defecto. Cambia a bigint solo si esperas pasar de 2 mil millones. Si el número tiene decimales, como un precio, no uses enteros: usa decimal.",
+            "Si intentas guardar un valor fuera del rango, SQL Server da un error de desbordamiento aritmético."
+          ],
+          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Edad tinyint NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "NUMBER(p) para enteros, o INTEGER, que Oracle guarda como NUMBER(38, 0). No hay tipos de distinto tamaño como tinyint o bigint." },
+        { "motor": "PostgreSQL", "texto": "integer (o int), bigint y smallint. No tiene tinyint." },
+        { "motor": "MySQL y MariaDB", "texto": "INT, BIGINT, SMALLINT, TINYINT y además MEDIUMINT. Admiten UNSIGNED para quitar los negativos y duplicar el máximo positivo." }
+      ],
+      "relacionadas": ["tipo:decimal", "concepto:identity"],
+      "fuentes": [
+        { "titulo": "int, bigint, smallint y tinyint (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/int-bigint-smallint-and-tinyint-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:decimal",
+      "categoria": "tipo",
+      "titulo": "decimal y numeric: números con decimales exactos",
+      "alias": ["decimal", "numeric", "dec"],
+      "resumen": "Guardan números con una cantidad fija de decimales, sin errores de redondeo. Son el tipo correcto para dinero y medidas exactas.",
+      "secciones": [
+        {
+          "titulo": "Qué significan los dos números",
+          "parrafos": [
+            "decimal(p, s) tiene dos partes. La precisión p es el total de dígitos, contando los de antes y después de la coma. La escala s es cuántos de esos dígitos van después de la coma.",
+            "decimal(10, 2) admite hasta 10 dígitos, 2 de ellos decimales: el máximo es 99 999 999,99.",
+            "La precisión puede ir de 1 a 38. decimal y numeric son exactamente lo mismo; son dos nombres para un tipo."
+          ]
+        },
+        {
+          "titulo": "Por qué no usar float para dinero",
+          "parrafos": [
+            "float guarda aproximaciones: 0,1 + 0,2 puede dar 0,30000000000000004. decimal guarda el valor exacto, así que las sumas de precios cuadran."
+          ],
+          "ejemplo": "CREATE TABLE Productos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Precio decimal(10, 2) NOT NULL CHECK (Precio >= 0)\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "NUMBER(p, s), con precisión de 1 a 38. NUMBER sin paréntesis guarda cualquier número." },
+        { "motor": "PostgreSQL", "texto": "numeric(p, s) o decimal(p, s), igual que en SQL Server, con una precisión máxima mucho mayor." },
+        { "motor": "MySQL y MariaDB", "texto": "DECIMAL(p, s), con precisión de hasta 65 dígitos." }
+      ],
+      "relacionadas": ["tipo:float", "tipo:money", "concepto:check"],
+      "fuentes": [
+        { "titulo": "decimal y numeric (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/decimal-and-numeric-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:money",
+      "categoria": "tipo",
+      "titulo": "money y smallmoney: valores de moneda",
+      "alias": ["money", "smallmoney"],
+      "resumen": "Tipos propios de SQL Server para dinero, con 4 decimales fijos. Funcionan, pero decimal es más flexible y portable.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "money guarda hasta unos 922 billones con 4 decimales. smallmoney llega hasta unos 214 mil.",
+            "Muchos equipos prefieren decimal(19, 4) o decimal(10, 2): se comporta igual en todos los motores y controlas exactamente la cantidad de decimales."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "No tiene tipo de moneda; se usa NUMBER(10, 2) o la precisión que haga falta." },
+        { "motor": "PostgreSQL", "texto": "Tiene un tipo money, pero depende de la configuración regional; se recomienda numeric." },
+        { "motor": "MySQL y MariaDB", "texto": "No tienen money; se usa DECIMAL." }
+      ],
+      "relacionadas": ["tipo:decimal"],
+      "fuentes": [
+        { "titulo": "money y smallmoney (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/money-and-smallmoney-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:float",
+      "categoria": "tipo",
+      "titulo": "float y real: números aproximados",
+      "alias": ["float", "real", "double"],
+      "resumen": "Guardan números muy grandes o muy pequeños con decimales, pero de forma aproximada. Útiles para cálculos científicos, no para dinero.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "float ocupa 8 bytes y tiene unos 15 dígitos de precisión. real ocupa 4 bytes y tiene unos 7.",
+            "Como son aproximados, comparar con igual puede fallar: un valor guardado como 0,1 puede no ser exactamente 0,1. Para valores exactos usa decimal."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "BINARY_DOUBLE y BINARY_FLOAT. FLOAT existe, pero es un subtipo de NUMBER." },
+        { "motor": "PostgreSQL", "texto": "double precision (equivale a float) y real." },
+        { "motor": "MySQL y MariaDB", "texto": "DOUBLE y FLOAT." }
+      ],
+      "relacionadas": ["tipo:decimal"],
+      "fuentes": [
+        { "titulo": "float y real (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/float-and-real-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:bit",
+      "categoria": "tipo",
+      "titulo": "bit: sí o no",
+      "alias": ["bit", "boolean", "bool", "booleano"],
+      "resumen": "Guarda 1 (verdadero), 0 (falso) o NULL. Es la forma de SQL Server para valores de sí o no.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "SQL Server no tiene un tipo boolean; se usa bit. Las cadenas 'TRUE' y 'FALSE' se convierten a 1 y 0.",
+            "Es habitual nombrar estas columnas como una pregunta: Activo, EsAdmin, TieneDescuento."
+          ],
+          "ejemplo": "ALTER TABLE Clientes ADD Activo bit NOT NULL DEFAULT 1;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "BOOLEAN desde Oracle 23ai, con TRUE y FALSE. Antes se usaba NUMBER(1) o CHAR(1)." },
+        { "motor": "PostgreSQL", "texto": "Tiene un tipo boolean de verdad, con true y false." },
+        { "motor": "MySQL y MariaDB", "texto": "BOOLEAN existe, pero en realidad es TINYINT(1)." }
+      ],
+      "relacionadas": ["concepto:default"],
+      "fuentes": [
+        { "titulo": "bit (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/bit-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:nvarchar",
+      "categoria": "tipo",
+      "titulo": "nvarchar y nchar: texto Unicode",
+      "alias": ["nvarchar", "nchar", "ntext"],
+      "resumen": "Guardan texto en cualquier idioma, con acentos, eñes y símbolos. Es la opción segura para nombres y textos en español.",
+      "secciones": [
+        {
+          "titulo": "nvarchar(n) y nchar(n)",
+          "parrafos": [
+            "nvarchar(100) guarda hasta 100 caracteres y solo ocupa lo que realmente escribes. nchar(100) siempre ocupa 100 caracteres y rellena con espacios lo que falta.",
+            "nvarchar(max) admite textos enormes, hasta unos 2 GB. Úsalo solo para textos largos de verdad, como una descripción o un comentario.",
+            "Los textos Unicode se escriben con N delante: N'Sofía'. Sin la N, los caracteres especiales podrían perderse."
+          ],
+          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO Clientes (Nombre) VALUES (N'Sofía Rojas');"
+        },
+        {
+          "titulo": "nvarchar o varchar",
+          "parrafos": [
+            "nvarchar ocupa el doble que varchar por carácter, pero no tienes que preocuparte por el idioma del texto. Para datos que escriben personas, nvarchar es la elección más segura."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "NVARCHAR2(n) y NCHAR(n), con la longitud en caracteres. Con el juego AL32UTF8, VARCHAR2 ya guarda Unicode." },
+        { "motor": "PostgreSQL", "texto": "varchar(n) y text ya son Unicode si la base usa UTF-8, que es lo normal. No hay tipos con N." },
+        { "motor": "MySQL y MariaDB", "texto": "VARCHAR(n) con el juego de caracteres utf8mb4 admite cualquier carácter, emojis incluidos." }
+      ],
+      "relacionadas": ["tipo:varchar", "concepto:null"],
+      "fuentes": [
+        { "titulo": "nchar y nvarchar (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/nchar-and-nvarchar-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:varchar",
+      "categoria": "tipo",
+      "titulo": "varchar y char: texto no Unicode",
+      "alias": ["varchar", "char", "text"],
+      "resumen": "Guardan texto usando la página de códigos de la base. Ocupan menos que nvarchar, pero pueden perder caracteres que esa página no conoce.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "varchar(50) guarda hasta 50 caracteres y ocupa solo lo escrito. char(10) siempre ocupa 10 y rellena con espacios.",
+            "char es útil para códigos de longitud fija, como un código de país de 2 letras: char(2).",
+            "Desde SQL Server 2019, varchar puede guardar Unicode si la columna usa una intercalación UTF-8."
+          ],
+          "ejemplo": "CREATE TABLE Paises (\n    Codigo char(2) PRIMARY KEY,\n    Nombre nvarchar(60) NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "VARCHAR2(n), hasta 4000 bytes, o 32 767 con MAX_STRING_SIZE en EXTENDED. CLOB para textos más largos. Allí el texto vacío equivale a NULL." },
+        { "motor": "PostgreSQL", "texto": "varchar(n), char(n) y text. text no tiene límite y se usa mucho." },
+        { "motor": "MySQL y MariaDB", "texto": "VARCHAR(n), CHAR(n) y TEXT." }
+      ],
+      "relacionadas": ["tipo:nvarchar"],
+      "fuentes": [
+        { "titulo": "char y varchar (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/char-and-varchar-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:date",
+      "categoria": "tipo",
+      "titulo": "date: solo la fecha",
+      "alias": ["date", "fecha"],
+      "resumen": "Guarda año, mes y día, sin hora. Ocupa 3 bytes.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Admite desde el año 1 hasta el 9999. Escribe las fechas en formato año-mes-día, '2026-10-27', que SQL Server entiende sin importar la configuración regional.",
+            "GETDATE() devuelve la fecha y hora actuales; CAST(GETDATE() AS date) o CONVERT(date, GETDATE()) se queda solo con la fecha de hoy."
+          ],
+          "ejemplo": "CREATE TABLE Pedidos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Fecha date NOT NULL DEFAULT CAST(GETDATE() AS date)\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "DATE guarda siempre también la hora, hasta el segundo. Para ignorarla se usa TRUNC(fecha)." },
+        { "motor": "PostgreSQL", "texto": "date, igual. La fecha actual es CURRENT_DATE." },
+        { "motor": "MySQL y MariaDB", "texto": "DATE. La fecha actual es CURDATE() o CURRENT_DATE." }
+      ],
+      "relacionadas": ["tipo:datetime2", "tipo:time", "concepto:default"],
+      "fuentes": [
+        { "titulo": "date (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/date-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:time",
+      "categoria": "tipo",
+      "titulo": "time: solo la hora",
+      "alias": ["time", "hora"],
+      "resumen": "Guarda una hora del día, sin fecha, con precisión de hasta cien nanosegundos.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "time(0) guarda hasta segundos; time(7), el valor predeterminado, guarda hasta siete decimales de segundo. Sirve para horarios, como la hora de apertura de una tienda."
+          ],
+          "ejemplo": "CREATE TABLE Horarios (\n    Dia tinyint NOT NULL,\n    Apertura time(0) NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "No tiene tipo de solo hora; se usa DATE, TIMESTAMP o INTERVAL DAY TO SECOND." },
+        { "motor": "PostgreSQL", "texto": "time, también con precisión configurable." },
+        { "motor": "MySQL y MariaDB", "texto": "TIME, que además admite duraciones de más de 24 horas." }
+      ],
+      "relacionadas": ["tipo:date", "tipo:datetime2"],
+      "fuentes": [
+        { "titulo": "time (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/time-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:datetime2",
+      "categoria": "tipo",
+      "titulo": "datetime2 y datetime: fecha y hora",
+      "alias": ["datetime2", "datetime", "smalldatetime", "fecha y hora"],
+      "resumen": "Guardan fecha y hora juntas. datetime2 es el tipo moderno y recomendado; datetime es el antiguo.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "datetime2 admite desde el año 1 y una precisión de hasta siete decimales de segundo. datetime solo desde 1753 y redondea los milisegundos a pasos de unos 3 milisegundos (.000, .003, .007).",
+            "smalldatetime solo guarda hasta el minuto.",
+            "Para registrar cuándo pasó algo, como la fecha de creación de un registro, datetime2 es la mejor opción. SYSDATETIME() devuelve la hora actual con la precisión de datetime2."
+          ],
+          "ejemplo": "ALTER TABLE Pedidos ADD CreadoEn datetime2(0) NOT NULL DEFAULT SYSDATETIME();"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "DATE, con fecha y hora hasta el segundo, o TIMESTAMP(n), con 0 a 9 decimales de segundo." },
+        { "motor": "PostgreSQL", "texto": "timestamp (sin zona horaria) y timestamptz (con zona horaria). La hora actual es now()." },
+        { "motor": "MySQL y MariaDB", "texto": "DATETIME y TIMESTAMP. La hora actual es NOW()." }
+      ],
+      "relacionadas": ["tipo:date", "tipo:datetimeoffset", "concepto:default"],
+      "fuentes": [
+        { "titulo": "datetime2 (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/datetime2-transact-sql" },
+        { "titulo": "datetime (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/datetime-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:datetimeoffset",
+      "categoria": "tipo",
+      "titulo": "datetimeoffset: fecha y hora con zona horaria",
+      "alias": ["datetimeoffset"],
+      "resumen": "Como datetime2, pero guarda además la diferencia con la hora universal, por ejemplo menos 6 horas para Costa Rica.",
+      "secciones": [
+        {
+          "titulo": "Cuándo usarlo",
+          "parrafos": [
+            "Es útil cuando los datos vienen de lugares con distintas zonas horarias y necesitas saber la hora local exacta de cada evento.",
+            "Un valor se escribe así: '2026-10-27 14:30:00 -06:00'."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "TIMESTAMP WITH TIME ZONE." },
+        { "motor": "PostgreSQL", "texto": "timestamptz, que guarda en hora universal y convierte a la zona de la sesión." },
+        { "motor": "MySQL y MariaDB", "texto": "No tienen un equivalente directo; TIMESTAMP convierte a hora universal sin guardar la diferencia original." }
+      ],
+      "relacionadas": ["tipo:datetime2"],
+      "fuentes": [
+        { "titulo": "datetimeoffset (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/datetimeoffset-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:uniqueidentifier",
+      "categoria": "tipo",
+      "titulo": "uniqueidentifier: identificador global único (GUID)",
+      "alias": ["uniqueidentifier", "guid", "uuid"],
+      "resumen": "Guarda un identificador de 16 bytes que es prácticamente imposible de repetir, aunque se genere en equipos distintos.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Se ve así: 6F9619FF-8B86-D011-B42D-00C04FC964FF. NEWID() genera uno al azar y NEWSEQUENTIALID() los genera en orden, lo que es mejor para índices.",
+            "Se usa como clave cuando los registros se crean en varios lugares y luego se juntan. Para una base sencilla, un int con IDENTITY es más simple y ocupa menos."
+          ],
+          "ejemplo": "CREATE TABLE Documentos (\n    Id uniqueidentifier NOT NULL DEFAULT NEWSEQUENTIALID() PRIMARY KEY,\n    Titulo nvarchar(200) NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "RAW(16), y SYS_GUID() para generar el valor." },
+        { "motor": "PostgreSQL", "texto": "uuid, con gen_random_uuid() para generarlos." },
+        { "motor": "MySQL y MariaDB", "texto": "Se guarda como CHAR(36) o BINARY(16), con UUID() para generarlos. MariaDB tiene además un tipo UUID." }
+      ],
+      "relacionadas": ["concepto:clave-principal", "concepto:identity"],
+      "fuentes": [
+        { "titulo": "uniqueidentifier (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/uniqueidentifier-transact-sql" }
+      ]
+    },
+    {
+      "id": "tipo:varbinary",
+      "categoria": "tipo",
+      "titulo": "varbinary y binary: datos binarios",
+      "alias": ["varbinary", "binary", "image"],
+      "resumen": "Guardan bytes sin interpretar, como el contenido de un archivo o un valor cifrado.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "varbinary(n) guarda hasta n bytes y varbinary(max) hasta unos 2 GB. binary(n) siempre ocupa n bytes.",
+            "Guardar archivos grandes dentro de la base es posible, pero muchas veces se prefiere guardarlos en disco y dejar en la tabla solo la ruta."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "RAW(n) para datos cortos y BLOB para archivos." },
+        { "motor": "PostgreSQL", "texto": "bytea." },
+        { "motor": "MySQL y MariaDB", "texto": "VARBINARY, BINARY y BLOB." }
+      ],
+      "relacionadas": [],
+      "fuentes": [
+        { "titulo": "binary y varbinary (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/data-types/binary-and-varbinary-transact-sql" }
+      ]
+    },
+    {
+      "id": "concepto:tabla",
+      "categoria": "concepto",
+      "titulo": "Tablas, filas y columnas",
+      "alias": ["tabla", "fila", "columna", "registro", "campo", "table"],
+      "resumen": "Una tabla guarda datos de un mismo tipo de cosa, como clientes o pedidos. Cada fila es una de esas cosas y cada columna es un dato sobre ella.",
+      "secciones": [
+        {
+          "titulo": "La idea",
+          "parrafos": [
+            "Piensa en la tabla Clientes como una lista: cada fila es un cliente y cada columna es un dato del cliente, como su nombre o su correo.",
+            "Cada columna tiene un tipo de datos que limita qué puede guardar, y reglas como NOT NULL, UNIQUE o CHECK que evitan datos incorrectos.",
+            "Una buena tabla habla de una sola cosa. Si un dato se repite en muchas filas, como el nombre de una categoría, suele ser mejor moverlo a su propia tabla y relacionarla con una llave foránea."
+          ],
+          "ejemplo": "CREATE TABLE Categorias (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(60) NOT NULL UNIQUE\n);"
+        },
+        {
+          "titulo": "Esquemas",
+          "parrafos": [
+            "En SQL Server, las tablas viven dentro de un esquema, que es como una carpeta. El esquema predeterminado es dbo, por eso ves nombres como dbo.Clientes."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Las tablas pertenecen a un esquema, que es el mismo usuario dueño: TIENDA.CLIENTES. No hay bases de datos separadas dentro de un servidor como en SQL Server." },
+        { "motor": "PostgreSQL", "texto": "También usa esquemas; el predeterminado se llama public." },
+        { "motor": "MySQL y MariaDB", "texto": "No separan esquema de base de datos: cada base de datos funciona como un esquema." }
+      ],
+      "relacionadas": ["concepto:clave-principal", "concepto:llave-foranea", "concepto:null"],
+      "fuentes": [
+        { "titulo": "Tablas (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/tables" }
+      ]
+    },
+    {
+      "id": "concepto:null",
+      "categoria": "concepto",
+      "titulo": "NULL y NOT NULL: datos obligatorios y opcionales",
+      "alias": ["null", "not null", "nulo", "obligatoria", "opcional"],
+      "resumen": "NULL significa que el dato no se conoce o no existe. Una columna NOT NULL es obligatoria: no se puede dejar sin valor.",
+      "secciones": [
+        {
+          "titulo": "Qué es NULL",
+          "parrafos": [
+            "NULL no es cero ni texto vacío: es la ausencia de valor. Un cliente sin teléfono tiene el teléfono en NULL.",
+            "Al crear una columna decides si admite NULL (opcional) o NOT NULL (obligatoria). Si intentas insertar una fila sin un dato obligatorio, SQL Server da el error «Cannot insert the value NULL into column»."
+          ],
+          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL,\n    Telefono nvarchar(20) NULL\n);"
+        },
+        {
+          "titulo": "Cómo se compara",
+          "parrafos": [
+            "NULL no es igual a nada, ni siquiera a otro NULL. Por eso Telefono = NULL nunca encuentra filas. Se escribe Telefono IS NULL o Telefono IS NOT NULL.",
+            "Las claves principales nunca admiten NULL."
+          ],
+          "ejemplo": "SELECT Nombre FROM Clientes WHERE Telefono IS NULL;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual, con una diferencia importante: el texto vacío '' se guarda como NULL. En lugar de ISNULL se usa NVL." },
+        { "motor": "PostgreSQL", "texto": "Funciona igual." },
+        { "motor": "MySQL y MariaDB", "texto": "Funciona igual." }
+      ],
+      "relacionadas": ["concepto:default", "concepto:clave-principal"],
+      "fuentes": [
+        { "titulo": "NULL y UNKNOWN (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/null-and-unknown-transact-sql" }
+      ]
+    },
+    {
+      "id": "concepto:clave-principal",
+      "categoria": "concepto",
+      "titulo": "Clave principal (PRIMARY KEY)",
+      "alias": ["primary key", "pk", "clave principal", "llave primaria", "clave primaria", "clave compuesta"],
+      "resumen": "La columna, o grupo de columnas, que identifica a cada fila sin repetirse. Cada tabla debería tener una.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "Su valor no se puede repetir y no puede ser NULL. Una tabla solo puede tener una clave principal.",
+            "Lo más común es una columna Id de tipo int con IDENTITY, que se numera sola.",
+            "SQL Server crea automáticamente un índice para la clave principal; si no dices otra cosa, es un índice agrupado (CLUSTERED)."
+          ],
+          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);"
+        },
+        {
+          "titulo": "Clave compuesta",
+          "parrafos": [
+            "A veces la clave está formada por dos o más columnas juntas. En PedidoProductos, la clave es PedidoId más ProductoId: un mismo producto no puede aparecer dos veces en el mismo pedido, pero sí en pedidos distintos."
+          ],
+          "ejemplo": "CREATE TABLE PedidoProductos (\n    PedidoId int NOT NULL,\n    ProductoId int NOT NULL,\n    Cantidad int NOT NULL,\n    CONSTRAINT PK_PedidoProductos PRIMARY KEY (PedidoId, ProductoId)\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual, pero no hay índices agrupados en las tablas normales: la clave crea un índice único normal." },
+        { "motor": "PostgreSQL", "texto": "Igual. No crea índices agrupados: todas sus tablas guardan las filas sin un orden fijo." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual. Con el motor InnoDB, la clave principal siempre funciona como índice agrupado." }
+      ],
+      "relacionadas": ["concepto:identity", "concepto:llave-foranea", "concepto:unique", "concepto:indice"],
+      "fuentes": [
+        { "titulo": "Restricciones de clave principal y clave externa (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/primary-and-foreign-key-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:llave-foranea",
+      "categoria": "concepto",
+      "titulo": "Llave foránea (FOREIGN KEY)",
+      "alias": ["foreign key", "fk", "llave foranea", "clave externa", "clave foranea", "referencia", "references"],
+      "resumen": "Una columna que apunta a la clave de otra tabla. Así se relacionan las tablas y se garantiza que no existan datos huérfanos.",
+      "secciones": [
+        {
+          "titulo": "Cómo funciona",
+          "parrafos": [
+            "En Pedidos, la columna ClienteId apunta a Clientes.Id. SQL Server no te dejará guardar un pedido con un ClienteId que no exista en Clientes; da el error 547, de conflicto con la restricción FOREIGN KEY.",
+            "La columna apuntada debe ser la clave principal o tener una restricción UNIQUE. Los dos lados deben tener el mismo tipo de datos.",
+            "Si la llave foránea admite NULL, la relación es opcional: puede haber filas que no apunten a nada."
+          ],
+          "ejemplo": "CREATE TABLE Pedidos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    ClienteId int NOT NULL,\n    CONSTRAINT FK_Pedidos_Clientes\n        FOREIGN KEY (ClienteId) REFERENCES Clientes(Id)\n);"
+        },
+        {
+          "titulo": "Qué pasa al borrar",
+          "parrafos": [
+            "Si intentas borrar un cliente que tiene pedidos, lo que ocurre depende de la regla ON DELETE de la llave. Por defecto es NO ACTION: el borrado se rechaza."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual; ENABLE VALIDATE y ENABLE NOVALIDATE equivalen a WITH CHECK y WITH NOCHECK. Oracle no crea índice para la llave foránea." },
+        { "motor": "PostgreSQL", "texto": "Igual, con la misma sintaxis REFERENCES." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual con el motor InnoDB. El motor antiguo MyISAM las ignora." }
+      ],
+      "relacionadas": ["concepto:reglas-referenciales", "concepto:uno-a-muchos", "concepto:muchos-a-muchos", "concepto:clave-principal"],
+      "fuentes": [
+        { "titulo": "Restricciones de clave principal y clave externa (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/primary-and-foreign-key-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:reglas-referenciales",
+      "categoria": "concepto",
+      "titulo": "ON DELETE y ON UPDATE: qué pasa con las filas relacionadas",
+      "alias": ["on delete", "on update", "cascade", "cascada", "no action", "set null", "set default", "sin acción"],
+      "resumen": "Son las reglas de una llave foránea que deciden qué pasa con las filas hijas cuando se borra o cambia la fila a la que apuntan.",
+      "secciones": [
+        {
+          "titulo": "Las cuatro reglas",
+          "parrafos": [
+            "NO ACTION (sin acción): rechaza el borrado o el cambio si hay filas relacionadas. Es la regla por defecto y la más segura.",
+            "CASCADE (en cascada): borra o actualiza también las filas relacionadas. Si borras un pedido, se borran sus líneas. Úsala con cuidado: un borrado puede arrastrar muchos datos.",
+            "SET NULL: deja en NULL la llave de las filas relacionadas. Solo funciona si esa columna admite NULL.",
+            "SET DEFAULT: pone el valor predeterminado en la llave de las filas relacionadas."
+          ],
+          "ejemplo": "ALTER TABLE PedidoProductos\n    ADD CONSTRAINT FK_PedidoProductos_Pedidos\n    FOREIGN KEY (PedidoId) REFERENCES Pedidos(Id)\n    ON DELETE CASCADE;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Solo ON DELETE, con CASCADE o SET NULL; sin ON UPDATE ni SET DEFAULT." },
+        { "motor": "PostgreSQL", "texto": "Las mismas reglas, más RESTRICT, que es como NO ACTION pero se comprueba de inmediato." },
+        { "motor": "MySQL y MariaDB", "texto": "Las mismas reglas, más RESTRICT. SET DEFAULT no está disponible en InnoDB." }
+      ],
+      "relacionadas": ["concepto:llave-foranea"],
+      "fuentes": [
+        { "titulo": "Restricciones de clave principal y clave externa (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/primary-and-foreign-key-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:uno-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de uno a muchos",
+      "alias": ["uno a muchos", "1 a n", "one to many"],
+      "resumen": "La relación más común: una fila de una tabla se relaciona con muchas filas de otra. Un cliente tiene muchos pedidos.",
+      "secciones": [
+        {
+          "titulo": "Cómo se arma",
+          "parrafos": [
+            "La llave foránea va en la tabla del lado «muchos». Cada pedido guarda el Id de su cliente en la columna ClienteId.",
+            "Para leer los datos juntos se usa JOIN: unir Pedidos con Clientes donde Pedidos.ClienteId es igual a Clientes.Id."
+          ],
+          "ejemplo": "SELECT c.Nombre, p.Fecha\nFROM Pedidos p\nJOIN Clientes c ON c.Id = p.ClienteId;"
+        },
+        {
+          "titulo": "Uno a uno",
+          "parrafos": [
+            "Si la llave foránea además es UNIQUE o es la clave principal, cada fila solo puede tener una pareja: es una relación de uno a uno. Se usa, por ejemplo, para separar datos opcionales en otra tabla."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Se modela igual." },
+        { "motor": "PostgreSQL", "texto": "Igual." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual." }
+      ],
+      "relacionadas": ["concepto:llave-foranea", "concepto:muchos-a-muchos"],
+      "fuentes": [
+        { "titulo": "Restricciones de clave principal y clave externa (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/primary-and-foreign-key-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:muchos-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de muchos a muchos y tabla intermedia",
+      "alias": ["muchos a muchos", "n a n", "tabla intermedia", "tabla pivote", "tabla puente", "many to many"],
+      "resumen": "Cuando muchas filas de una tabla se relacionan con muchas de otra, se usa una tercera tabla, la intermedia, que guarda las parejas.",
+      "secciones": [
+        {
+          "titulo": "Por qué hace falta",
+          "parrafos": [
+            "Un pedido puede tener muchos productos y un producto puede estar en muchos pedidos. No se puede resolver con una sola llave foránea en ninguna de las dos tablas.",
+            "La solución es la tabla intermedia PedidoProductos: cada fila dice «este producto está en este pedido». Tiene dos llaves foráneas, una hacia cada tabla, y su clave principal es la combinación de ambas.",
+            "La tabla intermedia puede guardar datos propios de la pareja, como la cantidad o el precio en ese pedido."
+          ],
+          "ejemplo": "CREATE TABLE PedidoProductos (\n    PedidoId int NOT NULL REFERENCES Pedidos(Id),\n    ProductoId int NOT NULL REFERENCES Productos(Id),\n    Cantidad int NOT NULL CHECK (Cantidad > 0),\n    PRIMARY KEY (PedidoId, ProductoId)\n);"
+        },
+        {
+          "titulo": "Cómo se consulta",
+          "parrafos": [
+            "Se hacen dos JOIN: de Pedidos a la tabla intermedia, y de la intermedia a Productos."
+          ],
+          "ejemplo": "SELECT p.Id AS Pedido, pr.Nombre, pp.Cantidad\nFROM Pedidos p\nJOIN PedidoProductos pp ON pp.PedidoId = p.Id\nJOIN Productos pr ON pr.Id = pp.ProductoId;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Se modela igual." },
+        { "motor": "PostgreSQL", "texto": "Igual." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual." }
+      ],
+      "relacionadas": ["concepto:clave-principal", "concepto:llave-foranea", "concepto:uno-a-muchos"],
+      "fuentes": [
+        { "titulo": "Restricciones de clave principal y clave externa (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/primary-and-foreign-key-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:identity",
+      "categoria": "concepto",
+      "titulo": "IDENTITY: números automáticos",
+      "alias": ["identity", "identidad", "autoincremento", "auto increment", "autonumérico"],
+      "resumen": "Hace que una columna se numere sola: 1, 2, 3… No hace falta escribir su valor al insertar.",
+      "secciones": [
+        {
+          "titulo": "Cómo se escribe",
+          "parrafos": [
+            "IDENTITY(1, 1) significa: empezar en 1 y sumar 1 cada vez. El primer número se llama inicialización o semilla, y el segundo, incremento.",
+            "Solo puede haber una columna IDENTITY por tabla, y no admite NULL ni valor predeterminado.",
+            "Los números no se reutilizan: si borras la fila 3, la siguiente será la 5 aunque falte la 3. Tampoco se garantiza que no haya saltos."
+          ],
+          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO Clientes (Nombre) VALUES (N'Ana Mora');\nSELECT SCOPE_IDENTITY() AS IdNuevo;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "GENERATED ALWAYS AS IDENTITY o GENERATED BY DEFAULT AS IDENTITY, desde 12c. Antes, una secuencia con un disparador." },
+        { "motor": "PostgreSQL", "texto": "GENERATED ALWAYS AS IDENTITY, o el antiguo serial." },
+        { "motor": "MySQL y MariaDB", "texto": "AUTO_INCREMENT. El último valor generado se obtiene con LAST_INSERT_ID()." }
+      ],
+      "relacionadas": ["concepto:clave-principal", "tipo:enteros"],
+      "fuentes": [
+        { "titulo": "Propiedad IDENTITY (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-table-transact-sql-identity-property" }
+      ]
+    },
+    {
+      "id": "concepto:unique",
+      "categoria": "concepto",
+      "titulo": "UNIQUE: valores que no se repiten",
+      "alias": ["unique", "único", "valor único", "restricción única"],
+      "resumen": "Impide que dos filas tengan el mismo valor en una columna, o en una combinación de columnas. Por ejemplo, dos clientes con el mismo correo.",
+      "secciones": [
+        {
+          "titulo": "Diferencia con la clave principal",
+          "parrafos": [
+            "Una tabla tiene una sola clave principal, pero puede tener varias restricciones UNIQUE.",
+            "En SQL Server, una columna UNIQUE admite un único NULL. SQL Server crea un índice para hacer cumplir la restricción."
+          ],
+          "ejemplo": "ALTER TABLE Clientes\n    ADD CONSTRAINT UQ_Clientes_Correo UNIQUE (Correo);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual, pero permite muchas filas con NULL en una columna única." },
+        { "motor": "PostgreSQL", "texto": "Igual, pero admite varios NULL en una columna UNIQUE." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual, y también admiten varios NULL." }
+      ],
+      "relacionadas": ["concepto:clave-principal", "concepto:indice", "concepto:check"],
+      "fuentes": [
+        { "titulo": "Restricciones UNIQUE y CHECK (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/unique-constraints-and-check-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:default",
+      "categoria": "concepto",
+      "titulo": "DEFAULT: valor predeterminado",
+      "alias": ["default", "predeterminado", "valor por defecto", "valor predeterminado"],
+      "resumen": "El valor que toma una columna cuando insertas una fila sin indicarlo. Por ejemplo, la fecha de hoy o 1 para Activo.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Solo se usa si la columna no aparece en el INSERT. Si escribes NULL a propósito, se guarda NULL, no el valor predeterminado.",
+            "Puede ser un valor fijo, como 0, o una función, como GETDATE(). La expresión CONVERT([date],getdate()) significa «la fecha de hoy, sin hora»: SQL Server la guarda así aunque la escribieras de otra forma."
+          ],
+          "ejemplo": "ALTER TABLE Clientes\n    ADD CONSTRAINT DF_Clientes_FechaRegistro\n    DEFAULT CAST(GETDATE() AS date) FOR FechaRegistro;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "DEFAULT va antes de NOT NULL y no lleva nombre de restricción. DEFAULT ON NULL lo aplica también cuando insertas NULL." },
+        { "motor": "PostgreSQL", "texto": "DEFAULT, igual. Para la fecha actual: DEFAULT CURRENT_DATE." },
+        { "motor": "MySQL y MariaDB", "texto": "DEFAULT, igual. Para la fecha actual: DEFAULT (CURRENT_DATE)." }
+      ],
+      "relacionadas": ["concepto:null", "tipo:date"],
+      "fuentes": [
+        { "titulo": "Especificar valores predeterminados para columnas (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/specify-default-values-for-columns" }
+      ]
+    },
+    {
+      "id": "concepto:check",
+      "categoria": "concepto",
+      "titulo": "CHECK: reglas sobre los valores",
+      "alias": ["check", "restricción check", "comprobación", "validación"],
+      "resumen": "Una condición que cada fila debe cumplir. Si no la cumple, SQL Server rechaza el INSERT o el UPDATE.",
+      "secciones": [
+        {
+          "titulo": "Ejemplos",
+          "parrafos": [
+            "Precio >= 0 impide precios negativos. Cantidad > 0 impide líneas de pedido vacías.",
+            "SQL Server guarda la expresión con corchetes y paréntesis extra, por eso puedes verla escrita como ([Cantidad]>(0)). Significa lo mismo.",
+            "Una condición que da NULL no se considera incumplida: si la columna es NULL, la fila pasa la comprobación."
+          ],
+          "ejemplo": "ALTER TABLE Productos\n    ADD CONSTRAINT CK_Productos_Precio CHECK (Precio >= 0);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual." },
+        { "motor": "PostgreSQL", "texto": "Igual." },
+        { "motor": "MySQL y MariaDB", "texto": "MySQL solo las respeta desde la versión 8.0.16; antes las aceptaba y las ignoraba." }
+      ],
+      "relacionadas": ["concepto:unique", "concepto:null"],
+      "fuentes": [
+        { "titulo": "Restricciones UNIQUE y CHECK (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/unique-constraints-and-check-constraints" }
+      ]
+    },
+    {
+      "id": "concepto:indice",
+      "categoria": "concepto",
+      "titulo": "Índices: agrupados y no agrupados",
+      "alias": ["indice", "index", "clustered", "nonclustered", "agrupado", "no agrupado", "include"],
+      "resumen": "Un índice ayuda a SQL Server a encontrar filas rápido, como el índice de un libro. A cambio, ocupa espacio y hace un poco más lentas las escrituras.",
+      "secciones": [
+        {
+          "titulo": "Agrupado y no agrupado",
+          "parrafos": [
+            "El índice agrupado (CLUSTERED) decide el orden físico en que se guardan las filas. Solo puede haber uno por tabla; normalmente es el de la clave principal.",
+            "Un índice no agrupado (NONCLUSTERED) es una lista aparte, ordenada por sus columnas, que apunta a las filas. Puede haber muchos.",
+            "Las columnas incluidas (INCLUDE) se guardan en el índice sin formar parte del orden, para que una consulta encuentre todo lo que necesita sin ir a la tabla."
+          ],
+          "ejemplo": "CREATE NONCLUSTERED INDEX IX_Pedidos_ClienteId\n    ON Pedidos (ClienteId)\n    INCLUDE (Fecha);"
+        },
+        {
+          "titulo": "Cuándo crear uno",
+          "parrafos": [
+            "Conviene indexar las columnas por las que buscas o unes tablas a menudo, como las llaves foráneas. SQL Server no crea índices para las llaves foráneas de forma automática."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "No hay índices agrupados ni INCLUDE en las tablas normales; sí índices sobre expresiones, como UPPER(nombre)." },
+        { "motor": "PostgreSQL", "texto": "CREATE INDEX, también con INCLUDE. No tiene índices agrupados permanentes." },
+        { "motor": "MySQL y MariaDB", "texto": "CREATE INDEX. En InnoDB la clave principal es siempre el índice agrupado, y sí se crea un índice para cada llave foránea." }
+      ],
+      "relacionadas": ["concepto:clave-principal", "concepto:unique"],
+      "fuentes": [
+        { "titulo": "Índices agrupados y no agrupados (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/indexes/clustered-and-nonclustered-indexes-described" }
+      ]
+    },
+    {
+      "id": "concepto:columna-calculada",
+      "categoria": "concepto",
+      "titulo": "Columnas calculadas",
+      "alias": ["columna calculada", "computed", "calculada", "persisted", "as"],
+      "resumen": "Una columna cuyo valor no se escribe, sino que sale de una fórmula con otras columnas de la misma fila.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Total AS (Cantidad * PrecioUnitario) calcula el total de cada línea. Normalmente se calcula al leer; con PERSISTED se guarda en disco y se actualiza sola.",
+            "No admite valor predeterminado ni puede usarse en llaves foráneas."
+          ],
+          "ejemplo": "ALTER TABLE PedidoProductos\n    ADD Total AS (Cantidad * PrecioUnitario) PERSISTED;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Columnas virtuales: GENERATED ALWAYS AS (expresión) VIRTUAL. No se guardan en disco." },
+        { "motor": "PostgreSQL", "texto": "GENERATED ALWAYS AS (fórmula) STORED." },
+        { "motor": "MySQL y MariaDB", "texto": "GENERATED ALWAYS AS (fórmula), en versión VIRTUAL o STORED." }
+      ],
+      "relacionadas": ["concepto:default"],
+      "fuentes": [
+        { "titulo": "Especificar columnas calculadas en una tabla (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/tables/specify-computed-columns-in-a-table" }
+      ]
+    },
+    {
+      "id": "concepto:vistas",
+      "categoria": "concepto",
+      "titulo": "Vistas: consultas guardadas con nombre",
+      "alias": ["vista", "vistas", "view", "create view", "create or alter view", "drop view"],
+      "resumen": "Una vista es un SELECT guardado con nombre. Se consulta como si fuera una tabla, pero no guarda datos: cada vez que la usas, SQL Server ejecuta su consulta.",
+      "secciones": [
+        {
+          "titulo": "Crear y usar",
+          "parrafos": [
+            "CREATE OR ALTER VIEW crea la vista o la reemplaza si ya existe. Debe ir sola en su lote, por eso se separa con GO.",
+            "Sirve para no repetir consultas largas, como un JOIN con totales, y para mostrar solo algunas columnas de una tabla.",
+            "Una vista no admite ORDER BY salvo con TOP; ordena al consultarla: SELECT * FROM vista ORDER BY columna.",
+            "En el explorador, las vistas están en la carpeta Vistas de cada base, con Seleccionar las primeras 100 filas y Generar script CREATE."
+          ],
+          "ejemplo": "CREATE OR ALTER VIEW dbo.ProductosCaros AS\nSELECT Nombre, Precio FROM dbo.Productos WHERE Precio > 50;\nGO\n\nSELECT * FROM dbo.ProductosCaros;\nDROP VIEW dbo.ProductosCaros;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "CREATE OR REPLACE VIEW; también hay vistas materializadas, que guardan el resultado." },
+        { "motor": "PostgreSQL", "texto": "CREATE OR REPLACE VIEW, y CREATE MATERIALIZED VIEW con REFRESH MATERIALIZED VIEW." }
+      ],
+      "relacionadas": ["palabra:select", "palabra:join", "concepto:tabla"],
+      "fuentes": [
+        { "titulo": "CREATE VIEW (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-view-transact-sql" }
+      ]
+    },
+    {
+      "id": "concepto:procedimientos",
+      "categoria": "concepto",
+      "titulo": "Procedimientos almacenados: CREATE PROCEDURE y EXEC",
+      "alias": ["procedimiento", "procedimientos", "procedure", "proc", "stored procedure", "create procedure", "exec", "execute", "output"],
+      "resumen": "Un procedimiento guarda instrucciones de T-SQL con nombre, para ejecutarlas con EXEC pasándole parámetros. Puede devolver filas y valores en parámetros de salida.",
+      "secciones": [
+        {
+          "titulo": "Crear y ejecutar",
+          "parrafos": [
+            "Los parámetros empiezan con @. Un parámetro con OUTPUT devuelve un valor a quien llama.",
+            "Para recibir un valor de salida, declara una variable y pásala con OUTPUT también en el EXEC.",
+            "SET NOCOUNT ON evita los mensajes de filas afectadas dentro del procedimiento.",
+            "En el explorador, Ejecutar… del menú del procedimiento abre un formulario con un campo por parámetro y escribe el EXEC por ti; los valores de salida salen en el panel de mensajes."
+          ],
+          "ejemplo": "CREATE OR ALTER PROCEDURE dbo.ContarProductos\n    @CategoriaId INT,\n    @Cantidad INT OUTPUT\nAS\nBEGIN\n    SET NOCOUNT ON;\n    SELECT @Cantidad = COUNT(*) FROM dbo.Productos WHERE CategoriaId = @CategoriaId;\nEND;\nGO\n\nDECLARE @n INT;\nEXEC dbo.ContarProductos @CategoriaId = 1, @Cantidad = @n OUTPUT;\nPRINT @n;\nDROP PROCEDURE dbo.ContarProductos;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "CREATE OR REPLACE PROCEDURE en PL/SQL, con parámetros IN, OUT e IN OUT; se llama dentro de un bloque BEGIN … END." },
+        { "motor": "PostgreSQL", "texto": "CREATE PROCEDURE en PL/pgSQL y CALL; los parámetros OUT se pasan como NULL y vuelven como una fila." }
+      ],
+      "relacionadas": ["concepto:funciones", "palabra:go"],
+      "fuentes": [
+        { "titulo": "CREATE PROCEDURE (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-procedure-transact-sql" }
+      ]
+    },
+    {
+      "id": "concepto:funciones",
+      "categoria": "concepto",
+      "titulo": "Funciones: CREATE FUNCTION",
+      "alias": ["función", "funcion", "funciones", "function", "create function", "returns", "función escalar", "función de tabla", "returns table"],
+      "resumen": "Una función recibe parámetros y devuelve un valor (escalar) o una tabla. A diferencia de un procedimiento, se usa dentro de un SELECT y no puede cambiar datos.",
+      "secciones": [
+        {
+          "titulo": "Escalares y de tabla",
+          "parrafos": [
+            "Una función escalar devuelve un solo valor con RETURN y se llama con su esquema: dbo.PrecioConIva(Precio).",
+            "Una función de tabla en línea usa RETURNS TABLE y se consulta en el FROM: SELECT * FROM dbo.ProductosDeCategoria(1).",
+            "Dentro de una función no se permiten INSERT, UPDATE ni DELETE sobre tablas de la base.",
+            "En el explorador, Ejecutar… de la función escribe el SELECT con los valores que pongas en el formulario."
+          ],
+          "ejemplo": "CREATE OR ALTER FUNCTION dbo.PrecioConIva (@Precio DECIMAL(10, 2))\nRETURNS DECIMAL(10, 2)\nAS\nBEGIN\n    RETURN ROUND(@Precio * 1.13, 2);\nEND;\nGO\n\nSELECT Nombre, dbo.PrecioConIva(Precio) AS ConIva FROM dbo.Productos;\nDROP FUNCTION dbo.PrecioConIva;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "CREATE OR REPLACE FUNCTION … RETURN tipo, en PL/SQL; se prueba con SELECT funcion(…) FROM dual." },
+        { "motor": "PostgreSQL", "texto": "CREATE OR REPLACE FUNCTION … RETURNS tipo, en SQL o PL/pgSQL; RETURNS TABLE devuelve filas." }
+      ],
+      "relacionadas": ["concepto:procedimientos", "palabra:select"],
+      "fuentes": [
+        { "titulo": "CREATE FUNCTION (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-function-transact-sql" }
+      ]
+    },
+    {
+      "id": "concepto:disparadores",
+      "categoria": "concepto",
+      "titulo": "Disparadores: CREATE TRIGGER",
+      "alias": ["disparador", "disparadores", "trigger", "triggers", "create trigger", "after", "instead of", "inserted", "deleted", "enable trigger", "disable trigger"],
+      "resumen": "Un disparador es código que SQL Server ejecuta solo cuando ocurre un INSERT, UPDATE o DELETE en una tabla. Sirve para validar, completar datos o llevar un registro.",
+      "secciones": [
+        {
+          "titulo": "Cómo funciona",
+          "parrafos": [
+            "AFTER se ejecuta después del cambio; INSTEAD OF se ejecuta en su lugar. No hay disparadores BEFORE en SQL Server.",
+            "Se ejecuta una vez por instrucción, no por fila: las filas nuevas están en la tabla virtual inserted y las anteriores en deleted.",
+            "Con ROLLBACK TRANSACTION dentro del disparador se cancela el cambio que lo provocó.",
+            "DISABLE TRIGGER y ENABLE TRIGGER lo apagan y lo encienden sin borrarlo. En el explorador, los disparadores están en la carpeta Disparadores de cada tabla."
+          ],
+          "ejemplo": "CREATE OR ALTER TRIGGER dbo.trg_Clientes_CorreoMinusculas\nON dbo.Clientes\nAFTER INSERT, UPDATE\nAS\nBEGIN\n    SET NOCOUNT ON;\n    UPDATE c SET Correo = LOWER(c.Correo)\n    FROM dbo.Clientes c\n    JOIN inserted i ON i.Id = c.Id;\nEND;\nGO\n\nDROP TRIGGER dbo.trg_Clientes_CorreoMinusculas;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "BEFORE o AFTER, y FOR EACH ROW para ejecutarse fila por fila con :NEW y :OLD." },
+        { "motor": "PostgreSQL", "texto": "El disparador llama a una función que devuelve trigger; puede ser BEFORE, AFTER o INSTEAD OF, por fila o por instrucción." }
+      ],
+      "relacionadas": ["concepto:check", "palabra:update"],
+      "fuentes": [
+        { "titulo": "CREATE TRIGGER (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-trigger-transact-sql" }
+      ]
+    },
+    {
+      "id": "concepto:secuencias",
+      "categoria": "concepto",
+      "titulo": "Secuencias: CREATE SEQUENCE y NEXT VALUE FOR",
+      "alias": ["secuencia", "secuencias", "sequence", "create sequence", "next value for", "restart with", "alter sequence"],
+      "resumen": "Una secuencia entrega números consecutivos que no dependen de ninguna tabla. Es útil cuando varias tablas comparten una numeración, como facturas y notas de crédito.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "NEXT VALUE FOR esquema.secuencia pide el siguiente número.",
+            "ALTER SEQUENCE … RESTART WITH n hace que el próximo número sea n.",
+            "Los números no se devuelven con ROLLBACK, así que puede haber saltos.",
+            "Para numerar las filas de una sola tabla, lo habitual es una columna IDENTITY."
+          ],
+          "ejemplo": "CREATE SEQUENCE dbo.SecFacturas AS INT START WITH 1000 INCREMENT BY 1;\nSELECT NEXT VALUE FOR dbo.SecFacturas;\nALTER SEQUENCE dbo.SecFacturas RESTART WITH 1000;\nDROP SEQUENCE dbo.SecFacturas;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "secuencia.NEXTVAL y secuencia.CURRVAL." },
+        { "motor": "PostgreSQL", "texto": "nextval('secuencia'), currval y setval." }
+      ],
+      "relacionadas": ["concepto:identity", "tipo:enteros"],
+      "fuentes": [
+        { "titulo": "CREATE SEQUENCE (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-sequence-transact-sql" },
+        { "titulo": "Números de secuencia (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/sequence-numbers/sequence-numbers" }
+      ]
+    },
+    {
+      "id": "palabra:select",
+      "categoria": "palabra",
+      "titulo": "SELECT: leer datos",
+      "alias": ["select", "distinct", "select distinct", "as"],
+      "resumen": "Pide filas a la base de datos. Es la instrucción que más vas a usar.",
+      "secciones": [
+        {
+          "titulo": "Estructura",
+          "parrafos": [
+            "SELECT dice qué columnas quieres; FROM, de qué tabla; WHERE, qué filas; ORDER BY, en qué orden. Solo SELECT es obligatorio.",
+            "SELECT * trae todas las columnas. Es cómodo para explorar, pero en programas conviene nombrar las columnas.",
+            "AS pone un alias, un nombre nuevo, a una columna o a una tabla. DISTINCT quita las filas repetidas del resultado."
+          ],
+          "ejemplo": "SELECT Nombre, Precio AS PrecioActual\nFROM Productos\nWHERE Precio > 30\nORDER BY Precio DESC;"
+        },
+        {
+          "titulo": "Orden en que se evalúa",
+          "parrafos": [
+            "Aunque se escribe SELECT primero, la base lo resuelve en otro orden: FROM, WHERE, GROUP BY, HAVING, SELECT y por último ORDER BY. Por eso un alias creado en SELECT se puede usar en ORDER BY pero no en WHERE."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual. Antes de 23ai, todo SELECT necesitaba FROM, y para calcular sin tabla se usaba FROM dual." },
+        { "motor": "PostgreSQL", "texto": "Igual. Para limitar filas usa LIMIT en vez de TOP." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual. Para limitar filas usa LIMIT." }
+      ],
+      "relacionadas": ["palabra:where", "palabra:join", "palabra:order-by", "palabra:top"],
+      "fuentes": [
+        { "titulo": "SELECT (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/select-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:where",
+      "categoria": "palabra",
+      "titulo": "WHERE: filtrar filas",
+      "alias": ["where", "and", "or", "not", "like", "in", "between", "is null", "is not null"],
+      "resumen": "Se queda solo con las filas que cumplen una condición.",
+      "secciones": [
+        {
+          "titulo": "Operadores",
+          "parrafos": [
+            "Comparación: = igual, <> distinto, <, >, <=, >=. Se combinan con AND (y), OR (o) y NOT (no).",
+            "LIKE busca texto con comodines: % es cualquier cantidad de caracteres y _ es uno solo. Nombre LIKE 'A%' encuentra los nombres que empiezan con A.",
+            "IN compara con una lista: CategoriaId IN (1, 2). BETWEEN es un rango que incluye los extremos: Precio BETWEEN 20 AND 60.",
+            "Para NULL no sirve el igual: se usa IS NULL o IS NOT NULL."
+          ],
+          "ejemplo": "SELECT Nombre, Precio\nFROM Productos\nWHERE CategoriaId IN (1, 2)\n  AND Precio BETWEEN 20 AND 60\n  AND Nombre LIKE N'%libro%';"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual, pero LIKE distingue mayúsculas: para no distinguirlas se usa UPPER(columna) LIKE '...'." },
+        { "motor": "PostgreSQL", "texto": "Igual. LIKE distingue mayúsculas; ILIKE no las distingue." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual. Con la intercalación habitual, LIKE no distingue mayúsculas." }
+      ],
+      "relacionadas": ["palabra:select", "concepto:null"],
+      "fuentes": [
+        { "titulo": "WHERE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/where-transact-sql" },
+        { "titulo": "LIKE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/like-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:join",
+      "categoria": "palabra",
+      "titulo": "FROM y JOIN: combinar tablas",
+      "alias": ["from", "join", "inner", "inner join", "left", "left join", "right", "right join", "full", "full join", "outer", "on", "cross join"],
+      "resumen": "FROM dice de qué tabla salen los datos; JOIN une otra tabla usando una condición, normalmente la llave foránea.",
+      "secciones": [
+        {
+          "titulo": "Tipos de JOIN",
+          "parrafos": [
+            "INNER JOIN, o solo JOIN: deja solo las filas que tienen pareja en las dos tablas.",
+            "LEFT JOIN: deja todas las filas de la tabla de la izquierda, aunque no tengan pareja; las columnas de la otra tabla quedan en NULL. Sirve para encontrar, por ejemplo, clientes sin pedidos.",
+            "RIGHT JOIN es lo mismo pero al revés, y FULL JOIN deja todas las filas de ambos lados.",
+            "ON indica cómo se emparejan las filas: Pedidos.ClienteId = Clientes.Id."
+          ],
+          "ejemplo": "SELECT c.Nombre, COUNT(p.Id) AS Pedidos\nFROM Clientes c\nLEFT JOIN Pedidos p ON p.ClienteId = c.Id\nGROUP BY c.Nombre;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual. En código antiguo verás (+) en el WHERE para los JOIN externos." },
+        { "motor": "PostgreSQL", "texto": "Igual, con todos los tipos de JOIN." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual, pero no tienen FULL JOIN; se simula con UNION de un LEFT y un RIGHT JOIN." }
+      ],
+      "relacionadas": ["concepto:uno-a-muchos", "concepto:muchos-a-muchos", "palabra:group-by"],
+      "fuentes": [
+        { "titulo": "FROM (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/from-transact-sql" },
+        { "titulo": "Combinaciones (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/relational-databases/performance/joins" }
+      ]
+    },
+    {
+      "id": "palabra:group-by",
+      "categoria": "palabra",
+      "titulo": "GROUP BY, HAVING y funciones de agregado",
+      "alias": ["group", "group by", "having", "count", "sum", "avg", "min", "max"],
+      "resumen": "GROUP BY junta las filas que comparten un valor para calcular totales por grupo: cuántos pedidos tiene cada cliente, cuánto vendió cada categoría.",
+      "secciones": [
+        {
+          "titulo": "Funciones de agregado",
+          "parrafos": [
+            "COUNT cuenta filas, SUM suma, AVG saca el promedio, MIN y MAX dan el menor y el mayor. COUNT(*) cuenta todas las filas; COUNT(columna) no cuenta los NULL.",
+            "Toda columna del SELECT que no esté dentro de una función de agregado debe aparecer en GROUP BY."
+          ]
+        },
+        {
+          "titulo": "HAVING",
+          "parrafos": [
+            "WHERE filtra filas antes de agrupar; HAVING filtra grupos después de calcular. Por ejemplo, solo los clientes con más de un pedido."
+          ],
+          "ejemplo": "SELECT c.Nombre, COUNT(p.Id) AS Pedidos\nFROM Clientes c\nJOIN Pedidos p ON p.ClienteId = c.Id\nGROUP BY c.Nombre\nHAVING COUNT(p.Id) > 1;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual; en lugar de STRING_AGG se usa LISTAGG." },
+        { "motor": "PostgreSQL", "texto": "Igual y estricto con la regla de las columnas agrupadas." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual; las versiones antiguas permitían columnas sin agrupar, algo que hoy se desactiva con ONLY_FULL_GROUP_BY." }
+      ],
+      "relacionadas": ["palabra:select", "palabra:join"],
+      "fuentes": [
+        { "titulo": "GROUP BY (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/select-group-by-transact-sql" },
+        { "titulo": "Funciones de agregado (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/aggregate-functions-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:order-by",
+      "categoria": "palabra",
+      "titulo": "ORDER BY: ordenar el resultado",
+      "alias": ["order", "order by", "asc", "desc"],
+      "resumen": "Ordena las filas del resultado por una o varias columnas, de menor a mayor (ASC) o de mayor a menor (DESC).",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "ASC es el valor por defecto. Puedes ordenar por varias columnas: ORDER BY CategoriaId, Precio DESC ordena por categoría y, dentro de cada una, del precio más alto al más bajo.",
+            "Sin ORDER BY, el orden de las filas no está garantizado aunque parezca siempre el mismo."
+          ],
+          "ejemplo": "SELECT Nombre, Precio\nFROM Productos\nORDER BY CategoriaId, Precio DESC;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual, pero los NULL van al final en orden ascendente, y existen NULLS FIRST y NULLS LAST." },
+        { "motor": "PostgreSQL", "texto": "Igual; además permite NULLS FIRST y NULLS LAST." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual." }
+      ],
+      "relacionadas": ["palabra:top", "palabra:select"],
+      "fuentes": [
+        { "titulo": "ORDER BY (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/select-order-by-clause-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:top",
+      "categoria": "palabra",
+      "titulo": "TOP, OFFSET y FETCH: limitar filas",
+      "alias": ["top", "offset", "fetch", "limit"],
+      "resumen": "TOP devuelve solo las primeras filas. Con OFFSET y FETCH puedes saltar filas, por ejemplo para paginar.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "SELECT TOP 5 trae 5 filas. Úsalo con ORDER BY para que sean las primeras de un orden concreto, como los 5 productos más caros.",
+            "OFFSET 10 ROWS FETCH NEXT 5 ROWS ONLY salta 10 filas y trae las 5 siguientes. Exige ORDER BY."
+          ],
+          "ejemplo": "SELECT TOP 3 Nombre, Precio\nFROM Productos\nORDER BY Precio DESC;\n\nSELECT Nombre, Precio\nFROM Productos\nORDER BY Id\nOFFSET 2 ROWS FETCH NEXT 2 ROWS ONLY;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "No tiene TOP: se usa FETCH FIRST n ROWS ONLY al final, o ROWNUM en código antiguo." },
+        { "motor": "PostgreSQL", "texto": "No tiene TOP: se usa LIMIT 3 al final, o el estándar FETCH FIRST 3 ROWS ONLY." },
+        { "motor": "MySQL y MariaDB", "texto": "No tienen TOP: se usa LIMIT 3, o LIMIT 2, 2 para saltar y limitar." }
+      ],
+      "relacionadas": ["palabra:order-by"],
+      "fuentes": [
+        { "titulo": "TOP (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/top-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:insert",
+      "categoria": "palabra",
+      "titulo": "INSERT: agregar filas",
+      "alias": ["insert", "insert into", "into", "values"],
+      "resumen": "Agrega una o varias filas a una tabla.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Nombra las columnas entre paréntesis y después los valores en el mismo orden. Las columnas con IDENTITY no se escriben: se numeran solas.",
+            "Puedes insertar varias filas separando cada grupo de valores con coma.",
+            "Si falta un dato obligatorio, si se repite un valor UNIQUE o si una llave foránea apunta a algo que no existe, SQL Server rechaza el INSERT."
+          ],
+          "ejemplo": "INSERT INTO Categorias (Nombre)\nVALUES (N'Juegos'), (N'Software');"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual. Desde 23ai admite varias filas en VALUES. El cambio queda pendiente hasta COMMIT." },
+        { "motor": "PostgreSQL", "texto": "Igual; además tiene RETURNING para obtener la fila insertada." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual." }
+      ],
+      "relacionadas": ["concepto:identity", "palabra:update", "concepto:llave-foranea"],
+      "fuentes": [
+        { "titulo": "INSERT (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/insert-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:update",
+      "categoria": "palabra",
+      "titulo": "UPDATE: cambiar datos",
+      "alias": ["update", "set"],
+      "resumen": "Cambia valores de filas que ya existen.",
+      "secciones": [
+        {
+          "titulo": "Cuidado con WHERE",
+          "parrafos": [
+            "SET dice qué columnas cambian y con qué valor. WHERE dice qué filas.",
+            "Sin WHERE, el cambio se aplica a todas las filas de la tabla. Antes de un UPDATE importante, prueba el mismo WHERE con un SELECT para ver qué filas vas a tocar."
+          ],
+          "ejemplo": "UPDATE Productos\nSET Precio = Precio * 1.10\nWHERE CategoriaId = 2;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual, sin UPDATE … FROM; se usa MERGE o una subconsulta. Queda pendiente hasta COMMIT." },
+        { "motor": "PostgreSQL", "texto": "Igual." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual; además permite ORDER BY y LIMIT en un UPDATE." }
+      ],
+      "relacionadas": ["palabra:where", "palabra:delete"],
+      "fuentes": [
+        { "titulo": "UPDATE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/update-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:delete",
+      "categoria": "palabra",
+      "titulo": "DELETE y TRUNCATE: borrar filas",
+      "alias": ["delete", "truncate", "truncate table"],
+      "resumen": "DELETE borra las filas que cumplen una condición. TRUNCATE TABLE vacía la tabla completa de golpe.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Igual que con UPDATE, un DELETE sin WHERE borra todas las filas. Prueba primero el WHERE con un SELECT.",
+            "Si otras tablas apuntan a la fila con una llave foránea en NO ACTION, el borrado se rechaza con el error 547.",
+            "TRUNCATE TABLE es más rápido y reinicia el contador IDENTITY, pero no funciona si alguna llave foránea apunta a la tabla."
+          ],
+          "ejemplo": "DELETE FROM Categorias\nWHERE Nombre = N'Software';"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "Igual. TRUNCATE hace COMMIT automático y no se puede deshacer." },
+        { "motor": "PostgreSQL", "texto": "Igual; TRUNCATE admite CASCADE para vaciar también las tablas que apuntan a ella." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual." }
+      ],
+      "relacionadas": ["concepto:reglas-referenciales", "palabra:update"],
+      "fuentes": [
+        { "titulo": "DELETE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/delete-transact-sql" },
+        { "titulo": "TRUNCATE TABLE (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/truncate-table-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:create-table",
+      "categoria": "palabra",
+      "titulo": "CREATE TABLE: crear una tabla",
+      "alias": ["create", "table", "create table", "constraint"],
+      "resumen": "Crea una tabla nueva con sus columnas, tipos de datos y restricciones.",
+      "secciones": [
+        {
+          "titulo": "Estructura",
+          "parrafos": [
+            "Cada columna lleva su nombre, su tipo y sus reglas: NULL o NOT NULL, IDENTITY, DEFAULT, UNIQUE, CHECK.",
+            "Las restricciones que abarcan varias columnas, como una clave compuesta, se escriben al final con CONSTRAINT y un nombre. Ponerles nombre te ayuda a reconocerlas en los mensajes de error."
+          ],
+          "ejemplo": "CREATE TABLE Resenas (\n    Id int IDENTITY(1, 1) CONSTRAINT PK_Resenas PRIMARY KEY,\n    ProductoId int NOT NULL CONSTRAINT FK_Resenas_Productos REFERENCES Productos(Id),\n    Estrellas tinyint NOT NULL CONSTRAINT CK_Resenas_Estrellas CHECK (Estrellas BETWEEN 1 AND 5),\n    Comentario nvarchar(500) NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "GENERATED AS IDENTITY en lugar de IDENTITY, DEFAULT antes de NOT NULL, y nombres sin comillas que Oracle guarda en mayúsculas." },
+        { "motor": "PostgreSQL", "texto": "Igual, cambiando IDENTITY por GENERATED ALWAYS AS IDENTITY y los tipos nvarchar por varchar." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual, con AUTO_INCREMENT y nombres entre acentos graves." }
+      ],
+      "relacionadas": ["palabra:alter-table", "concepto:clave-principal", "concepto:llave-foranea", "concepto:check"],
+      "fuentes": [
+        { "titulo": "CREATE TABLE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/create-table-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:alter-table",
+      "categoria": "palabra",
+      "titulo": "ALTER TABLE: modificar una tabla",
+      "alias": ["alter", "alter table", "add", "alter column", "drop column"],
+      "resumen": "Cambia una tabla existente: agregar o quitar columnas, cambiar tipos y agregar o quitar restricciones.",
+      "secciones": [
+        {
+          "titulo": "Usos comunes",
+          "parrafos": [
+            "ADD agrega una columna o una restricción. ALTER COLUMN cambia el tipo o si admite NULL. DROP COLUMN y DROP CONSTRAINT quitan.",
+            "Si agregas una columna NOT NULL a una tabla con filas, necesitas un DEFAULT para rellenar las existentes."
+          ],
+          "ejemplo": "ALTER TABLE Clientes ADD Telefono nvarchar(20) NULL;\n\nALTER TABLE Clientes\n    ADD CONSTRAINT CK_Clientes_Correo CHECK (Correo LIKE N'%@%');"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "MODIFY en lugar de ALTER COLUMN, y RENAME COLUMN para renombrar." },
+        { "motor": "PostgreSQL", "texto": "Igual; para cambiar el tipo se escribe ALTER COLUMN Columna TYPE nuevo_tipo." },
+        { "motor": "MySQL y MariaDB", "texto": "Para cambiar una columna se usa MODIFY COLUMN." }
+      ],
+      "relacionadas": ["palabra:create-table", "palabra:drop"],
+      "fuentes": [
+        { "titulo": "ALTER TABLE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/alter-table-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:drop",
+      "categoria": "palabra",
+      "titulo": "DROP: eliminar objetos",
+      "alias": ["drop", "drop table", "if exists"],
+      "resumen": "Elimina por completo un objeto: una tabla, una vista, un índice o una base de datos. No se puede deshacer.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "DROP TABLE borra la tabla con todos sus datos. Si otra tabla la apunta con una llave foránea, primero hay que quitar esa llave.",
+            "DROP TABLE IF EXISTS no da error si la tabla no existe; es útil en scripts que se ejecutan varias veces."
+          ],
+          "ejemplo": "DROP TABLE IF EXISTS Resenas;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "DROP TABLE manda la tabla a la papelera de reciclaje, de donde se recupera con FLASHBACK TABLE; PURGE la borra del todo. IF EXISTS desde 23ai." },
+        { "motor": "PostgreSQL", "texto": "Igual; DROP TABLE ... CASCADE quita también lo que depende de ella." },
+        { "motor": "MySQL y MariaDB", "texto": "Igual." }
+      ],
+      "relacionadas": ["palabra:alter-table", "palabra:delete"],
+      "fuentes": [
+        { "titulo": "DROP TABLE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/drop-table-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:use",
+      "categoria": "palabra",
+      "titulo": "USE: cambiar de base de datos",
+      "alias": ["use"],
+      "resumen": "Hace que las instrucciones siguientes trabajen sobre otra base de datos.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "USE TiendaPractica cambia el contexto de la consulta. El mensaje «Changed database context» lo confirma.",
+            "En esta aplicación, si un script usa USE, el título de la consulta se actualiza para mostrar la base nueva."
+          ],
+          "ejemplo": "USE TiendaPractica;\nGO\nSELECT COUNT(*) FROM Clientes;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "No tiene USE: se trabaja en el esquema de tu usuario, y ALTER SESSION SET CURRENT_SCHEMA cambia el esquema predeterminado." },
+        { "motor": "PostgreSQL", "texto": "No existe USE: cada conexión trabaja con una sola base; hay que conectarse a otra." },
+        { "motor": "MySQL y MariaDB", "texto": "USE existe y funciona igual." }
+      ],
+      "relacionadas": ["palabra:go"],
+      "fuentes": [
+        { "titulo": "USE (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/use-transact-sql" }
+      ]
+    },
+    {
+      "id": "palabra:go",
+      "categoria": "palabra",
+      "titulo": "GO: separar lotes",
+      "alias": ["go"],
+      "resumen": "GO no es una instrucción de SQL: es una señal para la herramienta que divide el script en lotes que se envían por separado.",
+      "secciones": [
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Cada lote se ejecuta aparte. Si un lote falla, los siguientes se ejecutan igual; por eso el script de prueba muestra varios errores.",
+            "Algunas instrucciones deben ir solas en su lote, como CREATE VIEW o CREATE PROCEDURE.",
+            "GO 3 repite el lote tres veces. Esta aplicación entiende GO igual que SSMS: debe ir solo en su línea."
+          ],
+          "ejemplo": "CREATE TABLE Prueba (Id int);\nGO\nINSERT INTO Prueba VALUES (1);\nGO 3\nSELECT COUNT(*) FROM Prueba;"
+        }
+      ],
+      "otrosMotores": [
+        { "motor": "Oracle", "texto": "No tiene GO. Las sentencias terminan en punto y coma, y los bloques PL/SQL en una línea con una barra /." },
+        { "motor": "PostgreSQL", "texto": "No usa GO; cada instrucción termina en punto y coma." },
+        { "motor": "MySQL y MariaDB", "texto": "No usan GO; para scripts con procedimientos se cambia el delimitador con DELIMITER." }
+      ],
+      "relacionadas": ["palabra:use"],
+      "fuentes": [
+        { "titulo": "GO (Transact-SQL) (Microsoft Learn)", "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/sql-server-utilities-statements-go" }
+      ]
+    },
+    {
+      "id": "atajos:aplicacion",
+      "categoria": "atajos",
+      "titulo": "Atajos de teclado de Mi Gestor BD Accesible",
+      "alias": ["atajos", "teclas", "teclado", "f1", "f5", "f6", "f8", "menú", "aplicaciones"],
+      "resumen": "Las teclas para moverte por la aplicación sin ratón.",
+      "secciones": [
+        {
+          "titulo": "En cualquier lugar",
+          "parrafos": [
+            "F1: abre la ayuda del elemento donde estás. En el editor, explica la palabra de SQL bajo el cursor. Si no hay ayuda para ese elemento, abre la portada.",
+            "F8: vuelve al explorador de objetos, al último nodo donde estabas.",
+            "Control+N: abre una consulta conectada a la base de datos del nodo donde estás. Si ya hay una abierta, cambia su base y conserva el texto.",
+            "Control+T: abre otra pestaña de consulta en la base del nodo (o en la de la pestaña actual, si estás en el editor). Control+W cierra la pestaña activa y Control+Tab o Control+Mayúsculas+Tab cambian de pestaña. En la lista de pestañas, las flechas izquierda y derecha pasan de una a otra.",
+            "F5: ejecuta la consulta completa, o solo el texto seleccionado.",
+            "F6 y Mayúsculas+F6: pasan entre el editor, los resultados y los mensajes, hacia adelante o hacia atrás.",
+            "Control+O: abre un archivo .sql en el editor. Si hay cambios sin guardar, primero pregunta si quieres guardarlos.",
+            "Control+S: guarda la consulta en su archivo; la primera vez pregunta dónde. Control+Mayúsculas+S: guarda en un archivo nuevo.",
+            "Control+H: muestra el historial de consultas ejecutadas en esta conexión, de la más reciente a la más antigua.",
+            "Control+F: abre la barra para buscar y reemplazar en la consulta. Intro va a la siguiente coincidencia y Mayúsculas+Intro a la anterior; Escape vuelve al editor con el cursor sobre la coincidencia. F3 y Mayúsculas+F3 siguen buscando desde el editor.",
+            "Control+B: busca un objeto por su nombre en la base (tablas, columnas, vistas, procedimientos, funciones, índices, restricciones, disparadores y secuencias). Las flechas recorren los resultados e Intro lleva al objeto en el árbol. Control+B otra vez recupera la última búsqueda.",
+            "Alt o F10: activa la barra de menús (Archivo, Editar, Consulta y Ayuda), con todas las acciones principales y sus atajos. Las flechas recorren los menús, Intro elige una opción y Escape vuelve a donde estabas."
+          ]
+        },
+        {
+          "titulo": "En los resultados y los mensajes",
+          "parrafos": [
+            "Cada resultado es una tabla: usa los comandos de tabla de tu lector de pantalla para moverte por filas y columnas. La primera columna es el número de fila.",
+            "En los mensajes, cada error tiene un botón «Ir a la línea» que lleva el cursor del editor al comienzo de esa línea.",
+            "Cada resultado tiene los botones «Copiar tabla», que la copia separada por tabulaciones para pegarla en una hoja de cálculo, y «Exportar a CSV». Con la tecla 3 de tu lector de pantalla saltas de un resultado al siguiente."
+          ]
+        },
+        {
+          "titulo": "En el explorador de objetos",
+          "parrafos": [
+            "Flecha abajo y flecha arriba: siguiente y anterior nodo.",
+            "Flecha derecha: expande el nodo; si ya está expandido, entra al primer hijo.",
+            "Flecha izquierda: contrae el nodo; si ya está contraído, sube al padre.",
+            "Inicio y Fin: primer y último nodo visible.",
+            "Intro: sobre una tabla, la describe; sobre una carpeta, la expande o la contrae.",
+            "Tecla Aplicaciones o Mayúsculas+F10: abre el menú de acciones del nodo, como Nueva consulta, Nueva base de datos, Seleccionar las primeras 100 filas, Generar script o Eliminar."
+          ]
+        },
+        {
+          "titulo": "En el menú de acciones",
+          "parrafos": [
+            "Flecha abajo y flecha arriba recorren las acciones; Inicio y Fin van a la primera y a la última. Una letra salta a la siguiente acción que empieza con ella.",
+            "Intro o Espacio ejecutan la acción. Escape o Tab cierran el menú y vuelven al nodo.",
+            "Las acciones que terminan en puntos suspensivos abren un cuadro de diálogo que muestra el SQL antes de ejecutarlo. Las de eliminar piden confirmación."
+          ]
+        },
+        {
+          "titulo": "En la ayuda",
+          "parrafos": [
+            "Escape: cierra la ayuda y vuelve al lugar donde estabas.",
+            "Los temas relacionados son botones: actívalos con Intro para abrir esa ficha. El botón Atrás vuelve a la ficha anterior."
+          ]
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [],
+      "fuentes": []
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+@inject IJSRuntime js
+
+<div class="fondo-dialogo">
+    <div class="dialogo dialogo-accion" role="@(EsAlerta ? "alertdialog" : "dialog")" aria-modal="true"
+         aria-labelledby="titulo-dialogo-accion" data-dialogo @ref="_dialogo" @onkeydown="TeclaAsync">
+        <h2 id="titulo-dialogo-accion" tabindex="-1">@Titulo</h2>
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter] public bool EsAlerta { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback AlCancelar { get; set; }
+
+    private ElementReference _dialogo;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await js.InvokeVoidAsync("miGestor.prepararDialogo", _dialogo);
+        }
+    }
+
+    private async Task TeclaAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await AlCancelar.InvokeAsync();
+        }
+    }
+}

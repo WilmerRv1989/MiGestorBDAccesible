@@ -1,0 +1,120 @@
+@inject AlmacenConexionesService almacen
+@inject AnunciadorService anunciador
+
+<h1 tabindex="-1" @ref="_titulo">Conexiones</h1>
+
+@if (_conexiones is null)
+{
+    <p>Cargando conexiones…</p>
+}
+else
+{
+    @if (_conexiones.Count == 0)
+    {
+        <p>Todavía no tienes conexiones guardadas. Crea la primera con el botón Nueva conexión.</p>
+    }
+    else
+    {
+        <ul class="lista-conexiones" aria-label="Conexiones guardadas">
+            @foreach (var conexion in _conexiones)
+            {
+                <li>
+                    <h2>@conexion.Nombre</h2>
+                    <p class="detalle">@conexion.Resumen</p>
+
+                    @if (_pendienteEliminar?.Id == conexion.Id)
+                    {
+                        <p>¿Seguro que quieres eliminar la conexión @conexion.Nombre? Solo se borra de esta lista; la base de datos no cambia.</p>
+                        <div class="acciones">
+                            <button class="peligro" @ref="_botonConfirmar" @onclick="() => EliminarAsync(conexion)">Sí, eliminar</button>
+                            <button @onclick="CancelarEliminacion">Cancelar</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="acciones">
+                            <button class="principal" disabled="@Conectando"
+                                    aria-label="Conectar a @conexion.Nombre"
+                                    @onclick="() => AlConectar.InvokeAsync(conexion)">Conectar</button>
+                            <button aria-label="Editar @conexion.Nombre"
+                                    @onclick="() => AlEditar.InvokeAsync(conexion)">Editar</button>
+                            <button class="peligro" aria-label="Eliminar @conexion.Nombre"
+                                    @onclick="() => PedirEliminacion(conexion)">Eliminar</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    <div class="acciones">
+        <button class="principal" @onclick="AlCrear">Nueva conexión</button>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Aviso { get; set; }
+    [Parameter] public bool Conectando { get; set; }
+    [Parameter] public EventCallback AlCrear { get; set; }
+    [Parameter] public EventCallback<ConexionModelo> AlEditar { get; set; }
+    [Parameter] public EventCallback<ConexionModelo> AlConectar { get; set; }
+
+    private List<ConexionModelo>? _conexiones;
+    private ConexionModelo? _pendienteEliminar;
+    private bool _enfocarConfirmacion;
+    private ElementReference _titulo;
+    private ElementReference _botonConfirmar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _conexiones = await almacen.ListaAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await _titulo.FocusAsync();
+
+            if (!string.IsNullOrEmpty(Aviso))
+            {
+                await AnunciarTrasFocoAsync(Aviso);
+            }
+        }
+
+        if (_enfocarConfirmacion)
+        {
+            _enfocarConfirmacion = false;
+            await _botonConfirmar.FocusAsync();
+        }
+    }
+
+    private void PedirEliminacion(ConexionModelo conexion)
+    {
+        _pendienteEliminar = conexion;
+        _enfocarConfirmacion = true;
+    }
+
+    private async Task CancelarEliminacion()
+    {
+        _pendienteEliminar = null;
+        await _titulo.FocusAsync();
+    }
+
+    private async Task EliminarAsync(ConexionModelo conexion)
+    {
+        await almacen.EliminarAsync(conexion.Id);
+        _pendienteEliminar = null;
+        _conexiones = await almacen.ListaAsync();
+
+        StateHasChanged();
+        await _titulo.FocusAsync();
+        await AnunciarTrasFocoAsync($"Conexión {conexion.Nombre} eliminada. Quedan {_conexiones.Count}.");
+    }
+
+    private async Task AnunciarTrasFocoAsync(string mensaje)
+    {
+        await Task.Delay(600);
+        await anunciador.AnunciarAsync(mensaje);
+    }
+}

@@ -1,0 +1,141 @@
+@inject IJSRuntime js
+
+<div class="menu-contextual">
+    <ul role="menu" aria-label="@Titulo" @ref="_menu" @onkeydown="TeclaAsync">
+        @for (var i = 0; i < Elementos.Count; i++)
+        {
+            var indice = i;
+            var elemento = Elementos[i];
+
+            @if (elemento.EsSeparador)
+            {
+                <li role="separator"></li>
+            }
+            else
+            {
+                <li id="@IdElemento(indice)"
+                    role="menuitem"
+                    tabindex="@(indice == _activo ? 0 : -1)"
+                    class="@(elemento.EsPeligro ? "peligro" : null)"
+                    @onclick="() => ActivarAsync(elemento)">@elemento.Texto</li>
+            }
+        }
+    </ul>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Titulo { get; set; } = "";
+    [Parameter, EditorRequired] public List<ElementoMenuModelo> Elementos { get; set; } = [];
+    [Parameter] public EventCallback AlCerrar { get; set; }
+
+    private static int _contador;
+    private readonly string _prefijo = $"menu-{Interlocked.Increment(ref _contador)}";
+    private ElementReference _menu;
+    private int _activo;
+    private bool _enfocar = true;
+
+    protected override void OnInitialized()
+    {
+        _activo = Elementos.FindIndex(e => !e.EsSeparador);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await js.InvokeVoidAsync("miGestor.prepararMenu", _menu);
+        }
+
+        if (_enfocar && _activo >= 0)
+        {
+            _enfocar = false;
+            await js.InvokeVoidAsync("miGestor.enfocar", IdElemento(_activo));
+        }
+    }
+
+    private string IdElemento(int indice) => $"{_prefijo}-{indice}";
+
+    private async Task TeclaAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                Mover(1);
+                break;
+            case "ArrowUp":
+                Mover(-1);
+                break;
+            case "Home":
+                _activo = -1;
+                Mover(1);
+                break;
+            case "End":
+                _activo = Elementos.Count;
+                Mover(-1);
+                break;
+            case "Enter":
+            case " ":
+                if (_activo >= 0)
+                {
+                    await ActivarAsync(Elementos[_activo]);
+                }
+                break;
+            case "Escape":
+            case "Tab":
+                await AlCerrar.InvokeAsync();
+                break;
+            default:
+                if (e.Key.Length == 1 && char.IsLetter(e.Key[0]))
+                {
+                    BuscarPorLetra(e.Key[0]);
+                }
+                break;
+        }
+    }
+
+    private void Mover(int direccion)
+    {
+        var total = Elementos.Count;
+        var indice = _activo;
+
+        for (var paso = 0; paso < total; paso++)
+        {
+            indice = (indice + direccion + total) % total;
+
+            if (!Elementos[indice].EsSeparador)
+            {
+                _activo = indice;
+                _enfocar = true;
+                return;
+            }
+        }
+    }
+
+    private void BuscarPorLetra(char letra)
+    {
+        var total = Elementos.Count;
+
+        for (var paso = 1; paso <= total; paso++)
+        {
+            var indice = (_activo + paso) % total;
+            var elemento = Elementos[indice];
+
+            if (!elemento.EsSeparador && elemento.Texto.StartsWith(letra.ToString(), StringComparison.CurrentCultureIgnoreCase))
+            {
+                _activo = indice;
+                _enfocar = true;
+                return;
+            }
+        }
+    }
+
+    private async Task ActivarAsync(ElementoMenuModelo elemento)
+    {
+        await AlCerrar.InvokeAsync();
+
+        if (elemento.Accion is not null)
+        {
+            await elemento.Accion();
+        }
+    }
+}

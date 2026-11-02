@@ -1,0 +1,35 @@
+<h2 id="titulo-detalle" tabindex="-1" @ref="_titulo">@Descripcion.Titulo</h2>
+
+@foreach (var frase in Descripcion.Resumen)
+{
+    <p>@frase</p>
+}
+
+@foreach (var seccion in Descripcion.Secciones)
+{
+    <h3>@seccion.Titulo</h3>
+    <ul class="frases">
+        @foreach (var frase in seccion.Frases)
+        {
+            <li>@frase</li>
+        }
+    </ul>
+}
+
+<p class="ayuda">Pulsa F8 para volver al explorador.</p>
+
+@code {
+    [Parameter, EditorRequired] public DescripcionTablaModelo Descripcion { get; set; } = default!;
+
+    private ElementReference _titulo;
+    private DescripcionTablaModelo? _ultimaEnfocada;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_ultimaEnfocada != Descripcion)
+        {
+            _ultimaEnfocada = Descripcion;
+            await _titulo.FocusAsync();
+        }
+    }
+}

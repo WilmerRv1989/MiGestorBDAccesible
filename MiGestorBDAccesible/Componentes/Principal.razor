@@ -1,0 +1,185 @@
+@implements IDisposable
+@inject ProveedoresService proveedores
+@inject AnunciadorService anunciador
+@inject IJSRuntime js
+
+<Anunciador />
+
+<BarraMenus Inerte="_ayudaAbierta" />
+
+<main class="@(_vista == Vista.Conectado ? "ancho" : null)" inert="@_ayudaAbierta">
+    <ErrorBoundary @ref="_barrera">
+        <ErrorContent Context="error">
+            <section role="alert" class="error-inesperado">
+                <h1 tabindex="-1">Ocurrió un error inesperado</h1>
+                <p>@error.Message</p>
+                <p>Tus conexiones guardadas no se perdieron. Puedes intentar seguir donde estabas o volver a la lista de conexiones.</p>
+                <div class="acciones">
+                    <button class="principal" @onclick="Recuperar">Intentar seguir</button>
+                    <button @onclick="RecuperarEnLista">Volver a las conexiones</button>
+                </div>
+            </section>
+        </ErrorContent>
+        <ChildContent>
+    @switch (_vista)
+    {
+        case Vista.Lista:
+            <ListaConexiones @key="_versionLista"
+                             Aviso="@_aviso"
+                             Conectando="_conectando"
+                             AlCrear="CrearConexion"
+                             AlEditar="EditarConexion"
+                             AlConectar="ConectarAsync" />
+            break;
+
+        case Vista.Formulario:
+            <FormularioConexion Conexion="_conexionEditando"
+                                AlTerminar="VolverALista" />
+            break;
+
+        case Vista.Conectado:
+            <EspacioTrabajo Conexion="_conexionActiva!"
+                            AlDesconectar="Desconectar" />
+            break;
+    }
+        </ChildContent>
+    </ErrorBoundary>
+</main>
+
+@if (_ayudaAbierta)
+{
+    <DialogoAyuda Motor="_conexionActiva?.Conexion.Motor ?? TipoMotor.SqlServer"
+                  Temas="_temasAyuda"
+                  AlCerrar="CerrarAyuda" />
+}
+
+@code {
+    private enum Vista { Lista, Formulario, Conectado }
+
+    private DotNetObjectReference<Principal>? _referencia;
+    private ErrorBoundary? _barrera;
+
+    private void Recuperar()
+    {
+        _barrera?.Recover();
+    }
+
+    private void RecuperarEnLista()
+    {
+        _conexionActiva = null;
+        VolverALista(null);
+        _barrera?.Recover();
+    }
+    private bool _ayudaAbierta;
+    private bool _restaurarFoco;
+    private List<string> _temasAyuda = [];
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _referencia = DotNetObjectReference.Create(this);
+            await js.InvokeVoidAsync("miGestor.registrarAyuda", _referencia);
+        }
+
+        if (_restaurarFoco)
+        {
+            _restaurarFoco = false;
+            await js.InvokeVoidAsync("miGestor.restaurarFoco");
+        }
+    }
+
+    [JSInvokable]
+    public Task AbrirAyuda(string temas)
+    {
+        return InvokeAsync(() =>
+        {
+            _temasAyuda = temas.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            _ayudaAbierta = true;
+            StateHasChanged();
+        });
+    }
+
+    [JSInvokable]
+    public Task Salir()
+    {
+        System.Windows.Application.Current.Dispatcher.InvokeAsync(() => System.Windows.Application.Current.MainWindow?.Close());
+        return Task.CompletedTask;
+    }
+
+    private void CerrarAyuda()
+    {
+        _ayudaAbierta = false;
+        _restaurarFoco = true;
+    }
+
+    public void Dispose()
+    {
+        _referencia?.Dispose();
+    }
+
+    private Vista _vista = Vista.Lista;
+    private int _versionLista;
+    private string? _aviso;
+    private bool _conectando;
+    private ConexionModelo? _conexionEditando;
+    private ConexionActiva? _conexionActiva;
+
+    private void CrearConexion()
+    {
+        _conexionEditando = null;
+        _vista = Vista.Formulario;
+    }
+
+    private void EditarConexion(ConexionModelo conexion)
+    {
+        _conexionEditando = conexion;
+        _vista = Vista.Formulario;
+    }
+
+    private void VolverALista(string? aviso)
+    {
+        _aviso = aviso;
+        _versionLista++;
+        _vista = Vista.Lista;
+    }
+
+    private async Task ConectarAsync(ConexionModelo conexion)
+    {
+        if (!proveedores.EstaDisponible(conexion.Motor))
+        {
+            await anunciador.AnunciarUrgenteAsync($"{conexion.Motor.Nombre()} todavía no está disponible en esta versión.");
+            return;
+        }
+
+        _conectando = true;
+        await anunciador.AnunciarAsync($"Conectando a {conexion.Nombre}…");
+
+        var contrasena = AlmacenConexionesService.ObtenerContrasena(conexion);
+        var resultado = await proveedores.Obtener(conexion.Motor).ProbarConexionAsync(conexion, contrasena);
+
+        _conectando = false;
+
+        if (!resultado.Exito)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo conectar a {conexion.Nombre}. {resultado.Error}");
+            return;
+        }
+
+        _conexionActiva = new ConexionActiva(conexion, contrasena, resultado);
+        _vista = Vista.Conectado;
+
+        if (resultado.Advertencia is not null)
+        {
+            StateHasChanged();
+            await Task.Delay(2500);
+            await anunciador.AnunciarUrgenteAsync(resultado.Advertencia);
+        }
+    }
+
+    private void Desconectar()
+    {
+        _conexionActiva = null;
+        VolverALista(null);
+    }
+}

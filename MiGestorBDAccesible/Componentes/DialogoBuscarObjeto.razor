@@ -1,0 +1,195 @@
+@using MiGestorBDAccesible.Core.Estructura
+@using MiGestorBDAccesible.Modelos
+@inject ProveedoresService proveedores
+@inject AnunciadorService anunciador
+@inject IJSRuntime js
+
+<DialogoAccion Titulo="Buscar objeto" AlCancelar="AlCancelar">
+    <div class="campo">
+        <label for="buscar-objeto-texto">Buscar</label>
+        <input id="buscar-objeto-texto" type="text" autocomplete="off" spellcheck="false"
+               data-foco-inicial="@(!_reabierto)"
+               @bind="Estado.Texto" @bind:event="oninput" @onkeydown="TeclaTextoAsync" />
+    </div>
+    <div class="campo">
+        <label for="buscar-objeto-en">En</label>
+        <select id="buscar-objeto-en" @bind="Estado.Categoria">
+            @foreach (var categoria in Enum.GetValues<CategoriaBusqueda>())
+            {
+                <option value="@categoria">@BuscadorObjetosService.Categoria(categoria)</option>
+            }
+        </select>
+    </div>
+    <div class="campo">
+        <label for="buscar-objeto-base">@EtiquetaBase</label>
+        <select id="buscar-objeto-base" @bind="Estado.BaseDatos">
+            @foreach (var baseDatos in Bases)
+            {
+                <option value="@baseDatos">@baseDatos</option>
+            }
+        </select>
+    </div>
+
+    @if (_buscando)
+    {
+        <p>Buscando…</p>
+    }
+    else if (Estado.Resultados is { Count: > 0 } resultados)
+    {
+        @if (Estado.HayMas)
+        {
+            <p>Hay más de @BuscadorObjetosService.Maximo: escribe un nombre más preciso o elige un tipo en «En».</p>
+        }
+        <ul role="listbox" class="lista-resultados" aria-label="@EtiquetaLista()" @ref="_lista" @onkeydown="TeclaListaAsync">
+            @for (var i = 0; i < resultados.Count; i++)
+            {
+                var indice = i;
+                <li role="option" id="@($"resultado-objeto-{indice}")"
+                    tabindex="@(indice == _activo ? 0 : -1)"
+                    aria-selected="@(indice == _activo ? "true" : "false")"
+                    data-foco-inicial="@(_reabierto && indice == _activo)"
+                    @onclick="() => ElegirAsync(indice)">@BuscadorObjetosService.Describir(resultados[indice], DisparadoresBase)</li>
+            }
+        </ul>
+    }
+
+    <div class="acciones">
+        <button class="principal" disabled="@_buscando" @onclick="BuscarAsync">Buscar</button>
+        <button @onclick="AlCancelar">Cerrar</button>
+    </div>
+</DialogoAccion>
+
+@code {
+    [Parameter, EditorRequired] public ConexionActiva Conexion { get; set; } = default!;
+    [Parameter, EditorRequired] public EstadoBusquedaObjetoModelo Estado { get; set; } = default!;
+    [Parameter, EditorRequired] public List<string> Bases { get; set; } = [];
+    [Parameter] public string EtiquetaBase { get; set; } = "Base de datos";
+    [Parameter] public string DisparadoresBase { get; set; } = "de la base";
+    [Parameter] public EventCallback<ResultadoBusquedaObjetoModelo> AlElegir { get; set; }
+    [Parameter] public EventCallback AlCancelar { get; set; }
+
+    private ElementReference _lista;
+    private bool _listaPreparada;
+    private bool _buscando;
+    private bool _reabierto;
+    private int _activo;
+    private int? _enfocar;
+
+    protected override void OnInitialized()
+    {
+        _reabierto = Estado.Resultados is { Count: > 0 };
+        _activo = _reabierto ? Math.Min(Estado.Elegido, Estado.Resultados!.Count - 1) : 0;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Estado.Resultados is { Count: > 0 } && !_buscando && !_listaPreparada)
+        {
+            _listaPreparada = true;
+            await js.InvokeVoidAsync("miGestor.prepararLista", _lista);
+        }
+
+        if (_enfocar is { } indice)
+        {
+            _enfocar = null;
+            await js.InvokeVoidAsync("miGestor.enfocar", $"resultado-objeto-{indice}");
+        }
+    }
+
+    private string EtiquetaLista()
+    {
+        var cantidad = Estado.Resultados!.Count;
+        var resultados = Estado.HayMas ? $"Los primeros {cantidad} resultados" : cantidad == 1 ? "1 resultado" : $"{cantidad} resultados";
+        return $"{resultados} para {Estado.TextoBuscado}";
+    }
+
+    private async Task BuscarAsync()
+    {
+        var texto = Estado.Texto.Trim();
+
+        if (texto.Length < BuscadorObjetosService.MinimoCaracteres)
+        {
+            await anunciador.AnunciarAsync($"Escribe al menos {BuscadorObjetosService.MinimoCaracteres} caracteres del nombre.");
+            return;
+        }
+
+        _buscando = true;
+        _listaPreparada = false;
+        _reabierto = false;
+        StateHasChanged();
+
+        try
+        {
+            var resultados = await proveedores.Obtener(Conexion.Conexion.Motor)
+                .BuscarObjetosAsync(Conexion, Estado.BaseDatos, texto, Estado.Categoria);
+
+            Estado.TextoBuscado = texto;
+            Estado.HayMas = resultados.Count > BuscadorObjetosService.Maximo;
+            Estado.Resultados = BuscadorObjetosService.Ordenar(resultados.Take(BuscadorObjetosService.Maximo), texto);
+            Estado.Elegido = 0;
+            _activo = 0;
+        }
+        catch (Exception ex)
+        {
+            _buscando = false;
+            Estado.Resultados = null;
+            await anunciador.AnunciarUrgenteAsync($"No se pudo buscar. {ex.Message}");
+            return;
+        }
+
+        _buscando = false;
+
+        if (Estado.Resultados.Count == 0)
+        {
+            await anunciador.AnunciarAsync($"No se encontró ningún objeto con {texto} en {Estado.BaseDatos}.");
+            return;
+        }
+
+        _enfocar = 0;
+    }
+
+    private async Task TeclaTextoAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await BuscarAsync();
+        }
+    }
+
+    private async Task TeclaListaAsync(KeyboardEventArgs e)
+    {
+        var total = Estado.Resultados?.Count ?? 0;
+
+        if (total == 0)
+        {
+            return;
+        }
+
+        var nuevo = e.Key switch
+        {
+            "ArrowDown" => Math.Min(_activo + 1, total - 1),
+            "ArrowUp" => Math.Max(_activo - 1, 0),
+            "Home" => 0,
+            "End" => total - 1,
+            _ => -1
+        };
+
+        if (e.Key == "Enter")
+        {
+            await ElegirAsync(_activo);
+            return;
+        }
+
+        if (nuevo >= 0 && nuevo != _activo)
+        {
+            _activo = nuevo;
+            _enfocar = nuevo;
+        }
+    }
+
+    private async Task ElegirAsync(int indice)
+    {
+        Estado.Elegido = indice;
+        await AlElegir.InvokeAsync(Estado.Resultados![indice]);
+    }
+}

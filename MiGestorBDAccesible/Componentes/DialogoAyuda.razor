@@ -1,0 +1,319 @@
+@using MiGestorBDAccesible.Core.Ayuda
+@using MiGestorBDAccesible.Core
+@inject AyudaService ayuda
+@inject ArchivosService archivos
+@inject AnunciadorService anunciador
+@inject IJSRuntime js
+
+<div class="fondo-dialogo">
+    <div class="dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-ayuda"
+         data-dialogo-ayuda @onkeydown="TeclaAsync">
+
+        <div class="acciones barra-dialogo">
+            <button @onclick="IrAPortada">Portada de la ayuda</button>
+            <button @onclick="() => Abrir(_manual)">Manual de usuario</button>
+            <button disabled="@(_historial.Count == 0)" @onclick="Atras">Atrás</button>
+            <button @onclick="AlCerrar">Cerrar</button>
+        </div>
+
+        @if (_ficha == _manual)
+        {
+            var manual = ManualService.Manual();
+            <h2 id="titulo-ayuda" tabindex="-1" @ref="_titulo">@manual.Titulo</h2>
+            <nav aria-labelledby="indice-manual">
+                <h3 id="indice-manual">Índice</h3>
+                <ul class="lista-temas">
+                    @foreach (var seccion in manual.Secciones)
+                    {
+                        <li><button class="enlace" @onclick="() => IrASeccionAsync(seccion.Id)">@seccion.Titulo</button></li>
+                    }
+                </ul>
+            </nav>
+            <div class="manual">@((MarkupString)manual.Html)</div>
+        }
+        else if (_ficha == _acercaDe)
+        {
+            <h2 id="titulo-ayuda" tabindex="-1" @ref="_titulo">Acerca de @InformacionAplicacion.Nombre</h2>
+            <p>Versión @VersionCorta</p>
+            <p>Gestor de bases de datos pensado para usarse por completo con teclado y lector de pantalla. Funciona con SQL Server, Oracle y PostgreSQL.</p>
+            <hr />
+            <p>&copy; @DateTime.Now.Year @InformacionAplicacion.Nombre. Desarrollado con amor por <a href="https://wilmer-rv.com">Wilmer Rodríguez Vega</a>.</p>
+            <p>Software libre con licencia GPL de GNU, versión 3 o posterior, con un permiso adicional para el controlador de Oracle. Se ofrece sin ninguna garantía. El código fuente está en <a href="https://github.com/WilmerRv1989/MiGestorBDAccesible">GitHub</a>.</p>
+            <p>Consultas, sugerencias o problemas: <a href="mailto:contacto@wilmer-rv.com">contacto@wilmer-rv.com</a></p>
+            <p><q lang="la">Nosce te ipsum</q></p>
+            <div class="acciones">
+                <button @onclick="CopiarVersionAsync">Copiar la información de la versión</button>
+            </div>
+        }
+        else if (_ficha is not null)
+        {
+            <h2 id="titulo-ayuda" tabindex="-1" @ref="_titulo">@_ficha.Titulo</h2>
+            <p class="resumen-ayuda">@_ficha.Resumen</p>
+
+            @foreach (var seccion in _ficha.Secciones)
+            {
+                <h3>@seccion.Titulo</h3>
+                @foreach (var parrafo in seccion.Parrafos)
+                {
+                    <p>@parrafo</p>
+                }
+                @if (!string.IsNullOrEmpty(seccion.Ejemplo))
+                {
+                    <p class="ayuda">Ejemplo:</p>
+                    <pre><code>@seccion.Ejemplo</code></pre>
+                }
+            }
+
+            @if (_otrasDelContexto.Count > 0)
+            {
+                <h3>También en este elemento</h3>
+                <ul class="lista-temas">
+                    @foreach (var otra in _otrasDelContexto)
+                    {
+                        <li><button class="enlace" @onclick="() => Abrir(otra)">@otra.Titulo</button></li>
+                    }
+                </ul>
+            }
+
+            @if (_ficha.OtrosMotores.Count > 0)
+            {
+                <h3>En otros motores</h3>
+                <ul>
+                    @foreach (var nota in _ficha.OtrosMotores)
+                    {
+                        <li><strong>@nota.Motor:</strong> @nota.Texto</li>
+                    }
+                </ul>
+            }
+
+            @if (Relacionadas.Count > 0)
+            {
+                <h3>Temas relacionados</h3>
+                <ul class="lista-temas">
+                    @foreach (var relacionada in Relacionadas)
+                    {
+                        <li><button class="enlace" @onclick="() => Abrir(relacionada)">@relacionada.Titulo</button></li>
+                    }
+                </ul>
+            }
+
+            @if (_ficha.Fuentes.Count > 0)
+            {
+                <h3>Fuentes</h3>
+                <ul>
+                    @foreach (var fuente in _ficha.Fuentes)
+                    {
+                        <li><a href="@fuente.Url" target="_blank" rel="noopener">@fuente.Titulo</a></li>
+                    }
+                </ul>
+            }
+        }
+        else
+        {
+            <h2 id="titulo-ayuda" tabindex="-1" @ref="_titulo">Ayuda de @Contenido.Motor</h2>
+            <p>Elige un tema o búscalo por su nombre. Escape cierra la ayuda y te devuelve a donde estabas.</p>
+
+            <div class="campo">
+                <label for="buscar-ayuda">Buscar en la ayuda</label>
+                <input id="buscar-ayuda" type="search" @bind="_busqueda" @bind:event="oninput" @bind:after="Buscar"
+                       aria-describedby="resultado-busqueda" />
+            </div>
+            <p id="resultado-busqueda" role="status">@_textoResultado</p>
+
+            @if (_resultados.Count > 0)
+            {
+                <ul class="lista-temas" aria-label="Resultados de la búsqueda">
+                    @foreach (var resultado in _resultados)
+                    {
+                        <li><button class="enlace" @onclick="() => Abrir(resultado)">@resultado.Titulo</button></li>
+                    }
+                </ul>
+            }
+
+            @foreach (var (categoria, titulo) in _categorias)
+            {
+                var fichas = Contenido.Fichas.Where(f => f.Categoria == categoria).ToList();
+
+                @if (fichas.Count > 0)
+                {
+                    <h3>@(categoria == AyudaService.CategoriaPlSql ? Contenido.TituloProgramacion : titulo)</h3>
+                    <ul class="lista-temas">
+                        @foreach (var ficha in fichas)
+                        {
+                            <li><button class="enlace" @onclick="() => Abrir(ficha)">@ficha.Titulo</button></li>
+                        }
+                    </ul>
+                }
+            }
+
+            <h3>Sobre la aplicación</h3>
+            <ul class="lista-temas">
+                <li><button class="enlace" @onclick="() => Abrir(_manual)">Manual de usuario</button></li>
+                <li><button class="enlace" @onclick="() => Abrir(_acercaDe)">Acerca de @InformacionAplicacion.Nombre</button></li>
+            </ul>
+
+            <h3>Sobre estas fichas</h3>
+            <p>Las explicaciones están escritas para esta aplicación, inspiradas en la documentación oficial de cada motor. Cada ficha enlaza sus fuentes al final.</p>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TipoMotor Motor { get; set; }
+    [Parameter] public List<string> Temas { get; set; } = [];
+    [Parameter] public EventCallback AlCerrar { get; set; }
+
+    private static readonly (string Categoria, string Titulo)[] _categorias =
+    [
+        (AyudaService.CategoriaTipo, "Tipos de datos"),
+        (AyudaService.CategoriaConcepto, "Conceptos"),
+        (AyudaService.CategoriaPalabra, "Palabras de SQL"),
+        (AyudaService.CategoriaPlSql, "PL/SQL"),
+        (AyudaService.CategoriaAtajos, "Atajos de teclado")
+    ];
+
+    private static readonly FichaAyudaModelo _acercaDe = new() { Id = "acerca-de", Titulo = $"Acerca de {InformacionAplicacion.Nombre}" };
+
+    private static readonly FichaAyudaModelo _manual = new() { Id = "manual", Titulo = "Manual de usuario" };
+
+    private async Task IrASeccionAsync(string id) => await js.InvokeVoidAsync("miGestor.enfocarSeccion", id);
+
+    private static string VersionCompleta => InformacionAplicacion.VersionCompleta(typeof(DialogoAyuda).Assembly);
+
+    private static string VersionCorta => InformacionAplicacion.VersionCorta(VersionCompleta);
+
+    private FichaAyudaModelo? _ficha;
+    private List<FichaAyudaModelo> _otrasDelContexto = [];
+    private readonly Stack<FichaAyudaModelo?> _historial = new();
+    private string _busqueda = "";
+    private string _textoResultado = "";
+    private List<FichaAyudaModelo> _resultados = [];
+    private bool _enfocarTitulo = true;
+    private ElementReference _titulo;
+
+    private ContenidoAyudaModelo Contenido => ayuda.Contenido(Motor);
+
+    private List<FichaAyudaModelo> Relacionadas => _ficha is null
+        ? []
+        : ayuda.ResolverVarias(Motor, _ficha.Relacionadas)
+            .Where(r => _otrasDelContexto.All(o => o.Id != r.Id))
+            .ToList();
+
+    protected override void OnInitialized()
+    {
+        if (Temas.Contains(_acercaDe.Id))
+        {
+            _ficha = _acercaDe;
+            return;
+        }
+
+        if (Temas.Contains(_manual.Id))
+        {
+            _ficha = _manual;
+            return;
+        }
+
+        var delContexto = ayuda.ResolverVarias(Motor, Temas);
+
+        if (delContexto.Count > 0)
+        {
+            _ficha = delContexto[0];
+            _otrasDelContexto = delContexto.Skip(1).ToList();
+            return;
+        }
+
+        var palabra = Temas.LastOrDefault(t => t.StartsWith($"{AyudaService.CategoriaPalabra}:"));
+
+        if (palabra is not null)
+        {
+            _busqueda = palabra[(AyudaService.CategoriaPalabra.Length + 1)..];
+            Buscar();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_enfocarTitulo)
+        {
+            _enfocarTitulo = false;
+            await _titulo.FocusAsync();
+        }
+    }
+
+    private async Task TeclaAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            await AlCerrar.InvokeAsync();
+        }
+    }
+
+    private void Abrir(FichaAyudaModelo ficha)
+    {
+        _historial.Push(_ficha);
+        _ficha = ficha;
+        _enfocarTitulo = true;
+    }
+
+    private async Task CopiarVersionAsync()
+    {
+        string webView;
+
+        try
+        {
+            webView = Microsoft.Web.WebView2.Core.CoreWebView2Environment.GetAvailableBrowserVersionString();
+        }
+        catch (Exception)
+        {
+            webView = "no disponible";
+        }
+
+        var windows = Environment.OSVersion.Version;
+        var texto = string.Join(Environment.NewLine,
+            $"{InformacionAplicacion.Nombre} {VersionCompleta}",
+            $"Windows: {(windows.Build >= 22000 ? "Windows 11" : "Windows 10")}, compilación {windows.Build}",
+            $".NET: {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}",
+            $"WebView2: {webView}");
+
+        archivos.Copiar(texto);
+        await anunciador.AnunciarAsync("Información de la versión copiada al portapapeles.");
+    }
+
+    private void IrAPortada()
+    {
+        if (_ficha is null)
+        {
+            return;
+        }
+
+        _historial.Push(_ficha);
+        _ficha = null;
+        _otrasDelContexto = [];
+        _enfocarTitulo = true;
+    }
+
+    private void Atras()
+    {
+        if (_historial.Count == 0)
+        {
+            return;
+        }
+
+        _ficha = _historial.Pop();
+        _enfocarTitulo = true;
+    }
+
+    private void Buscar()
+    {
+        _resultados = ayuda.Buscar(Motor, _busqueda);
+
+        _textoResultado = _busqueda.Trim().Length == 0
+            ? ""
+            : _resultados.Count switch
+            {
+                0 => $"Sin resultados para {_busqueda}.",
+                1 => "1 resultado.",
+                _ => $"{_resultados.Count} resultados."
+            };
+    }
+}

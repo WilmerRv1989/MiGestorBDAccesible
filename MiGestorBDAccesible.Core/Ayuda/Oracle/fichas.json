@@ -1,0 +1,3233 @@
+{
+  "motor": "Oracle",
+  "fichas": [
+    {
+      "id": "tipo:number",
+      "categoria": "tipo",
+      "titulo": "NUMBER: números enteros y con decimales",
+      "alias": [
+        "number",
+        "numeric",
+        "decimal",
+        "dec",
+        "número"
+      ],
+      "resumen": "Es el tipo numérico principal de Oracle. Sirve tanto para enteros como para números con decimales exactos, como el dinero.",
+      "secciones": [
+        {
+          "titulo": "Precisión y escala",
+          "parrafos": [
+            "NUMBER(p, s) tiene precisión p, el total de dígitos, de 1 a 38, y escala s, los dígitos después de la coma.",
+            "NUMBER(10, 2) guarda hasta 99 999 999,99: ideal para precios. NUMBER(5) es lo mismo que NUMBER(5, 0): enteros de hasta 5 dígitos.",
+            "NUMBER sin paréntesis guarda cualquier número, con hasta 38 dígitos de precisión. Es lo que suele usarse para las columnas Id.",
+            "Si un valor tiene más decimales que la escala, Oracle lo redondea. Si tiene más dígitos enteros de los permitidos, da el error ORA-01438."
+          ],
+          "ejemplo": "CREATE TABLE productos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    precio NUMBER(10, 2) NOT NULL,\n    existencias NUMBER(5) DEFAULT 0\n);"
+        },
+        {
+          "titulo": "Cómo se guarda",
+          "parrafos": [
+            "NUMBER es decimal exacto: 0,1 más 0,2 da exactamente 0,3, cosa que no pasa con BINARY_DOUBLE.",
+            "Cada valor ocupa de 1 a 22 bytes, según cuántos dígitos tenga."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "decimal(p, s) o numeric(p, s) para decimales exactos, e int o bigint para enteros. No hay un único tipo que sirva para todo como NUMBER."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "numeric(p, s); numeric sin paréntesis también guarda cualquier precisión."
+        }
+      ],
+      "relacionadas": [
+        "tipo:integer",
+        "tipo:binary-double",
+        "concepto:identity"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: NUMBER (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:integer",
+      "categoria": "tipo",
+      "titulo": "INTEGER: números enteros",
+      "alias": [
+        "integer",
+        "int",
+        "smallint",
+        "entero"
+      ],
+      "resumen": "INTEGER, INT y SMALLINT existen en Oracle por compatibilidad con el estándar ANSI, pero Oracle los guarda como NUMBER(38, 0).",
+      "secciones": [
+        {
+          "titulo": "Qué hace Oracle con ellos",
+          "parrafos": [
+            "Si escribes INTEGER al crear una columna, Oracle crea un NUMBER(38, 0): un entero de hasta 38 dígitos. Por eso, al describir la tabla, verás NUMBER(38, 0) en lugar de INTEGER.",
+            "No hay diferencia de tamaño entre INT y SMALLINT como en otros motores: los dos son el mismo NUMBER(38, 0).",
+            "Si guardas un valor con decimales, Oracle lo redondea al entero más cercano."
+          ],
+          "ejemplo": "CREATE TABLE asistencias (\n    alumno_id INTEGER NOT NULL,\n    clases INTEGER DEFAULT 0\n);"
+        },
+        {
+          "titulo": "Cuándo usarlo",
+          "parrafos": [
+            "INTEGER deja claro que la columna no lleva decimales. Si quieres limitar los dígitos, usa NUMBER(p), por ejemplo NUMBER(3) para una edad.",
+            "En las llaves foráneas, NUMBER, NUMBER(10) e INTEGER son compatibles entre sí, porque todos son NUMBER."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "int, bigint, smallint y tinyint son tipos distintos con rangos y tamaños diferentes."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "integer, bigint y smallint son tipos reales de 4, 8 y 2 bytes."
+        }
+      ],
+      "relacionadas": [
+        "tipo:number",
+        "concepto:identity"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: ANSI, DB2 y SQL/DS (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:binary-double",
+      "categoria": "tipo",
+      "titulo": "BINARY_DOUBLE y BINARY_FLOAT: números aproximados",
+      "alias": [
+        "binary_double",
+        "binary_float",
+        "float",
+        "real",
+        "double precision",
+        "double"
+      ],
+      "resumen": "Números de coma flotante para cálculos científicos, rápidos pero aproximados. No sirven para dinero.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "BINARY_FLOAT usa 4 bytes y unos 7 dígitos de precisión. BINARY_DOUBLE usa 8 bytes y unos 15 dígitos.",
+            "Son aproximados: algunos decimales, como 0,1, no se pueden guardar exactamente. Para precios usa NUMBER(p, s).",
+            "Admiten valores especiales como infinito y NaN (no es un número).",
+            "FLOAT, en cambio, es un subtipo de NUMBER: FLOAT(p) usa precisión binaria y se guarda como NUMBER."
+          ],
+          "ejemplo": "CREATE TABLE mediciones (\n    sensor_id NUMBER,\n    temperatura BINARY_DOUBLE\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "float y real."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "double precision y real."
+        }
+      ],
+      "relacionadas": [
+        "tipo:number"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: BINARY_FLOAT y BINARY_DOUBLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:varchar2",
+      "categoria": "tipo",
+      "titulo": "VARCHAR2: texto de largo variable",
+      "alias": [
+        "varchar2",
+        "varchar",
+        "texto",
+        "cadena"
+      ],
+      "resumen": "El tipo de texto más usado en Oracle. Guarda cadenas de largo variable hasta el máximo que indiques.",
+      "secciones": [
+        {
+          "titulo": "Longitud",
+          "parrafos": [
+            "Hay que indicar siempre la longitud máxima: VARCHAR2(100). Sin ella, Oracle da error.",
+            "El máximo normal es 4000 bytes. Si la base tiene MAX_STRING_SIZE en EXTENDED, llega a 32 767.",
+            "Por omisión la longitud se cuenta en bytes. Una letra con tilde o una ñ ocupa 2 bytes en UTF-8, así que VARCHAR2(10) puede no admitir 10 caracteres acentuados. Para contar caracteres escribe VARCHAR2(10 CHAR).",
+            "Solo ocupa el espacio del texto guardado, no el máximo."
+          ],
+          "ejemplo": "CREATE TABLE clientes (\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150 CHAR)\n);"
+        },
+        {
+          "titulo": "VARCHAR2 y la cadena vacía",
+          "parrafos": [
+            "En Oracle, el texto vacío '' se guarda como NULL. Por eso una columna VARCHAR2 NOT NULL rechaza '' con el error ORA-01400.",
+            "VARCHAR existe, pero Oracle recomienda VARCHAR2; hoy son sinónimos."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "varchar(n) o nvarchar(n), hasta 8000 o 4000, y varchar(max) para textos largos. Allí '' y NULL son distintos."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "varchar(n) o text, sin límite práctico. '' y NULL son distintos."
+        }
+      ],
+      "relacionadas": [
+        "tipo:nvarchar2",
+        "tipo:char",
+        "tipo:clob",
+        "concepto:cadena-vacia"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: VARCHAR2 (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:nvarchar2",
+      "categoria": "tipo",
+      "titulo": "NVARCHAR2 y NCHAR: texto Unicode",
+      "alias": [
+        "nvarchar2",
+        "nchar",
+        "nvarchar",
+        "unicode"
+      ],
+      "resumen": "Texto guardado con el juego de caracteres nacional de la base, siempre Unicode. La longitud se cuenta en caracteres.",
+      "secciones": [
+        {
+          "titulo": "Cuándo usarlos",
+          "parrafos": [
+            "NVARCHAR2(n) es de largo variable y NCHAR(n) de largo fijo. Su longitud siempre está en caracteres: NVARCHAR2(100) admite 100 caracteres.",
+            "El máximo normal de NVARCHAR2 es 4000 bytes, unos 2000 caracteres.",
+            "Las bases modernas, como Oracle Free, ya usan AL32UTF8, que es Unicode, para VARCHAR2. En ellas VARCHAR2 con CHAR basta y NVARCHAR2 se usa poco."
+          ],
+          "ejemplo": "CREATE TABLE traducciones (\n    idioma CHAR(2),\n    texto NVARCHAR2(500)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "nvarchar(n) y nchar(n) son los tipos Unicode habituales; ahí sí son la opción recomendada para textos con acentos."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No hace falta un tipo nacional: text y varchar ya guardan Unicode, con la longitud en caracteres."
+        }
+      ],
+      "relacionadas": [
+        "tipo:varchar2",
+        "tipo:char"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: NVARCHAR2 y NCHAR (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:char",
+      "categoria": "tipo",
+      "titulo": "CHAR: texto de largo fijo",
+      "alias": [
+        "char",
+        "character"
+      ],
+      "resumen": "Guarda texto de una longitud fija. Si el valor es más corto, Oracle lo rellena con espacios a la derecha.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "CHAR(n) admite de 1 a 2000 bytes; sin longitud, CHAR es CHAR(1).",
+            "Sirve para códigos de largo siempre igual, como un código de país de 2 letras o una marca S o N.",
+            "Como rellena con espacios, 'ab' en un CHAR(4) se guarda como 'ab  '. Para textos de largo variable usa VARCHAR2.",
+            "Una llave foránea entre CHAR y VARCHAR2 no se permite: los dos lados deben ser del mismo tipo."
+          ],
+          "ejemplo": "CREATE TABLE paises (\n    codigo CHAR(2) PRIMARY KEY,\n    nombre VARCHAR2(60) NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "char(n) y nchar(n), con el mismo relleno de espacios."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "char(n), con el mismo relleno de espacios."
+        }
+      ],
+      "relacionadas": [
+        "tipo:varchar2",
+        "tipo:nvarchar2"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: CHAR (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:clob",
+      "categoria": "tipo",
+      "titulo": "CLOB y NCLOB: textos muy largos",
+      "alias": [
+        "clob",
+        "nclob",
+        "long",
+        "texto largo"
+      ],
+      "resumen": "Objetos grandes de texto, para contenidos que no caben en un VARCHAR2, como artículos o documentos. Admiten gigabytes.",
+      "secciones": [
+        {
+          "titulo": "Características",
+          "parrafos": [
+            "Un CLOB no lleva longitud: CLOB a secas. NCLOB guarda el texto en Unicode nacional.",
+            "No pueden ser clave principal ni valor único, y no se pueden usar directamente en ORDER BY, GROUP BY ni DISTINCT.",
+            "Para buscar dentro de un CLOB se usan funciones como DBMS_LOB.INSTR o INSTR.",
+            "En los resultados de esta aplicación, los textos de más de 2000 caracteres se muestran recortados con puntos suspensivos.",
+            "LONG es un tipo antiguo que Oracle mantiene por compatibilidad; para tablas nuevas usa CLOB."
+          ],
+          "ejemplo": "CREATE TABLE articulos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    titulo VARCHAR2(200),\n    contenido CLOB\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "nvarchar(max) o varchar(max)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "text, sin límite práctico."
+        }
+      ],
+      "relacionadas": [
+        "tipo:varchar2",
+        "tipo:blob"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: LOB (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:date",
+      "categoria": "tipo",
+      "titulo": "DATE: fecha y hora hasta el segundo",
+      "alias": [
+        "date",
+        "fecha"
+      ],
+      "resumen": "En Oracle, DATE guarda siempre la fecha y también la hora, hasta los segundos. Es la diferencia más importante con otros motores.",
+      "secciones": [
+        {
+          "titulo": "Fecha con hora",
+          "parrafos": [
+            "Un DATE guarda año, mes, día, hora, minutos y segundos. Si solo escribes la fecha, la hora queda en 00:00:00.",
+            "SYSDATE devuelve la fecha y hora actuales del servidor como DATE.",
+            "Cuidado al comparar: WHERE fecha = DATE '2026-10-31' no encuentra filas con hora distinta de medianoche. Usa TRUNC(fecha) = DATE '2026-10-31' o un rango.",
+            "En los resultados de esta aplicación, un DATE sin hora se muestra como 2026-10-31, y uno con hora como 2026-10-31 14:30:00."
+          ],
+          "ejemplo": "INSERT INTO pedidos (cliente_id, fecha) VALUES (1, DATE '2026-10-31');\nINSERT INTO pedidos (cliente_id, fecha) VALUES (1, SYSDATE);\nSELECT * FROM pedidos WHERE TRUNC(fecha) = DATE '2026-10-31';"
+        },
+        {
+          "titulo": "Escribir fechas",
+          "parrafos": [
+            "La forma más segura es el literal DATE 'AAAA-MM-DD', que no depende de la configuración regional.",
+            "Para otros formatos usa TO_DATE('31/10/2026 14:30', 'DD/MM/YYYY HH24:MI').",
+            "Restar dos DATE da días, con decimales para las horas: SYSDATE + 1 es mañana a esta misma hora."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "date guarda solo la fecha; para fecha y hora se usa datetime2."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "date es solo fecha; timestamp lleva la hora."
+        }
+      ],
+      "relacionadas": [
+        "tipo:timestamp",
+        "palabra:fechas",
+        "tipo:interval"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: DATE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        },
+        {
+          "titulo": "TO_DATE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TO_DATE.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:timestamp",
+      "categoria": "tipo",
+      "titulo": "TIMESTAMP: fecha y hora con decimales de segundo",
+      "alias": [
+        "timestamp",
+        "timestamp with time zone",
+        "timestamp with local time zone",
+        "systimestamp",
+        "zona horaria"
+      ],
+      "resumen": "Como DATE, pero con fracciones de segundo. Las variantes WITH TIME ZONE guardan además la zona horaria.",
+      "secciones": [
+        {
+          "titulo": "Variantes",
+          "parrafos": [
+            "TIMESTAMP(n) guarda de 0 a 9 decimales de segundo; sin número, usa 6, es decir, microsegundos.",
+            "TIMESTAMP(n) WITH TIME ZONE guarda también el desfase o la región horaria, por ejemplo -06:00 para Costa Rica.",
+            "TIMESTAMP WITH LOCAL TIME ZONE convierte el valor a la zona de la base al guardarlo y a la de tu sesión al leerlo.",
+            "SYSTIMESTAMP devuelve el momento actual como TIMESTAMP WITH TIME ZONE."
+          ],
+          "ejemplo": "CREATE TABLE eventos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    ocurrio TIMESTAMP(3) WITH TIME ZONE DEFAULT SYSTIMESTAMP\n);\n\nINSERT INTO eventos (ocurrio) VALUES (TIMESTAMP '2026-10-31 14:30:00.250 -06:00');"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "datetime2(n), con hasta 7 decimales, y datetimeoffset para la zona horaria."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "timestamp y timestamptz, con hasta 6 decimales."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "tipo:interval",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: TIMESTAMP (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:interval",
+      "categoria": "tipo",
+      "titulo": "INTERVAL: duraciones",
+      "alias": [
+        "interval",
+        "interval day to second",
+        "interval year to month",
+        "intervalo",
+        "duración"
+      ],
+      "resumen": "Guardan un lapso de tiempo, no un momento: cuántos años y meses, o cuántos días, horas, minutos y segundos.",
+      "secciones": [
+        {
+          "titulo": "Los dos tipos",
+          "parrafos": [
+            "INTERVAL YEAR TO MONTH guarda años y meses, como una garantía de 1 año y 6 meses.",
+            "INTERVAL DAY TO SECOND guarda días, horas, minutos y segundos, como la duración de una llamada.",
+            "Se pueden sumar a fechas: SYSDATE + INTERVAL '2' DAY es dentro de dos días.",
+            "Cuidado al sumar meses: el 31 de octubre más 18 meses daría el 31 de abril, que no existe, y Oracle da el error ORA-01839. ADD_MONTHS, en cambio, ajusta al último día del mes."
+          ],
+          "ejemplo": "SELECT DATE '2026-01-15' + INTERVAL '1-6' YEAR TO MONTH AS vence,\n       ADD_MONTHS(DATE '2026-10-31', 18) AS sin_error,\n       SYSTIMESTAMP + INTERVAL '0 02:30:00' DAY TO SECOND AS en_dos_horas_y_media\nFROM dual;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene tipo intervalo; se usan DATEADD y DATEDIFF con números."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "interval, un solo tipo que mezcla meses, días y segundos."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "tipo:timestamp"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: INTERVAL (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:boolean",
+      "categoria": "tipo",
+      "titulo": "BOOLEAN: verdadero o falso",
+      "alias": [
+        "boolean",
+        "bool",
+        "true",
+        "false",
+        "booleano",
+        "lógico"
+      ],
+      "resumen": "Nuevo en Oracle 23ai. Guarda TRUE o FALSE, y NULL si la columna lo admite.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Antes de 23ai, en las tablas se usaba NUMBER(1) con 0 y 1, o CHAR(1) con S y N. Ahora BOOLEAN existe también en SQL, no solo en PL/SQL.",
+            "Acepta TRUE y FALSE, y también 'yes', 'no', 1 y 0, que convierte automáticamente.",
+            "Se puede usar directamente en WHERE: WHERE activo es lo mismo que WHERE activo = TRUE.",
+            "En los resultados de esta aplicación se muestra como TRUE o FALSE."
+          ],
+          "ejemplo": "CREATE TABLE usuarios (\n    nombre VARCHAR2(50),\n    activo BOOLEAN DEFAULT TRUE NOT NULL\n);\n\nSELECT nombre FROM usuarios WHERE activo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "bit, con 1 y 0."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "boolean, desde siempre."
+        }
+      ],
+      "relacionadas": [
+        "tipo:number"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: BOOLEAN (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        },
+        {
+          "titulo": "Cambios en esta versión (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/release-changes.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:raw",
+      "categoria": "tipo",
+      "titulo": "RAW: datos binarios cortos",
+      "alias": [
+        "raw",
+        "long raw",
+        "binario",
+        "guid"
+      ],
+      "resumen": "Guarda bytes sin interpretar, de largo variable, hasta 2000 bytes, o 32 767 con MAX_STRING_SIZE en EXTENDED.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "RAW(16) es la forma habitual de guardar un identificador global único: SYS_GUID() devuelve un RAW(16).",
+            "Se escribe en hexadecimal con HEXTORAW('ABCD') y se lee con RAWTOHEX.",
+            "Para archivos o datos grandes usa BLOB."
+          ],
+          "ejemplo": "CREATE TABLE sesiones (\n    id RAW(16) DEFAULT SYS_GUID() PRIMARY KEY,\n    inicio TIMESTAMP DEFAULT SYSTIMESTAMP\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "varbinary(n), y uniqueidentifier para los GUID."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "bytea para datos binarios, y uuid para identificadores globales."
+        }
+      ],
+      "relacionadas": [
+        "tipo:blob"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: RAW (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:blob",
+      "categoria": "tipo",
+      "titulo": "BLOB: datos binarios grandes",
+      "alias": [
+        "blob",
+        "bfile",
+        "archivo",
+        "imagen"
+      ],
+      "resumen": "Objeto grande binario, para archivos como imágenes o PDF guardados dentro de la base. Admite gigabytes.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "BLOB no lleva longitud. Para insertar uno vacío se usa EMPTY_BLOB().",
+            "No puede ser clave ni usarse en ORDER BY o GROUP BY.",
+            "BFILE no guarda el archivo dentro de la base: solo apunta a un archivo del servidor.",
+            "En los resultados, esta aplicación muestra los primeros 32 bytes en hexadecimal."
+          ],
+          "ejemplo": "CREATE TABLE documentos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(200),\n    contenido BLOB DEFAULT EMPTY_BLOB()\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "varbinary(max)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "bytea."
+        }
+      ],
+      "relacionadas": [
+        "tipo:raw",
+        "tipo:clob"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Data Types: LOB (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Data-Types.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:tabla",
+      "categoria": "concepto",
+      "titulo": "Tablas, filas y columnas",
+      "alias": [
+        "tabla",
+        "fila",
+        "columna",
+        "registro",
+        "campo",
+        "table"
+      ],
+      "resumen": "Una tabla guarda datos de un mismo tipo de cosa, como clientes. Cada fila es una cosa concreta y cada columna es un dato de ella.",
+      "secciones": [
+        {
+          "titulo": "Las partes",
+          "parrafos": [
+            "Las columnas tienen nombre y tipo de datos: NOMBRE de tipo VARCHAR2(100), PRECIO de tipo NUMBER(10, 2).",
+            "Cada fila es un registro: un cliente, un pedido. El orden de las filas no está garantizado; para ordenarlas se usa ORDER BY.",
+            "En Oracle cada tabla pertenece a un esquema, que es el usuario dueño. TIENDA.CLIENTES es la tabla CLIENTES del esquema TIENDA."
+          ],
+          "ejemplo": "CREATE TABLE clientes (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150)\n);"
+        },
+        {
+          "titulo": "Ver la estructura",
+          "parrafos": [
+            "En esta aplicación, ponte sobre la tabla en el explorador y pulsa Intro para oír su descripción completa.",
+            "En SQL, las vistas del diccionario lo cuentan todo: USER_TABLES lista tus tablas y USER_TAB_COLUMNS sus columnas."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Las tablas viven en un esquema, como dbo, dentro de una base de datos."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Servidor, bases de datos y esquemas, como SQL Server; el esquema predeterminado es public."
+        }
+      ],
+      "relacionadas": [
+        "concepto:esquema-usuario",
+        "palabra:create-table",
+        "concepto:diccionario"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE TABLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:null",
+      "categoria": "concepto",
+      "titulo": "NULL y NOT NULL: datos obligatorios y opcionales",
+      "alias": [
+        "null",
+        "not null",
+        "nulo",
+        "obligatoria",
+        "opcional",
+        "is null",
+        "is not null"
+      ],
+      "resumen": "NULL significa que el dato falta o se desconoce. NOT NULL obliga a que la columna siempre tenga valor.",
+      "secciones": [
+        {
+          "titulo": "Cómo se comporta",
+          "parrafos": [
+            "NULL no es cero ni texto vacío: es la ausencia de valor. Cualquier operación con NULL da NULL, salvo la concatenación con ||.",
+            "Para buscar nulos se usa IS NULL, nunca = NULL: WHERE correo IS NULL.",
+            "Oracle guarda el texto vacío '' como NULL. Por eso una columna NOT NULL rechaza '' con el error ORA-01400.",
+            "Oracle guarda cada NOT NULL como una restricción CHECK con un nombre automático SYS_C. Esta aplicación las oculta en la lista de restricciones porque ya lo dice en cada columna."
+          ],
+          "ejemplo": "SELECT nombre, NVL(correo, 'sin correo') AS correo\nFROM clientes\nWHERE correo IS NOT NULL;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "NULL funciona igual, pero '' es un texto vacío distinto de NULL. ISNULL cumple el papel de NVL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, pero el texto vacío '' no es NULL. En lugar de NVL se usa COALESCE."
+        }
+      ],
+      "relacionadas": [
+        "concepto:cadena-vacia",
+        "palabra:funciones-nulos",
+        "concepto:check"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Nulls (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Nulls.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:clave-principal",
+      "categoria": "concepto",
+      "titulo": "Clave principal (PRIMARY KEY)",
+      "alias": [
+        "primary key",
+        "pk",
+        "clave principal",
+        "llave primaria",
+        "clave primaria",
+        "clave compuesta"
+      ],
+      "resumen": "La columna o columnas que identifican cada fila sin repetirse. Toda tabla debería tener una.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "Los valores de la clave principal no se repiten y no pueden ser NULL.",
+            "Puede ser compuesta, de varias columnas, como en una tabla intermedia: PRIMARY KEY (pedido_id, producto_id).",
+            "Oracle crea automáticamente un índice único para la clave, con el nombre de la restricción.",
+            "Conviene darle nombre con CONSTRAINT; si no, Oracle le pone uno automático como SYS_C008768."
+          ],
+          "ejemplo": "CREATE TABLE pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    fecha DATE NOT NULL,\n    CONSTRAINT pk_pedidos PRIMARY KEY (id)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, pero por omisión la clave crea un índice agrupado (CLUSTERED), que ordena físicamente la tabla. Oracle no tiene índices agrupados en tablas normales."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual; si no le das nombre, la llama tabla_pkey."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "concepto:identity",
+        "concepto:indice"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:llave-foranea",
+      "categoria": "concepto",
+      "titulo": "Llave foránea (FOREIGN KEY)",
+      "alias": [
+        "foreign key",
+        "fk",
+        "llave foranea",
+        "clave externa",
+        "clave foranea",
+        "referencia",
+        "references"
+      ],
+      "resumen": "Una columna que apunta a la clave principal o a un valor único de otra tabla, para que solo admita valores que existen allá.",
+      "secciones": [
+        {
+          "titulo": "Reglas en Oracle",
+          "parrafos": [
+            "La columna que apunta y la columna destino deben ser del mismo tipo. NUMBER con NUMBER(10) o INTEGER sí sirve; CHAR con VARCHAR2, no.",
+            "El destino debe ser clave principal o tener restricción UNIQUE.",
+            "Si la columna admite NULL, la relación es opcional: una fila puede no apuntar a nada.",
+            "Oracle no crea índice para la llave foránea. Si borras a menudo en la tabla destino, conviene crear uno a mano para evitar bloqueos."
+          ],
+          "ejemplo": "ALTER TABLE pedidos\n    ADD CONSTRAINT fk_pedidos_clientes FOREIGN KEY (cliente_id)\n    REFERENCES clientes (id)\n    ON DELETE CASCADE;"
+        },
+        {
+          "titulo": "Filas que ya existen",
+          "parrafos": [
+            "Al agregar la llave, Oracle comprueba por omisión las filas que ya existen (ENABLE VALIDATE). Con ENABLE NOVALIDATE solo vigila las filas nuevas.",
+            "DISABLE la apaga por completo; ENABLE la vuelve a encender."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "WITH CHECK y WITH NOCHECK hacen el papel de ENABLE VALIDATE y ENABLE NOVALIDATE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual; NOT VALID equivale a ENABLE NOVALIDATE."
+        }
+      ],
+      "relacionadas": [
+        "concepto:reglas-referenciales",
+        "concepto:uno-a-muchos",
+        "concepto:clave-principal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: references_clause (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:reglas-referenciales",
+      "categoria": "concepto",
+      "titulo": "ON DELETE: qué pasa con las filas relacionadas",
+      "alias": [
+        "on delete",
+        "cascade",
+        "cascada",
+        "no action",
+        "set null",
+        "sin acción",
+        "on update"
+      ],
+      "resumen": "Decide qué hace Oracle con las filas que apuntan a una fila que se borra. Oracle solo tiene ON DELETE, no ON UPDATE.",
+      "secciones": [
+        {
+          "titulo": "Las opciones",
+          "parrafos": [
+            "Sin acción, la opción por omisión: Oracle no deja borrar la fila si otras apuntan a ella, y da el error ORA-02292.",
+            "ON DELETE CASCADE: al borrar la fila, se borran también las que apuntan a ella.",
+            "ON DELETE SET NULL: las filas que apuntan quedan con la columna en NULL. La columna debe admitir NULL.",
+            "Oracle no tiene ON UPDATE ni SET DEFAULT. Cambiar una clave principal que tiene filas apuntándole da error; por eso las claves no deberían cambiar nunca."
+          ],
+          "ejemplo": "CREATE TABLE pedido_productos (\n    pedido_id NUMBER REFERENCES pedidos (id) ON DELETE CASCADE,\n    producto_id NUMBER REFERENCES productos (id),\n    cantidad NUMBER NOT NULL\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Tiene ON DELETE y ON UPDATE, cada una con NO ACTION, CASCADE, SET NULL y SET DEFAULT."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "ON DELETE y ON UPDATE, cada una con NO ACTION, RESTRICT, CASCADE, SET NULL y SET DEFAULT."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "palabra:delete"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: ON DELETE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:uno-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de uno a muchos",
+      "alias": [
+        "uno a muchos",
+        "1 a n",
+        "one to many"
+      ],
+      "resumen": "La relación más común: una fila de una tabla se relaciona con muchas filas de otra. Un cliente tiene muchos pedidos.",
+      "secciones": [
+        {
+          "titulo": "Cómo se hace",
+          "parrafos": [
+            "La tabla del lado muchos lleva una llave foránea hacia la del lado uno: PEDIDOS tiene CLIENTE_ID que apunta a CLIENTES.ID.",
+            "Si la llave foránea además es UNIQUE, la relación pasa a ser de uno a uno.",
+            "Para leer los datos juntos se usa JOIN."
+          ],
+          "ejemplo": "SELECT c.nombre, p.id AS pedido, p.fecha\nFROM clientes c\nJOIN pedidos p ON p.cliente_id = c.id;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Se modela exactamente igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Se modela igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "concepto:muchos-a-muchos",
+        "palabra:join"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:muchos-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de muchos a muchos y tabla intermedia",
+      "alias": [
+        "muchos a muchos",
+        "n a n",
+        "tabla intermedia",
+        "tabla pivote",
+        "tabla puente",
+        "many to many"
+      ],
+      "resumen": "Cuando muchas filas de una tabla se relacionan con muchas de otra, como pedidos y productos, se necesita una tabla intermedia.",
+      "secciones": [
+        {
+          "titulo": "La tabla intermedia",
+          "parrafos": [
+            "Tiene una llave foránea hacia cada tabla, y su clave principal es compuesta por esas dos columnas.",
+            "Puede llevar columnas propias de la relación, como la cantidad o el precio unitario.",
+            "En esta aplicación, el Asistente de tabla intermedia del menú del esquema la prepara por ti."
+          ],
+          "ejemplo": "CREATE TABLE pedido_productos (\n    pedido_id NUMBER NOT NULL,\n    producto_id NUMBER NOT NULL,\n    cantidad NUMBER NOT NULL,\n    CONSTRAINT pk_pedido_productos PRIMARY KEY (pedido_id, producto_id),\n    CONSTRAINT fk_pp_pedidos FOREIGN KEY (pedido_id) REFERENCES pedidos (id),\n    CONSTRAINT fk_pp_productos FOREIGN KEY (producto_id) REFERENCES productos (id)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Se modela exactamente igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Se modela igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:uno-a-muchos",
+        "concepto:clave-principal",
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:identity",
+      "categoria": "concepto",
+      "titulo": "GENERATED AS IDENTITY: números automáticos",
+      "alias": [
+        "identity",
+        "generated as identity",
+        "generated always",
+        "by default",
+        "identidad",
+        "autoincremento",
+        "auto increment",
+        "autonumérico"
+      ],
+      "resumen": "Una columna de identidad recibe un número automático en cada INSERT. Existe desde Oracle 12c; antes se usaban secuencias con disparadores.",
+      "secciones": [
+        {
+          "titulo": "ALWAYS y BY DEFAULT",
+          "parrafos": [
+            "GENERATED ALWAYS AS IDENTITY: Oracle siempre pone el número; si intentas escribirlo a mano, da error.",
+            "GENERATED BY DEFAULT AS IDENTITY: Oracle lo pone si no lo escribes, pero te deja escribir uno.",
+            "BY DEFAULT ON NULL además lo genera cuando insertas NULL.",
+            "Para empezar en otro número: GENERATED ALWAYS AS IDENTITY (START WITH 100 INCREMENT BY 10)."
+          ],
+          "ejemplo": "CREATE TABLE categorias (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(60) NOT NULL\n);\n\nINSERT INTO categorias (nombre) VALUES ('Libros');"
+        },
+        {
+          "titulo": "Detalles",
+          "parrafos": [
+            "Solo puede haber una columna de identidad por tabla, y es NOT NULL automáticamente.",
+            "Por dentro, Oracle crea una secuencia con nombre ISEQ$$_ seguido de un número.",
+            "Los números pueden tener saltos, por ejemplo tras un ROLLBACK o un reinicio. No sirven para numeraciones sin huecos, como facturas legales."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "IDENTITY(semilla, incremento), por ejemplo IDENTITY(1, 1)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "GENERATED ALWAYS AS IDENTITY, igual que Oracle, o el antiguo serial."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "AUTO_INCREMENT."
+        }
+      ],
+      "relacionadas": [
+        "concepto:secuencias",
+        "concepto:clave-principal",
+        "tipo:number"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE TABLE: identity_clause (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:unique",
+      "categoria": "concepto",
+      "titulo": "UNIQUE: valores que no se repiten",
+      "alias": [
+        "unique",
+        "único",
+        "valor único",
+        "restricción única"
+      ],
+      "resumen": "Una restricción UNIQUE impide que dos filas tengan el mismo valor en esa columna, como el correo de un cliente.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "A diferencia de la clave principal, una columna UNIQUE puede admitir NULL, y Oracle permite muchas filas con NULL.",
+            "Oracle crea un índice único para la restricción.",
+            "Una llave foránea puede apuntar a una columna UNIQUE, no solo a la clave principal."
+          ],
+          "ejemplo": "ALTER TABLE clientes\n    ADD CONSTRAINT uq_clientes_correo UNIQUE (correo);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "UNIQUE solo admite un NULL por columna, salvo con un índice filtrado."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Permite muchos NULL por omisión; desde la versión 15, UNIQUE NULLS NOT DISTINCT solo permite uno."
+        }
+      ],
+      "relacionadas": [
+        "concepto:clave-principal",
+        "concepto:indice"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: unique (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:default",
+      "categoria": "concepto",
+      "titulo": "DEFAULT: valor predeterminado",
+      "alias": [
+        "default",
+        "predeterminado",
+        "valor por defecto",
+        "valor predeterminado",
+        "default on null"
+      ],
+      "resumen": "El valor que toma una columna cuando el INSERT no la menciona.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Puede ser un literal, como 0 o 'Pendiente', o una expresión, como SYSDATE o una secuencia con NEXTVAL.",
+            "En Oracle, DEFAULT va antes de NOT NULL: fecha DATE DEFAULT SYSDATE NOT NULL.",
+            "Si el INSERT escribe NULL explícitamente, el DEFAULT no se aplica. DEFAULT ON NULL hace que también se use en ese caso.",
+            "En un INSERT o UPDATE puedes escribir la palabra DEFAULT para pedir el valor predeterminado."
+          ],
+          "ejemplo": "CREATE TABLE pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    estado VARCHAR2(20) DEFAULT 'Pendiente' NOT NULL,\n    fecha DATE DEFAULT ON NULL SYSDATE\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DEFAULT es una restricción con nombre, como CONSTRAINT DF_Pedidos_Fecha DEFAULT (GETDATE())."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual; DEFAULT y NOT NULL pueden ir en cualquier orden."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "palabra:fechas",
+        "concepto:secuencias"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE TABLE: DEFAULT (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:check",
+      "categoria": "concepto",
+      "titulo": "CHECK: reglas sobre los valores",
+      "alias": [
+        "check",
+        "restricción check",
+        "comprobación",
+        "validación"
+      ],
+      "resumen": "Una restricción CHECK define una condición que cada fila debe cumplir, como que el precio no sea negativo.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "La condición puede usar las columnas de la misma fila, pero no consultas a otras tablas ni funciones como SYSDATE.",
+            "Si la condición da NULL, Oracle la acepta: solo rechaza cuando da falso.",
+            "Si una fila no la cumple, Oracle da el error ORA-02290 con el nombre de la restricción."
+          ],
+          "ejemplo": "ALTER TABLE productos\n    ADD CONSTRAINT ck_productos_precio CHECK (precio >= 0);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Funciona igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "palabra:create-table"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Constraints: check (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/constraint.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:indice",
+      "categoria": "concepto",
+      "titulo": "Índices",
+      "alias": [
+        "indice",
+        "index",
+        "create index",
+        "b-tree",
+        "bitmap",
+        "desc"
+      ],
+      "resumen": "Un índice permite encontrar filas rápido sin recorrer toda la tabla, como el índice de un libro.",
+      "secciones": [
+        {
+          "titulo": "En Oracle",
+          "parrafos": [
+            "El tipo normal es el árbol B. Oracle crea uno automáticamente para cada clave principal y restricción UNIQUE.",
+            "Oracle no tiene índices agrupados en las tablas normales: las filas no se ordenan físicamente por un índice. Lo más parecido es una tabla organizada por índice (ORGANIZATION INDEX).",
+            "Se pueden crear índices sobre expresiones, como UPPER(nombre), para que las búsquedas sin distinguir mayúsculas usen el índice.",
+            "Los índices aceleran las lecturas pero hacen un poco más lentos los INSERT, UPDATE y DELETE."
+          ],
+          "ejemplo": "CREATE INDEX ix_pedidos_cliente ON pedidos (cliente_id);\nCREATE INDEX ix_clientes_nombre ON clientes (UPPER(nombre));"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Distingue índices agrupados (CLUSTERED), uno por tabla, y no agrupados (NONCLUSTERED), y admite INCLUDE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "btree, gin, gist, hash y brin, además de índices sobre expresiones y parciales; sin índices agrupados permanentes."
+        }
+      ],
+      "relacionadas": [
+        "concepto:clave-principal",
+        "concepto:unique",
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE INDEX (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-INDEX.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:columna-calculada",
+      "categoria": "concepto",
+      "titulo": "Columnas virtuales",
+      "alias": [
+        "columna calculada",
+        "columna virtual",
+        "virtual",
+        "generated always as",
+        "calculada"
+      ],
+      "resumen": "Una columna virtual no guarda datos: su valor se calcula con una expresión cada vez que se lee.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Se declara con GENERATED ALWAYS AS (expresión) VIRTUAL. Las palabras GENERATED ALWAYS y VIRTUAL son opcionales.",
+            "No se puede escribir en ella con INSERT ni UPDATE.",
+            "Se puede indexar, y usar en restricciones y en llaves.",
+            "Oracle no tiene columnas calculadas guardadas en disco: todas son virtuales."
+          ],
+          "ejemplo": "CREATE TABLE lineas (\n    cantidad NUMBER,\n    precio NUMBER(10, 2),\n    total NUMBER GENERATED ALWAYS AS (cantidad * precio) VIRTUAL\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Columna AS (expresión), y con PERSISTED se guarda en disco."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "GENERATED ALWAYS AS (expresión) VIRTUAL, desde la versión 18, o STORED para guardarla en disco."
+        }
+      ],
+      "relacionadas": [
+        "palabra:create-table"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE TABLE: virtual_column_definition (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:esquema-usuario",
+      "categoria": "concepto",
+      "titulo": "Esquema y usuario: en Oracle son lo mismo",
+      "alias": [
+        "esquema",
+        "usuario",
+        "schema",
+        "user",
+        "current_schema",
+        "pdb",
+        "freepdb1",
+        "servicio"
+      ],
+      "resumen": "En Oracle, cada usuario tiene un esquema con su mismo nombre, donde viven sus tablas. No hay bases de datos separadas como en SQL Server.",
+      "secciones": [
+        {
+          "titulo": "Cómo se organiza",
+          "parrafos": [
+            "El usuario TIENDA es dueño del esquema TIENDA. Si TIENDA crea una tabla, queda como TIENDA.CLIENTES.",
+            "Para usar tablas de otro esquema se escribe el nombre completo, ESQUEMA.TABLA, y hace falta permiso, que se da con GRANT.",
+            "ALTER SESSION SET CURRENT_SCHEMA = TIENDA cambia el esquema que se usa cuando no escribes el prefijo. Esta aplicación lo hace al elegir el esquema de la consulta.",
+            "La base de datos conectable, o PDB, como FREEPDB1 en Oracle Free, agrupa los esquemas. Se elige con el nombre de servicio al conectarse."
+          ],
+          "ejemplo": "SELECT USER, SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual;\nALTER SESSION SET CURRENT_SCHEMA = TIENDA;"
+        },
+        {
+          "titulo": "Esquemas del sistema",
+          "parrafos": [
+            "SYS, SYSTEM y muchos otros pertenecen a Oracle. Esta aplicación los muestra aparte, en Esquemas del sistema, y conviene no tocarlos."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Un servidor tiene varias bases de datos, y cada una tiene esquemas como dbo, independientes de los usuarios. USE cambia de base de datos."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Usuarios y esquemas son cosas separadas, como en SQL Server; el esquema predeterminado es public y search_path decide dónde se buscan los nombres."
+        }
+      ],
+      "relacionadas": [
+        "concepto:tabla",
+        "concepto:diccionario",
+        "concepto:mayusculas-comillas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ALTER SESSION (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-SESSION.html"
+        },
+        {
+          "titulo": "Database Object Names and Qualifiers (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Database-Object-Names-and-Qualifiers.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:mayusculas-comillas",
+      "categoria": "concepto",
+      "titulo": "Nombres: mayúsculas y comillas dobles",
+      "alias": [
+        "mayúsculas",
+        "comillas",
+        "comillas dobles",
+        "identificador",
+        "nombre",
+        "nombres"
+      ],
+      "resumen": "Oracle convierte a mayúsculas los nombres escritos sin comillas. Con comillas dobles, respeta mayúsculas y espacios, pero desde entonces hay que escribirlos siempre con comillas.",
+      "secciones": [
+        {
+          "titulo": "Sin comillas",
+          "parrafos": [
+            "CREATE TABLE Clientes crea la tabla CLIENTES. Luego da igual escribir clientes, Clientes o CLIENTES.",
+            "Un nombre sin comillas empieza con letra y solo lleva letras, números, guion bajo, $ y #. Puede tener hasta 128 caracteres.",
+            "No puede ser una palabra reservada, como DATE, USER o LEVEL."
+          ]
+        },
+        {
+          "titulo": "Con comillas dobles",
+          "parrafos": [
+            "CREATE TABLE \"Mis Clientes\" crea un nombre con mayúsculas y espacio. Después hay que escribir siempre \"Mis Clientes\", con comillas y las mismas mayúsculas.",
+            "Por eso la costumbre en Oracle es usar nombres sin comillas, en mayúsculas, separados por guion bajo: FECHA_REGISTRO.",
+            "Las comillas simples son para textos ('Ana'), y las dobles para nombres."
+          ],
+          "ejemplo": "SELECT \"Nombre Raro\" FROM tmp;\nSELECT nombre FROM clientes;  -- lee la columna NOMBRE"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Respeta como escribes los nombres, y por lo general no distingue mayúsculas al buscarlos. Los nombres raros se encierran entre corchetes: [Mis Clientes]."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Al revés que Oracle: convierte a minúsculas los nombres sin comillas."
+        }
+      ],
+      "relacionadas": [
+        "concepto:esquema-usuario",
+        "concepto:diccionario"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Database Object Names and Qualifiers (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Database-Object-Names-and-Qualifiers.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:cadena-vacia",
+      "categoria": "concepto",
+      "titulo": "En Oracle, el texto vacío es NULL",
+      "alias": [
+        "cadena vacía",
+        "texto vacío",
+        "''",
+        "vacío"
+      ],
+      "resumen": "Oracle guarda el texto vacío '' como NULL. Es una de sus particularidades más conocidas, y conviene tenerla presente.",
+      "secciones": [
+        {
+          "titulo": "Consecuencias",
+          "parrafos": [
+            "INSERT de '' en una columna NOT NULL da el error ORA-01400.",
+            "WHERE nombre = '' nunca encuentra filas, porque compara con NULL. Hay que usar WHERE nombre IS NULL.",
+            "LENGTH('') no devuelve 0: devuelve NULL.",
+            "Concatenar con || ignora los NULL: 'Hola' || NULL da 'Hola'.",
+            "La documentación de Oracle avisa que esto podría cambiar en el futuro y recomienda no depender de ello."
+          ],
+          "ejemplo": "SELECT CASE WHEN '' IS NULL THEN 'es NULL' ELSE 'no es NULL' END FROM dual;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "'' y NULL son distintos: '' es un texto de largo cero."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "También los distingue."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "tipo:varchar2"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Nulls (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Nulls.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:dual",
+      "categoria": "concepto",
+      "titulo": "DUAL: la tabla de una sola fila",
+      "alias": [
+        "dual",
+        "from dual"
+      ],
+      "resumen": "DUAL es una tabla especial con una sola fila, que se usa para calcular expresiones con SELECT sin leer ninguna tabla real.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Antes de Oracle 23ai, todo SELECT necesitaba FROM. Para pedir la fecha o hacer una cuenta se escribía FROM dual.",
+            "Desde 23ai, FROM es opcional: SELECT SYSDATE; ya funciona. Igual verás FROM dual en casi todos los ejemplos y en tu curso.",
+            "DUAL pertenece a SYS, pero todos los usuarios pueden leerla."
+          ],
+          "ejemplo": "SELECT SYSDATE, 2 * 3 AS resultado, USER FROM dual;\nSELECT TO_CHAR(SYSDATE, 'DD/MM/YYYY') AS hoy FROM dual;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No necesita DUAL: SELECT GETDATE(); funciona sin FROM."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No necesita DUAL: SELECT now(); funciona sin FROM."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Selecting from the DUAL Table (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Selecting-from-the-DUAL-Table.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:secuencias",
+      "categoria": "concepto",
+      "titulo": "Secuencias: NEXTVAL y CURRVAL",
+      "alias": [
+        "secuencia",
+        "sequence",
+        "create sequence",
+        "nextval",
+        "currval"
+      ],
+      "resumen": "Una secuencia es un objeto que entrega números consecutivos. Antes de las columnas de identidad era la forma de generar los Id.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "CREATE SEQUENCE crea la secuencia; NOMBRE.NEXTVAL pide el siguiente número y NOMBRE.CURRVAL repite el último pedido en tu sesión.",
+            "CURRVAL no funciona hasta que hayas usado NEXTVAL en esa sesión.",
+            "Se puede usar como valor predeterminado: id NUMBER DEFAULT sec_clientes.NEXTVAL.",
+            "Los números no se devuelven al hacer ROLLBACK, así que puede haber saltos."
+          ],
+          "ejemplo": "CREATE SEQUENCE sec_facturas START WITH 1000 INCREMENT BY 1;\n\nSELECT sec_facturas.NEXTVAL FROM dual;\nSELECT sec_facturas.CURRVAL FROM dual;\n\nDROP SEQUENCE sec_facturas;"
+        },
+        {
+          "titulo": "Secuencias e identidad",
+          "parrafos": [
+            "Una columna GENERATED AS IDENTITY usa por dentro una secuencia automática. En código antiguo verás una secuencia más un disparador BEFORE INSERT que la llena."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "También tiene CREATE SEQUENCE, con NEXT VALUE FOR nombre."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "nextval('nombre') y currval('nombre')."
+        }
+      ],
+      "relacionadas": [
+        "concepto:identity",
+        "plsql:disparadores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE SEQUENCE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-SEQUENCE.html"
+        },
+        {
+          "titulo": "Sequence Pseudocolumns (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Sequence-Pseudocolumns.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:transacciones",
+      "categoria": "concepto",
+      "titulo": "Transacciones: COMMIT, ROLLBACK y SAVEPOINT",
+      "alias": [
+        "transacción",
+        "transaccion",
+        "commit",
+        "rollback",
+        "savepoint",
+        "rollback to",
+        "cambios sin confirmar"
+      ],
+      "resumen": "En Oracle, los cambios de INSERT, UPDATE, DELETE y MERGE quedan pendientes hasta que los confirmas con COMMIT o los deshaces con ROLLBACK.",
+      "secciones": [
+        {
+          "titulo": "Cómo funciona",
+          "parrafos": [
+            "La transacción empieza sola con el primer cambio. Mientras no hagas COMMIT, solo tu sesión ve los cambios; las demás siguen viendo los datos anteriores.",
+            "COMMIT guarda los cambios para siempre. ROLLBACK los deshace todos desde el último COMMIT.",
+            "SAVEPOINT nombre marca un punto; ROLLBACK TO nombre deshace solo lo posterior a esa marca.",
+            "Las sentencias de definición, como CREATE, ALTER, DROP y TRUNCATE, hacen COMMIT automáticamente, antes y después. Cuidado: confirman también tus cambios pendientes."
+          ],
+          "ejemplo": "UPDATE productos SET precio = precio * 1.10 WHERE categoria_id = 1;\nSAVEPOINT antes_de_borrar;\nDELETE FROM pedido_productos WHERE cantidad = 1;\nROLLBACK TO antes_de_borrar;\nROLLBACK;"
+        },
+        {
+          "titulo": "En esta aplicación",
+          "parrafos": [
+            "Funciona como SQL Developer: cada consulta mantiene su sesión abierta y los cambios quedan pendientes.",
+            "Al ejecutar oirás «Quedan cambios sin confirmar», y verás el aviso en pantalla. Si desconectas o cierras la aplicación con cambios pendientes, te pregunta si confirmarlos o deshacerlos."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Por omisión cada sentencia se confirma sola. Para agruparlas se usa BEGIN TRANSACTION y luego COMMIT o ROLLBACK."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Cada sentencia se confirma sola salvo después de BEGIN, y el CREATE y el DROP también se pueden deshacer con ROLLBACK."
+        }
+      ],
+      "relacionadas": [
+        "palabra:insert",
+        "palabra:update",
+        "palabra:delete"
+      ],
+      "fuentes": [
+        {
+          "titulo": "COMMIT (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/COMMIT.html"
+        },
+        {
+          "titulo": "ROLLBACK (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ROLLBACK.html"
+        },
+        {
+          "titulo": "SAVEPOINT (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SAVEPOINT.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:rowid-rownum",
+      "categoria": "concepto",
+      "titulo": "ROWID y ROWNUM: pseudocolumnas",
+      "alias": [
+        "rowid",
+        "rownum",
+        "pseudocolumna",
+        "level"
+      ],
+      "resumen": "Son columnas que no existen en la tabla pero que Oracle permite consultar: ROWID es la dirección física de la fila y ROWNUM su número de llegada en el resultado.",
+      "secciones": [
+        {
+          "titulo": "ROWNUM",
+          "parrafos": [
+            "ROWNUM numera las filas a medida que salen de la consulta: 1, 2, 3.",
+            "Se asigna antes de ORDER BY. Por eso WHERE ROWNUM <= 5 ORDER BY precio no da los 5 más baratos: da 5 filas cualquiera y luego las ordena.",
+            "Para los primeros N ordenados usa FETCH FIRST N ROWS ONLY, o una subconsulta ordenada.",
+            "WHERE ROWNUM = 2 nunca devuelve nada, porque ninguna fila puede ser la segunda sin que haya pasado la primera."
+          ],
+          "ejemplo": "SELECT * FROM (\n    SELECT nombre, precio FROM productos ORDER BY precio\n) WHERE ROWNUM <= 5;"
+        },
+        {
+          "titulo": "ROWID",
+          "parrafos": [
+            "ROWID identifica dónde está guardada la fila; es la forma más rápida de llegar a ella.",
+            "Puede cambiar si la tabla se reorganiza, así que no sirve como clave."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene ROWNUM; se usa ROW_NUMBER() OVER (ORDER BY …) o TOP."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No tiene ROWNUM; se usa LIMIT o row_number() OVER (…). Su equivalente de ROWID es ctid, que tampoco sirve como clave."
+        }
+      ],
+      "relacionadas": [
+        "palabra:fetch-first",
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ROWNUM Pseudocolumn (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ROWNUM-Pseudocolumn.html"
+        },
+        {
+          "titulo": "ROWID Pseudocolumn (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ROWID-Pseudocolumn.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:papelera",
+      "categoria": "concepto",
+      "titulo": "La papelera de reciclaje y FLASHBACK TABLE",
+      "alias": [
+        "papelera",
+        "papelera de reciclaje",
+        "recycle bin",
+        "recyclebin",
+        "flashback",
+        "flashback table",
+        "purge",
+        "bin$"
+      ],
+      "resumen": "En Oracle, DROP TABLE no borra la tabla de inmediato: la manda a la papelera de reciclaje, de donde se puede recuperar.",
+      "secciones": [
+        {
+          "titulo": "Recuperar y purgar",
+          "parrafos": [
+            "FLASHBACK TABLE nombre TO BEFORE DROP recupera la tabla con sus datos e índices.",
+            "Mientras está en la papelera, la tabla aparece con un nombre raro que empieza con BIN$. Esta aplicación no la muestra en el explorador.",
+            "DROP TABLE nombre PURGE la borra sin pasar por la papelera. Eso no se puede deshacer.",
+            "PURGE TABLE nombre borra de la papelera una tabla ya eliminada, y PURGE RECYCLEBIN vacía toda tu papelera.",
+            "Las llaves foráneas que apuntaban a la tabla no se recuperan."
+          ],
+          "ejemplo": "CREATE TABLE tmp_prueba (id NUMBER);\nDROP TABLE tmp_prueba;\nSELECT original_name, droptime FROM user_recyclebin;\nFLASHBACK TABLE tmp_prueba TO BEFORE DROP;\nDROP TABLE tmp_prueba PURGE;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene papelera: DROP TABLE borra la tabla definitivamente, y solo se recupera desde una copia de seguridad."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No tiene papelera, pero un DROP dentro de BEGIN se deshace con ROLLBACK."
+        }
+      ],
+      "relacionadas": [
+        "palabra:drop"
+      ],
+      "fuentes": [
+        {
+          "titulo": "FLASHBACK TABLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/FLASHBACK-TABLE.html"
+        },
+        {
+          "titulo": "PURGE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/PURGE.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:diccionario",
+      "categoria": "concepto",
+      "titulo": "El diccionario de datos: vistas USER_, ALL_ y DBA_",
+      "alias": [
+        "diccionario",
+        "user_tables",
+        "all_tables",
+        "dba_tables",
+        "user_tab_columns",
+        "user_constraints",
+        "user_errors",
+        "user_objects",
+        "metadatos"
+      ],
+      "resumen": "Oracle guarda la descripción de todo lo que existe en vistas que puedes consultar con SELECT. Esta aplicación las usa para describir las tablas.",
+      "secciones": [
+        {
+          "titulo": "Los tres prefijos",
+          "parrafos": [
+            "USER_ muestra lo tuyo: USER_TABLES son las tablas de tu esquema.",
+            "ALL_ muestra todo lo que puedes ver, tuyo o de otros esquemas con permiso. Tiene una columna OWNER.",
+            "DBA_ muestra todo lo de la base y requiere permisos de administrador."
+          ]
+        },
+        {
+          "titulo": "Vistas útiles",
+          "parrafos": [
+            "USER_TAB_COLUMNS: las columnas, con su tipo y si admiten NULL.",
+            "USER_CONSTRAINTS y USER_CONS_COLUMNS: claves, llaves foráneas, UNIQUE y CHECK. El tipo P es clave principal, R es llave foránea, U es único y C es CHECK.",
+            "USER_INDEXES: los índices. USER_OBJECTS: todos tus objetos y si están válidos.",
+            "USER_ERRORS: los errores de compilación de tus procedimientos, funciones y disparadores."
+          ],
+          "ejemplo": "SELECT table_name FROM user_tables ORDER BY table_name;\n\nSELECT constraint_name, constraint_type, search_condition_vc\nFROM user_constraints\nWHERE table_name = 'PRODUCTOS';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Las vistas de catálogo sys.tables, sys.columns, sys.foreign_keys y las de INFORMATION_SCHEMA."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "information_schema y pg_catalog, con pg_class, pg_attribute y pg_constraint."
+        }
+      ],
+      "relacionadas": [
+        "concepto:esquema-usuario",
+        "plsql:procedimientos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ALL_TABLES (Oracle Database Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/refrn/ALL_TABLES.html"
+        },
+        {
+          "titulo": "ALL_CONSTRAINTS (Oracle Database Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/refrn/ALL_CONSTRAINTS.html"
+        },
+        {
+          "titulo": "USER_ERRORS (Oracle Database Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/refrn/USER_ERRORS.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:vistas",
+      "categoria": "concepto",
+      "titulo": "Vistas: CREATE OR REPLACE VIEW",
+      "alias": [
+        "vista",
+        "vistas",
+        "view",
+        "create view",
+        "create or replace view",
+        "drop view",
+        "vista materializada",
+        "materialized view"
+      ],
+      "resumen": "Una vista es un SELECT guardado con nombre. Se consulta como una tabla, pero no guarda datos: cada vez que la usas, Oracle ejecuta su consulta.",
+      "secciones": [
+        {
+          "titulo": "Crear y usar",
+          "parrafos": [
+            "CREATE OR REPLACE VIEW crea la vista o la reemplaza si ya existe.",
+            "Si cambias o borras una tabla que la vista usa, la vista queda inválida (INVALID) hasta que vuelva a compilar; el explorador la anuncia como inválida.",
+            "Una vista materializada (CREATE MATERIALIZED VIEW) sí guarda el resultado, y hay que refrescarla para ver los datos nuevos.",
+            "En el explorador, las vistas están en la carpeta Vistas de cada esquema."
+          ],
+          "ejemplo": "CREATE OR REPLACE VIEW productos_caros AS\nSELECT nombre, precio FROM productos WHERE precio > 50;\n\nSELECT * FROM productos_caros;\nDROP VIEW productos_caros;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE OR ALTER VIEW, solo en su lote (con GO)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE OR REPLACE VIEW, y CREATE MATERIALIZED VIEW con REFRESH MATERIALIZED VIEW."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:join",
+        "concepto:diccionario"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE VIEW (Oracle AI Database 26ai SQL Language Reference)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-VIEW.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:select",
+      "categoria": "palabra",
+      "titulo": "SELECT: leer datos",
+      "alias": [
+        "select",
+        "distinct",
+        "select distinct",
+        "as",
+        "alias"
+      ],
+      "resumen": "SELECT lee datos de una o varias tablas. Es la sentencia que más vas a usar.",
+      "secciones": [
+        {
+          "titulo": "Partes",
+          "parrafos": [
+            "SELECT dice qué columnas o expresiones quieres; FROM, de qué tabla. El asterisco trae todas las columnas.",
+            "AS pone un alias a una columna: precio * 1.13 AS precio_con_iva. A una tabla se le pone alias sin AS: FROM clientes c.",
+            "DISTINCT quita las filas repetidas del resultado.",
+            "El orden lógico es: FROM, WHERE, GROUP BY, HAVING, SELECT y ORDER BY. Por eso un alias del SELECT no se puede usar en el WHERE, pero sí en el ORDER BY."
+          ],
+          "ejemplo": "SELECT DISTINCT c.nombre, p.fecha\nFROM clientes c\nJOIN pedidos p ON p.cliente_id = c.id\nORDER BY p.fecha DESC;"
+        },
+        {
+          "titulo": "En Oracle",
+          "parrafos": [
+            "Para calcular algo sin tabla se usaba FROM dual. Desde 23ai, FROM es opcional.",
+            "Los textos van entre comillas simples y los nombres raros entre comillas dobles."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, salvo TOP para limitar filas y que FROM nunca fue obligatorio."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y FROM nunca fue obligatorio. Tiene además DISTINCT ON."
+        }
+      ],
+      "relacionadas": [
+        "palabra:where",
+        "palabra:join",
+        "palabra:order-by",
+        "concepto:dual"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SELECT (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SELECT.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:where",
+      "categoria": "palabra",
+      "titulo": "WHERE: filtrar filas",
+      "alias": [
+        "where",
+        "and",
+        "or",
+        "not",
+        "like",
+        "in",
+        "between",
+        "exists"
+      ],
+      "resumen": "WHERE deja solo las filas que cumplen una condición.",
+      "secciones": [
+        {
+          "titulo": "Operadores",
+          "parrafos": [
+            "Comparación: =, distinto con <> o !=, <, >, <= y >=. Se combinan con AND, OR y NOT, y los paréntesis aclaran el orden.",
+            "BETWEEN 10 AND 20 incluye los dos extremos. IN (1, 2, 3) compara con una lista o una subconsulta.",
+            "LIKE busca patrones: % es cualquier texto y _ un solo carácter. En Oracle LIKE distingue mayúsculas; para no distinguirlas usa UPPER(nombre) LIKE 'ANA%'.",
+            "Para los nulos se usa IS NULL o IS NOT NULL, nunca = NULL."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nWHERE precio BETWEEN 10 AND 50\n  AND UPPER(nombre) LIKE '%SQL%'\n  AND categoria_id IN (1, 3);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, pero LIKE normalmente no distingue mayúsculas, según la intercalación."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "LIKE también distingue mayúsculas, pero existe ILIKE, que no las distingue."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "concepto:null"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SELECT: where_clause (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SELECT.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:join",
+      "categoria": "palabra",
+      "titulo": "FROM y JOIN: combinar tablas",
+      "alias": [
+        "from",
+        "join",
+        "inner",
+        "inner join",
+        "left",
+        "left join",
+        "right",
+        "right join",
+        "full",
+        "full join",
+        "outer",
+        "on",
+        "cross join",
+        "(+)"
+      ],
+      "resumen": "JOIN combina filas de dos tablas que se relacionan, normalmente por una llave foránea.",
+      "secciones": [
+        {
+          "titulo": "Tipos de JOIN",
+          "parrafos": [
+            "INNER JOIN, o solo JOIN: trae solo las filas que tienen pareja en las dos tablas.",
+            "LEFT JOIN: trae todas las filas de la tabla izquierda; si no tienen pareja, las columnas de la derecha salen en NULL. RIGHT JOIN es lo contrario.",
+            "FULL JOIN: todas las filas de ambas tablas. CROSS JOIN: todas las combinaciones posibles.",
+            "La condición va en ON: ON p.cliente_id = c.id."
+          ],
+          "ejemplo": "SELECT c.nombre, COUNT(p.id) AS pedidos\nFROM clientes c\nLEFT JOIN pedidos p ON p.cliente_id = c.id\nGROUP BY c.nombre;"
+        },
+        {
+          "titulo": "La sintaxis antigua de Oracle",
+          "parrafos": [
+            "En código antiguo verás las tablas separadas por coma y la condición en el WHERE, con (+) para el lado opcional: WHERE p.cliente_id(+) = c.id equivale a un LEFT JOIN.",
+            "Oracle recomienda la sintaxis con JOIN, que es la del estándar."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; no tiene la notación (+)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y LATERAL para subconsultas que usan columnas de la izquierda; no tiene (+)."
+        }
+      ],
+      "relacionadas": [
+        "concepto:uno-a-muchos",
+        "palabra:select"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Joins (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Joins.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:group-by",
+      "categoria": "palabra",
+      "titulo": "GROUP BY, HAVING y funciones de agregado",
+      "alias": [
+        "group",
+        "group by",
+        "having",
+        "count",
+        "sum",
+        "avg",
+        "min",
+        "max",
+        "listagg"
+      ],
+      "resumen": "GROUP BY junta las filas que tienen el mismo valor para calcular totales, promedios o conteos por grupo.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Funciones de agregado: COUNT(*) cuenta filas, COUNT(columna) cuenta los no nulos, SUM suma, AVG promedia, MIN y MAX dan el menor y el mayor.",
+            "Toda columna del SELECT que no esté dentro de un agregado debe aparecer en el GROUP BY. Si no, Oracle da el error ORA-00979.",
+            "WHERE filtra filas antes de agrupar; HAVING filtra grupos después.",
+            "LISTAGG(nombre, ', ') junta los textos de un grupo en una sola cadena."
+          ],
+          "ejemplo": "SELECT categoria_id, COUNT(*) AS productos, ROUND(AVG(precio), 2) AS promedio\nFROM productos\nGROUP BY categoria_id\nHAVING COUNT(*) > 1;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; en vez de LISTAGG usa STRING_AGG."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "string_agg en lugar de LISTAGG, y FILTER (WHERE …) para contar solo algunas filas."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Aggregate Functions (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Aggregate-Functions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:order-by",
+      "categoria": "palabra",
+      "titulo": "ORDER BY: ordenar el resultado",
+      "alias": [
+        "order",
+        "order by",
+        "asc",
+        "desc",
+        "nulls first",
+        "nulls last"
+      ],
+      "resumen": "ORDER BY ordena las filas del resultado. Sin él, Oracle no garantiza ningún orden.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "ASC ordena de menor a mayor y es la opción por omisión; DESC de mayor a menor.",
+            "Se puede ordenar por varias columnas, por un alias del SELECT o por el número de columna.",
+            "En Oracle, los NULL van al final en orden ascendente y al principio en descendente. NULLS FIRST y NULLS LAST lo cambian."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nORDER BY precio DESC NULLS LAST, nombre;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Los NULL van primero en orden ascendente, y no tiene NULLS FIRST ni NULLS LAST."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, con NULLS FIRST y NULLS LAST."
+        }
+      ],
+      "relacionadas": [
+        "palabra:fetch-first",
+        "palabra:select"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SELECT: order_by_clause (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SELECT.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:fetch-first",
+      "categoria": "palabra",
+      "titulo": "FETCH FIRST y OFFSET: limitar filas",
+      "alias": [
+        "fetch",
+        "fetch first",
+        "fetch next",
+        "offset",
+        "rows only",
+        "with ties",
+        "top",
+        "limit"
+      ],
+      "resumen": "FETCH FIRST n ROWS ONLY devuelve solo las primeras filas. Es la forma de Oracle de decir TOP o LIMIT.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "Va al final de la consulta, después de ORDER BY: FETCH FIRST 10 ROWS ONLY.",
+            "OFFSET 20 ROWS FETCH NEXT 10 ROWS ONLY salta 20 filas y trae las 10 siguientes: sirve para paginar.",
+            "WITH TIES en lugar de ONLY incluye también las filas empatadas con la última.",
+            "FETCH FIRST 10 PERCENT ROWS ONLY trae un porcentaje.",
+            "Siempre conviene usarlo con ORDER BY; si no, las primeras filas son cualquiera."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nORDER BY precio DESC\nFETCH FIRST 3 ROWS ONLY;"
+        },
+        {
+          "titulo": "Antes de Oracle 12c",
+          "parrafos": [
+            "Se usaba ROWNUM en una subconsulta ordenada. Lo verás en código y ejemplos antiguos."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "SELECT TOP (10), o OFFSET … FETCH NEXT … ROWS ONLY después de ORDER BY."
+        },
+        {
+          "motor": "PostgreSQL, MySQL y MariaDB",
+          "texto": "LIMIT 10 OFFSET 20."
+        }
+      ],
+      "relacionadas": [
+        "palabra:order-by",
+        "concepto:rowid-rownum"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SELECT: row_limiting_clause (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SELECT.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:insert",
+      "categoria": "palabra",
+      "titulo": "INSERT: agregar filas",
+      "alias": [
+        "insert",
+        "insert into",
+        "into",
+        "values",
+        "insert all"
+      ],
+      "resumen": "INSERT agrega filas nuevas a una tabla. En Oracle el cambio queda pendiente hasta el COMMIT.",
+      "secciones": [
+        {
+          "titulo": "Formas",
+          "parrafos": [
+            "INSERT INTO tabla (columnas) VALUES (valores): conviene nombrar siempre las columnas.",
+            "Las columnas que no menciones toman su DEFAULT o quedan en NULL. Las de identidad ALWAYS no se escriben.",
+            "INSERT INTO tabla (columnas) SELECT … copia filas desde una consulta.",
+            "Desde Oracle 23ai se pueden insertar varias filas en un solo VALUES: VALUES (1, 'a'), (2, 'b'). Antes se usaba INSERT ALL."
+          ],
+          "ejemplo": "INSERT INTO categorias (nombre) VALUES ('Música'), ('Juegos');\nCOMMIT;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, y siempre admitió varias filas en VALUES. Se confirma solo, salvo dentro de BEGIN TRANSACTION."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y RETURNING devuelve las filas insertadas sin necesidad de PL/SQL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "concepto:identity",
+        "concepto:default"
+      ],
+      "fuentes": [
+        {
+          "titulo": "INSERT (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/INSERT.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:update",
+      "categoria": "palabra",
+      "titulo": "UPDATE: cambiar datos",
+      "alias": [
+        "update",
+        "set"
+      ],
+      "resumen": "UPDATE cambia valores de filas existentes. Sin WHERE cambia todas las filas de la tabla.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "UPDATE tabla SET columna = valor WHERE condición. Se pueden cambiar varias columnas separadas por coma.",
+            "El valor puede usar la misma columna: SET precio = precio * 1.10.",
+            "Antes de un UPDATE grande, prueba el WHERE con un SELECT para ver qué filas toca.",
+            "El cambio queda pendiente: si te equivocaste, ROLLBACK lo deshace."
+          ],
+          "ejemplo": "UPDATE productos\nSET precio = precio * 1.10\nWHERE categoria_id = 2;\n\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, y además admite UPDATE … FROM con JOIN. En Oracle se usa MERGE o una subconsulta."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, con UPDATE … FROM y RETURNING."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "palabra:merge",
+        "palabra:where"
+      ],
+      "fuentes": [
+        {
+          "titulo": "UPDATE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/UPDATE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:delete",
+      "categoria": "palabra",
+      "titulo": "DELETE y TRUNCATE: borrar filas",
+      "alias": [
+        "delete",
+        "delete from",
+        "truncate",
+        "truncate table"
+      ],
+      "resumen": "DELETE borra las filas que cumplen el WHERE y se puede deshacer. TRUNCATE vacía la tabla entera de golpe y no se puede deshacer.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "DELETE FROM tabla WHERE condición. Sin WHERE borra todas las filas, pero se puede deshacer con ROLLBACK.",
+            "TRUNCATE TABLE tabla es mucho más rápido, libera el espacio y hace COMMIT automático: no hay vuelta atrás.",
+            "Si otras tablas apuntan a la fila, el DELETE falla con ORA-02292, salvo que la llave tenga ON DELETE CASCADE o SET NULL.",
+            "TRUNCATE falla si alguna llave foránea habilitada apunta a la tabla."
+          ],
+          "ejemplo": "DELETE FROM pedido_productos WHERE pedido_id = 3;\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual en esencia; allí TRUNCATE sí se puede deshacer dentro de una transacción explícita."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual; TRUNCATE dentro de BEGIN sí se puede deshacer."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "concepto:reglas-referenciales"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DELETE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DELETE.html"
+        },
+        {
+          "titulo": "TRUNCATE TABLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TRUNCATE-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:merge",
+      "categoria": "palabra",
+      "titulo": "MERGE: insertar o actualizar en una sola sentencia",
+      "alias": [
+        "merge",
+        "merge into",
+        "using",
+        "when matched",
+        "when not matched",
+        "upsert"
+      ],
+      "resumen": "MERGE compara una tabla con otra fuente: actualiza las filas que ya existen e inserta las que faltan.",
+      "secciones": [
+        {
+          "titulo": "Partes",
+          "parrafos": [
+            "MERGE INTO destino USING fuente ON (condición) indica qué tabla cambiar, de dónde vienen los datos y cómo emparejarlos.",
+            "WHEN MATCHED THEN UPDATE SET … cambia las filas que coinciden. Puede llevar DELETE WHERE para borrar algunas.",
+            "WHEN NOT MATCHED THEN INSERT (…) VALUES (…) agrega las que no existen.",
+            "La fuente puede ser una tabla, una vista o una subconsulta, incluso desde dual para una sola fila."
+          ],
+          "ejemplo": "MERGE INTO productos p\nUSING (SELECT 'Libro de SQL' AS nombre, 30 AS precio FROM dual) n\nON (p.nombre = n.nombre)\nWHEN MATCHED THEN UPDATE SET p.precio = n.precio\nWHEN NOT MATCHED THEN INSERT (nombre, precio, categoria_id) VALUES (n.nombre, n.precio, 1);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "También tiene MERGE, que exige terminar con punto y coma."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "INSERT … ON CONFLICT DO UPDATE, y MERGE desde la versión 15."
+        }
+      ],
+      "relacionadas": [
+        "palabra:insert",
+        "palabra:update"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MERGE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/MERGE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:create-table",
+      "categoria": "palabra",
+      "titulo": "CREATE TABLE: crear una tabla",
+      "alias": [
+        "create",
+        "table",
+        "create table",
+        "constraint",
+        "if not exists",
+        "as select"
+      ],
+      "resumen": "CREATE TABLE crea una tabla nueva con sus columnas y restricciones.",
+      "secciones": [
+        {
+          "titulo": "Estructura",
+          "parrafos": [
+            "Cada columna lleva nombre y tipo, y después DEFAULT, NOT NULL u otras restricciones. En Oracle, DEFAULT va antes de NOT NULL.",
+            "Las restricciones de tabla van al final, con nombre: CONSTRAINT pk_clientes PRIMARY KEY (id).",
+            "Desde 23ai, CREATE TABLE IF NOT EXISTS no da error si la tabla ya existe.",
+            "CREATE TABLE copia AS SELECT … crea una tabla con el resultado de una consulta.",
+            "Como toda sentencia de definición, hace COMMIT automático."
+          ],
+          "ejemplo": "CREATE TABLE IF NOT EXISTS resenas (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    producto_id NUMBER NOT NULL,\n    estrellas NUMBER(1) DEFAULT 5 NOT NULL,\n    CONSTRAINT pk_resenas PRIMARY KEY (id),\n    CONSTRAINT fk_resenas_productos FOREIGN KEY (producto_id) REFERENCES productos (id),\n    CONSTRAINT ck_resenas_estrellas CHECK (estrellas BETWEEN 1 AND 5)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Usa IDENTITY(1, 1) en lugar de GENERATED AS IDENTITY, y DEFAULT puede ir después de NOT NULL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual en lo básico, con nombres sin comillas que PostgreSQL guarda en minúsculas."
+        }
+      ],
+      "relacionadas": [
+        "palabra:alter-table",
+        "concepto:clave-principal",
+        "concepto:identity",
+        "concepto:mayusculas-comillas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CREATE TABLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CREATE-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:alter-table",
+      "categoria": "palabra",
+      "titulo": "ALTER TABLE: modificar una tabla",
+      "alias": [
+        "alter",
+        "alter table",
+        "add",
+        "modify",
+        "drop column",
+        "rename column",
+        "add constraint"
+      ],
+      "resumen": "ALTER TABLE cambia una tabla que ya existe: agregar o quitar columnas, cambiar tipos o agregar restricciones.",
+      "secciones": [
+        {
+          "titulo": "Operaciones comunes",
+          "parrafos": [
+            "Agregar: ALTER TABLE clientes ADD telefono VARCHAR2(20). Varias columnas van entre paréntesis.",
+            "Cambiar tipo o nulos: ALTER TABLE clientes MODIFY telefono VARCHAR2(30) NOT NULL. En Oracle es MODIFY, no ALTER COLUMN.",
+            "Quitar: ALTER TABLE clientes DROP COLUMN telefono.",
+            "Renombrar: ALTER TABLE clientes RENAME COLUMN telefono TO celular.",
+            "Restricciones: ADD CONSTRAINT …, DROP CONSTRAINT nombre, y ENABLE o DISABLE CONSTRAINT nombre."
+          ],
+          "ejemplo": "ALTER TABLE pedidos\n    ADD CONSTRAINT fk_pedidos_clientes FOREIGN KEY (cliente_id) REFERENCES clientes (id);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ALTER COLUMN en lugar de MODIFY, y sp_rename para renombrar columnas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "ALTER COLUMN … TYPE en lugar de MODIFY."
+        }
+      ],
+      "relacionadas": [
+        "palabra:create-table",
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ALTER TABLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ALTER-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:drop",
+      "categoria": "palabra",
+      "titulo": "DROP: eliminar objetos",
+      "alias": [
+        "drop",
+        "drop table",
+        "if exists",
+        "cascade constraints",
+        "drop procedure",
+        "drop sequence"
+      ],
+      "resumen": "DROP elimina un objeto: una tabla, una secuencia, un procedimiento. Las tablas van a la papelera de reciclaje.",
+      "secciones": [
+        {
+          "titulo": "DROP TABLE en Oracle",
+          "parrafos": [
+            "DROP TABLE nombre manda la tabla a la papelera, de donde se recupera con FLASHBACK TABLE.",
+            "DROP TABLE nombre PURGE la borra definitivamente.",
+            "Si otras tablas apuntan a ella, falla con ORA-02449. CASCADE CONSTRAINTS quita esas llaves foráneas y la borra.",
+            "Desde 23ai, DROP TABLE IF EXISTS nombre no da error si la tabla no existe.",
+            "Hace COMMIT automático."
+          ],
+          "ejemplo": "DROP TABLE IF EXISTS tmp_prueba PURGE;\nDROP SEQUENCE sec_facturas;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DROP TABLE IF EXISTS existe desde 2016, y la tabla se borra para siempre. No tiene CASCADE CONSTRAINTS."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "DROP … IF EXISTS y CASCADE; sin papelera."
+        }
+      ],
+      "relacionadas": [
+        "concepto:papelera",
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DROP TABLE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DROP-TABLE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-nulos",
+      "categoria": "palabra",
+      "titulo": "NVL, NVL2, COALESCE y NULLIF: trabajar con nulos",
+      "alias": [
+        "nvl",
+        "nvl2",
+        "coalesce",
+        "nullif"
+      ],
+      "resumen": "Funciones para reemplazar los NULL por un valor, o para convertir un valor en NULL.",
+      "secciones": [
+        {
+          "titulo": "Las funciones",
+          "parrafos": [
+            "NVL(a, b): si a es NULL devuelve b; si no, a. Es la más usada en Oracle.",
+            "NVL2(a, b, c): si a no es NULL devuelve b; si es NULL, c.",
+            "COALESCE(a, b, c, …): devuelve el primer valor que no sea NULL. Es la versión estándar y admite muchos argumentos.",
+            "NULLIF(a, b): devuelve NULL si a y b son iguales; si no, a. Sirve para evitar divisiones entre cero: total / NULLIF(cantidad, 0)."
+          ],
+          "ejemplo": "SELECT nombre,\n       NVL(correo, 'sin correo') AS correo,\n       COALESCE(correo, nombre) AS contacto,\n       NVL2(correo, 'tiene correo', 'sin correo') AS estado\nFROM clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ISNULL(a, b) en lugar de NVL; COALESCE y NULLIF son iguales."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "COALESCE y NULLIF; no tiene NVL ni NVL2."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "palabra:decode-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "NVL (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/NVL.html"
+        },
+        {
+          "titulo": "COALESCE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/COALESCE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:decode-case",
+      "categoria": "palabra",
+      "titulo": "CASE y DECODE: elegir un valor según condiciones",
+      "alias": [
+        "case",
+        "when",
+        "then",
+        "else",
+        "decode"
+      ],
+      "resumen": "CASE devuelve un valor distinto según las condiciones. DECODE es la versión antigua y propia de Oracle.",
+      "secciones": [
+        {
+          "titulo": "CASE",
+          "parrafos": [
+            "CASE WHEN condición THEN valor … ELSE valor END. Evalúa las condiciones en orden y devuelve la primera que se cumple.",
+            "Si ninguna se cumple y no hay ELSE, devuelve NULL.",
+            "La forma simple compara una sola expresión: CASE estado WHEN 'P' THEN 'Pendiente' WHEN 'E' THEN 'Enviado' END."
+          ],
+          "ejemplo": "SELECT nombre, precio,\n       CASE WHEN precio < 10 THEN 'barato'\n            WHEN precio < 50 THEN 'medio'\n            ELSE 'caro' END AS rango\nFROM productos;"
+        },
+        {
+          "titulo": "DECODE",
+          "parrafos": [
+            "DECODE(expresión, valor1, resultado1, valor2, resultado2, …, predeterminado) compara la expresión con cada valor.",
+            "A diferencia del =, DECODE considera iguales dos NULL. Es común en código antiguo; para código nuevo, CASE es más claro."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CASE igual, e IIF(condición, sí, no) para dos casos. No tiene DECODE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CASE igual; no tiene DECODE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:funciones-nulos",
+        "plsql:if-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CASE Expressions (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CASE-Expressions.html"
+        },
+        {
+          "titulo": "DECODE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DECODE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:fechas",
+      "categoria": "palabra",
+      "titulo": "Funciones de fecha: SYSDATE, TO_CHAR, TO_DATE y otras",
+      "alias": [
+        "sysdate",
+        "systimestamp",
+        "to_char",
+        "to_date",
+        "trunc",
+        "add_months",
+        "months_between",
+        "extract",
+        "current_date"
+      ],
+      "resumen": "Las funciones para obtener la fecha actual, convertir entre fechas y textos, y calcular con fechas.",
+      "secciones": [
+        {
+          "titulo": "Fecha actual y conversiones",
+          "parrafos": [
+            "SYSDATE es la fecha y hora del servidor como DATE; SYSTIMESTAMP, con fracciones y zona horaria.",
+            "TO_CHAR(fecha, 'DD/MM/YYYY HH24:MI') convierte una fecha en texto con el formato que quieras. YYYY es el año, MM el mes, DD el día, HH24 la hora de 0 a 23, MI los minutos y SS los segundos.",
+            "TO_DATE('31/10/2026', 'DD/MM/YYYY') convierte un texto en fecha. El literal DATE '2026-10-31' es más corto y no depende del formato.",
+            "Cuidado: MM es el mes y MI son los minutos."
+          ],
+          "ejemplo": "SELECT TO_CHAR(SYSDATE, 'DD/MM/YYYY HH24:MI') AS ahora,\n       TO_CHAR(SYSDATE, 'Day DD \"de\" Month', 'NLS_DATE_LANGUAGE=SPANISH') AS en_letras\nFROM dual;"
+        },
+        {
+          "titulo": "Cálculos",
+          "parrafos": [
+            "Sumar números a un DATE suma días: SYSDATE + 7 es dentro de una semana. Restar dos fechas da los días entre ellas.",
+            "ADD_MONTHS(fecha, 3) suma meses. MONTHS_BETWEEN(a, b) da los meses entre dos fechas.",
+            "TRUNC(fecha) quita la hora. TRUNC(fecha, 'MM') da el primer día del mes.",
+            "EXTRACT(YEAR FROM fecha) saca una parte: YEAR, MONTH o DAY."
+          ],
+          "ejemplo": "SELECT id, fecha, TRUNC(SYSDATE) - TRUNC(fecha) AS dias_desde_el_pedido\nFROM pedidos\nWHERE fecha >= ADD_MONTHS(TRUNC(SYSDATE), -1);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "GETDATE() o SYSDATETIME(), FORMAT y CONVERT para convertir, y DATEADD y DATEDIFF para calcular."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "now(), CURRENT_DATE, date_trunc, extract, age y to_char."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "tipo:timestamp",
+        "concepto:dual"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SYSDATE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SYSDATE.html"
+        },
+        {
+          "titulo": "TO_CHAR (datetime) (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TO_CHAR-datetime.html"
+        },
+        {
+          "titulo": "TO_DATE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TO_DATE.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:bloque",
+      "categoria": "plsql",
+      "titulo": "Bloque PL/SQL: DECLARE, BEGIN, EXCEPTION y END",
+      "alias": [
+        "declare",
+        "begin",
+        "end",
+        "exception",
+        "bloque",
+        "bloque anónimo",
+        "pl/sql",
+        "plsql",
+        "/",
+        "barra"
+      ],
+      "resumen": "PL/SQL es el lenguaje de programación de Oracle. Su unidad básica es el bloque, con una parte de declaraciones, una de instrucciones y una de manejo de errores.",
+      "secciones": [
+        {
+          "titulo": "Las partes",
+          "parrafos": [
+            "DECLARE, opcional: aquí se declaran variables, constantes y cursores.",
+            "BEGIN, obligatorio: las instrucciones, cada una terminada en punto y coma.",
+            "EXCEPTION, opcional: qué hacer si ocurre un error.",
+            "END; cierra el bloque. Un bloque sin nombre se llama bloque anónimo; se ejecuta una vez y no se guarda."
+          ],
+          "ejemplo": "DECLARE\n    v_total NUMBER;\nBEGIN\n    SELECT COUNT(*) INTO v_total FROM clientes;\n    DBMS_OUTPUT.PUT_LINE('Hay ' || v_total || ' clientes');\nEXCEPTION\n    WHEN OTHERS THEN\n        DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);\nEND;\n/"
+        },
+        {
+          "titulo": "La barra / en el editor",
+          "parrafos": [
+            "Dentro de un bloque hay muchos puntos y coma, así que el editor no puede cortar en ellos. Por eso el bloque termina en una línea que solo tiene una barra /.",
+            "Esto vale para BEGIN, DECLARE y para CREATE PROCEDURE, FUNCTION, PACKAGE, TRIGGER y TYPE. Las sentencias SQL normales terminan en punto y coma.",
+            "Si un error ocurre dentro del bloque, Oracle dice en qué línea del bloque fue, y esta aplicación lo traduce a la línea real del editor."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "T-SQL no separa SQL y programación: las variables se declaran con DECLARE @nombre en cualquier lote, y los lotes se separan con GO."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "DO $$ BEGIN … END $$; sin la barra /. El cuerpo va entre signos de dólar."
+        }
+      ],
+      "relacionadas": [
+        "plsql:variables",
+        "plsql:excepciones",
+        "plsql:dbms-output"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Block (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/block.html"
+        },
+        {
+          "titulo": "PL/SQL Language Fundamentals (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-language-fundamentals.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:variables",
+      "categoria": "plsql",
+      "titulo": "Variables, constantes, %TYPE y %ROWTYPE",
+      "alias": [
+        "variable",
+        "constant",
+        "constante",
+        "%type",
+        "%rowtype",
+        ":=",
+        "into",
+        "select into"
+      ],
+      "resumen": "Las variables guardan valores mientras corre el bloque. %TYPE y %ROWTYPE copian el tipo de una columna o de una fila entera.",
+      "secciones": [
+        {
+          "titulo": "Declarar y asignar",
+          "parrafos": [
+            "Se declaran en DECLARE: v_nombre VARCHAR2(100); y se asignan con dos puntos igual: v_nombre := 'Ana';.",
+            "CONSTANT crea un valor que no cambia: c_iva CONSTANT NUMBER := 0.13;.",
+            "v_precio productos.precio%TYPE toma el mismo tipo que la columna. Si la columna cambia, la variable también.",
+            "v_cliente clientes%ROWTYPE guarda una fila completa; sus campos se leen como v_cliente.nombre."
+          ],
+          "ejemplo": "DECLARE\n    v_cliente clientes%ROWTYPE;\n    c_iva CONSTANT NUMBER := 0.13;\nBEGIN\n    SELECT * INTO v_cliente FROM clientes WHERE id = 1;\n    DBMS_OUTPUT.PUT_LINE(v_cliente.nombre);\nEND;\n/"
+        },
+        {
+          "titulo": "SELECT INTO",
+          "parrafos": [
+            "SELECT … INTO variable lee una fila hacia variables. Debe devolver exactamente una fila.",
+            "Si no devuelve ninguna, lanza NO_DATA_FOUND; si devuelve varias, TOO_MANY_ROWS. Para varias filas se usa un cursor."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DECLARE @nombre nvarchar(100) = 'Ana'; y SET o SELECT @variable = columna para asignar."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual en PL/pgSQL, con %TYPE, %ROWTYPE y record; SELECT INTO sin filas deja NULL salvo con STRICT."
+        }
+      ],
+      "relacionadas": [
+        "plsql:bloque",
+        "plsql:cursores",
+        "plsql:excepciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "%TYPE Attribute (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/TYPE-attribute.html"
+        },
+        {
+          "titulo": "PL/SQL Language Fundamentals (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-language-fundamentals.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:if-case",
+      "categoria": "plsql",
+      "titulo": "IF y CASE en PL/SQL",
+      "alias": [
+        "if",
+        "elsif",
+        "end if",
+        "case",
+        "end case"
+      ],
+      "resumen": "IF ejecuta instrucciones según una condición. CASE elige entre varias opciones.",
+      "secciones": [
+        {
+          "titulo": "IF",
+          "parrafos": [
+            "IF condición THEN … ELSIF otra THEN … ELSE … END IF;",
+            "Ojo: es ELSIF, sin la e de ELSE. Y siempre termina en END IF con punto y coma."
+          ],
+          "ejemplo": "DECLARE\n    v_precio NUMBER := 45;\nBEGIN\n    IF v_precio < 10 THEN\n        DBMS_OUTPUT.PUT_LINE('barato');\n    ELSIF v_precio < 50 THEN\n        DBMS_OUTPUT.PUT_LINE('medio');\n    ELSE\n        DBMS_OUTPUT.PUT_LINE('caro');\n    END IF;\nEND;\n/"
+        },
+        {
+          "titulo": "CASE",
+          "parrafos": [
+            "Como instrucción termina en END CASE; y, si ninguna opción se cumple y no hay ELSE, lanza el error CASE_NOT_FOUND.",
+            "Como expresión, dentro de una asignación, termina en END y devuelve NULL si nada se cumple, igual que en SQL."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "IF condición BEGIN … END ELSE BEGIN … END; no tiene ELSIF ni CASE como instrucción."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual en PL/pgSQL; acepta ELSIF y ELSEIF."
+        }
+      ],
+      "relacionadas": [
+        "plsql:bucles",
+        "palabra:decode-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/SQL Control Statements (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-control-statements.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:bucles",
+      "categoria": "plsql",
+      "titulo": "Bucles: LOOP, WHILE y FOR",
+      "alias": [
+        "loop",
+        "end loop",
+        "while",
+        "for",
+        "exit",
+        "exit when",
+        "continue",
+        "reverse"
+      ],
+      "resumen": "Los bucles repiten instrucciones. PL/SQL tiene el LOOP básico, el WHILE y el FOR con contador.",
+      "secciones": [
+        {
+          "titulo": "Los tres bucles",
+          "parrafos": [
+            "LOOP … END LOOP; repite hasta que un EXIT WHEN condición lo detiene.",
+            "WHILE condición LOOP … END LOOP; repite mientras la condición sea verdadera.",
+            "FOR i IN 1..10 LOOP … END LOOP; cuenta de 1 a 10. La variable i se declara sola. Con REVERSE cuenta hacia atrás.",
+            "CONTINUE salta a la siguiente vuelta."
+          ],
+          "ejemplo": "BEGIN\n    FOR i IN 1..5 LOOP\n        CONTINUE WHEN MOD(i, 2) = 0;\n        DBMS_OUTPUT.PUT_LINE('Impar: ' || i);\n    END LOOP;\nEND;\n/"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Solo tiene WHILE, con BREAK y CONTINUE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "LOOP, WHILE, FOR y además FOREACH para arreglos."
+        }
+      ],
+      "relacionadas": [
+        "plsql:cursores",
+        "plsql:if-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/SQL Control Statements (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-control-statements.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:cursores",
+      "categoria": "plsql",
+      "titulo": "Cursores: recorrer varias filas",
+      "alias": [
+        "cursor",
+        "open",
+        "close",
+        "%found",
+        "%notfound",
+        "%rowcount",
+        "sql%rowcount",
+        "cursor for loop"
+      ],
+      "resumen": "Un cursor permite recorrer, una por una, las filas de una consulta dentro de PL/SQL.",
+      "secciones": [
+        {
+          "titulo": "El FOR de cursor, la forma fácil",
+          "parrafos": [
+            "FOR fila IN (SELECT …) LOOP … END LOOP; abre la consulta, recorre cada fila y la cierra solo. Es la forma recomendada.",
+            "Cada fila se lee como fila.columna."
+          ],
+          "ejemplo": "BEGIN\n    FOR p IN (SELECT nombre, precio FROM productos ORDER BY precio) LOOP\n        DBMS_OUTPUT.PUT_LINE(p.nombre || ': ' || p.precio);\n    END LOOP;\nEND;\n/"
+        },
+        {
+          "titulo": "Cursor explícito",
+          "parrafos": [
+            "Se declara con CURSOR nombre IS SELECT …; y se usa con OPEN, FETCH nombre INTO variables y CLOSE.",
+            "nombre%NOTFOUND es verdadero cuando ya no quedan filas; nombre%ROWCOUNT cuenta las leídas.",
+            "Tras un INSERT, UPDATE o DELETE, SQL%ROWCOUNT dice cuántas filas tocó."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DECLARE c CURSOR FOR …, OPEN, FETCH NEXT FROM c INTO …, y @@FETCH_STATUS para saber si quedan filas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "FOR fila IN SELECT … LOOP es lo habitual; también hay cursores con OPEN y FETCH."
+        }
+      ],
+      "relacionadas": [
+        "plsql:bucles",
+        "plsql:variables"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Cursor FOR LOOP Statement (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/cursor-FOR-LOOP-statement.html"
+        },
+        {
+          "titulo": "Static SQL: cursores (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/static-sql.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:excepciones",
+      "categoria": "plsql",
+      "titulo": "Excepciones: manejar errores",
+      "alias": [
+        "exception",
+        "when others",
+        "raise",
+        "raise_application_error",
+        "no_data_found",
+        "too_many_rows",
+        "zero_divide",
+        "dup_val_on_index",
+        "sqlerrm",
+        "sqlcode"
+      ],
+      "resumen": "Cuando algo falla en PL/SQL se lanza una excepción. La sección EXCEPTION decide qué hacer con ella.",
+      "secciones": [
+        {
+          "titulo": "Excepciones con nombre",
+          "parrafos": [
+            "NO_DATA_FOUND: un SELECT INTO no encontró filas. TOO_MANY_ROWS: encontró varias.",
+            "ZERO_DIVIDE: división entre cero. DUP_VAL_ON_INDEX: se repitió un valor único o de la clave.",
+            "WHEN OTHERS atrapa cualquier error. SQLCODE da el número y SQLERRM el mensaje."
+          ],
+          "ejemplo": "DECLARE\n    v_nombre clientes.nombre%TYPE;\nBEGIN\n    SELECT nombre INTO v_nombre FROM clientes WHERE id = 999;\nEXCEPTION\n    WHEN NO_DATA_FOUND THEN\n        DBMS_OUTPUT.PUT_LINE('No existe ese cliente');\n    WHEN OTHERS THEN\n        DBMS_OUTPUT.PUT_LINE('Error ' || SQLCODE || ': ' || SQLERRM);\nEND;\n/"
+        },
+        {
+          "titulo": "Lanzar tus propios errores",
+          "parrafos": [
+            "RAISE_APPLICATION_ERROR(-20001, 'mensaje') lanza un error con tu propio número, entre -20000 y -20999.",
+            "RAISE sin nombre, dentro de un manejador, vuelve a lanzar el error para que lo vea quien llamó.",
+            "Un WHEN OTHERS que no hace nada esconde los errores: es mejor registrarlos o volver a lanzarlos."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "BEGIN TRY … END TRY BEGIN CATCH … END CATCH, con ERROR_MESSAGE() y THROW."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "EXCEPTION WHEN division_by_zero, unique_violation u OTHERS, con SQLERRM y SQLSTATE; RAISE EXCEPTION para lanzar errores."
+        }
+      ],
+      "relacionadas": [
+        "plsql:bloque",
+        "plsql:variables"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/SQL Error Handling (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-error-handling.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:dbms-output",
+      "categoria": "plsql",
+      "titulo": "DBMS_OUTPUT.PUT_LINE: mostrar mensajes",
+      "alias": [
+        "dbms_output",
+        "put_line",
+        "dbms_output.put_line",
+        "put",
+        "serveroutput",
+        "set serveroutput on",
+        "print"
+      ],
+      "resumen": "DBMS_OUTPUT.PUT_LINE escribe un mensaje que aparece al terminar el bloque. Sirve para ver valores y depurar.",
+      "secciones": [
+        {
+          "titulo": "Uso",
+          "parrafos": [
+            "DBMS_OUTPUT.PUT_LINE('texto') escribe una línea. Para mezclar textos y números se concatena con ||.",
+            "Los mensajes se guardan en un búfer y se muestran cuando el bloque termina, no mientras corre.",
+            "En SQL*Plus y SQL Developer hay que activar la salida con SET SERVEROUTPUT ON. En esta aplicación ya está activada: los mensajes aparecen en el panel de mensajes, como PRINT en SQL Server."
+          ],
+          "ejemplo": "DECLARE\n    v_total NUMBER;\nBEGIN\n    SELECT COUNT(*) INTO v_total FROM productos;\n    DBMS_OUTPUT.PUT_LINE('Hoy es ' || TO_CHAR(SYSDATE, 'DD/MM/YYYY'));\n    DBMS_OUTPUT.PUT_LINE('Productos: ' || v_total);\nEND;\n/"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "PRINT 'texto', que también aparece en el panel de mensajes."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "RAISE NOTICE 'texto %', valor;"
+        }
+      ],
+      "relacionadas": [
+        "plsql:bloque",
+        "plsql:procedimientos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DBMS_OUTPUT (Oracle PL/SQL Packages and Types Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/arpls/DBMS_OUTPUT.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:procedimientos",
+      "categoria": "plsql",
+      "titulo": "Procedimientos y funciones",
+      "alias": [
+        "procedure",
+        "procedimiento",
+        "function",
+        "función",
+        "create procedure",
+        "create function",
+        "return",
+        "in",
+        "out",
+        "in out",
+        "call",
+        "exec",
+        "execute"
+      ],
+      "resumen": "Un procedimiento es un bloque con nombre que se guarda en la base y se puede llamar muchas veces. Una función además devuelve un valor.",
+      "secciones": [
+        {
+          "titulo": "Crear y llamar",
+          "parrafos": [
+            "CREATE OR REPLACE PROCEDURE nombre (parámetros) AS … BEGIN … END; y una barra / para terminar.",
+            "Los parámetros son IN para recibir datos, que es lo predeterminado, OUT para devolverlos e IN OUT para ambos.",
+            "Un procedimiento se llama desde un bloque: BEGIN nombre(1); END; o con CALL nombre(1).",
+            "Una función lleva RETURN tipo en la cabecera y RETURN valor en el cuerpo. Se puede usar dentro de un SELECT."
+          ],
+          "ejemplo": "CREATE OR REPLACE FUNCTION precio_con_iva (p_precio NUMBER) RETURN NUMBER AS\nBEGIN\n    RETURN ROUND(p_precio * 1.13, 2);\nEND;\n/\n\nSELECT nombre, precio_con_iva(precio) FROM productos;"
+        },
+        {
+          "titulo": "Errores de compilación",
+          "parrafos": [
+            "Si el código tiene errores, Oracle igual crea el procedimiento, pero queda inválido y no se puede usar.",
+            "Esta aplicación lee los errores de la vista ALL_ERRORS y los muestra en el panel de mensajes con su línea y columna reales. Con Ir a la línea llegas al lugar exacto."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE PROCEDURE nombre @param int AS BEGIN … END, que se llama con EXEC nombre 1. Las funciones también usan RETURNS."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE FUNCTION y CREATE PROCEDURE, que se llama con CALL."
+        }
+      ],
+      "relacionadas": [
+        "plsql:paquetes",
+        "plsql:bloque",
+        "concepto:diccionario"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/SQL Subprograms (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-subprograms.html"
+        },
+        {
+          "titulo": "CREATE PROCEDURE Statement (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/CREATE-PROCEDURE-statement.html"
+        },
+        {
+          "titulo": "CREATE FUNCTION Statement (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/CREATE-FUNCTION-statement.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:disparadores",
+      "categoria": "plsql",
+      "titulo": "Disparadores (triggers)",
+      "alias": [
+        "trigger",
+        "disparador",
+        "create trigger",
+        "before",
+        "after",
+        "instead of",
+        "for each row",
+        ":new",
+        ":old",
+        "inserting",
+        "updating",
+        "deleting"
+      ],
+      "resumen": "Un disparador es código que Oracle ejecuta solo, antes o después de un INSERT, UPDATE o DELETE en una tabla.",
+      "secciones": [
+        {
+          "titulo": "Partes",
+          "parrafos": [
+            "BEFORE o AFTER indican cuándo se ejecuta; INSERT, UPDATE o DELETE, con qué sentencia.",
+            "FOR EACH ROW lo ejecuta una vez por fila. Sin eso se ejecuta una vez por sentencia.",
+            ":NEW.columna es el valor nuevo y :OLD.columna el anterior. En un BEFORE se puede cambiar :NEW.",
+            "INSERTING, UPDATING y DELETING dicen qué sentencia lo disparó."
+          ],
+          "ejemplo": "CREATE OR REPLACE TRIGGER tr_productos_precio\nBEFORE INSERT OR UPDATE OF precio ON productos\nFOR EACH ROW\nBEGIN\n    IF :NEW.precio < 0 THEN\n        RAISE_APPLICATION_ERROR(-20001, 'El precio no puede ser negativo');\n    END IF;\nEND;\n/"
+        },
+        {
+          "titulo": "Recomendaciones",
+          "parrafos": [
+            "Para reglas simples es mejor una restricción CHECK; los disparadores son más difíciles de seguir.",
+            "En código antiguo se usaba un BEFORE INSERT con una secuencia para llenar el Id. Hoy se usa GENERATED AS IDENTITY."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Los disparadores son AFTER o INSTEAD OF, uno por sentencia, y usan las tablas inserted y deleted en lugar de :NEW y :OLD."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Una función que devuelve trigger, y CREATE TRIGGER … EXECUTE FUNCTION; usa NEW y OLD sin dos puntos."
+        }
+      ],
+      "relacionadas": [
+        "concepto:secuencias",
+        "concepto:check",
+        "plsql:procedimientos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/SQL Triggers (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-triggers.html"
+        },
+        {
+          "titulo": "CREATE TRIGGER Statement (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/CREATE-TRIGGER-statement.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:paquetes",
+      "categoria": "plsql",
+      "titulo": "Paquetes: especificación y cuerpo",
+      "alias": [
+        "package",
+        "paquete",
+        "package body",
+        "create package",
+        "create package body"
+      ],
+      "resumen": "Un paquete agrupa procedimientos, funciones, tipos y variables relacionados. Tiene una parte pública, la especificación, y una privada, el cuerpo.",
+      "secciones": [
+        {
+          "titulo": "Las dos partes",
+          "parrafos": [
+            "CREATE PACKAGE nombre AS … END; declara lo que se puede usar desde afuera: las cabeceras de procedimientos y funciones.",
+            "CREATE PACKAGE BODY nombre AS … END; contiene el código. Cada parte termina con su propia barra /.",
+            "Se llama con nombre_paquete.procedimiento, como en DBMS_OUTPUT.PUT_LINE, que es un procedimiento del paquete DBMS_OUTPUT.",
+            "Si cambias el cuerpo sin tocar la especificación, el código que usa el paquete no necesita recompilarse."
+          ],
+          "ejemplo": "CREATE OR REPLACE PACKAGE tienda_pkg AS\n    FUNCTION total_pedido (p_pedido_id NUMBER) RETURN NUMBER;\nEND;\n/\n\nCREATE OR REPLACE PACKAGE BODY tienda_pkg AS\n    FUNCTION total_pedido (p_pedido_id NUMBER) RETURN NUMBER AS\n        v_total NUMBER;\n    BEGIN\n        SELECT SUM(cantidad * precio_unitario) INTO v_total\n        FROM pedido_productos WHERE pedido_id = p_pedido_id;\n        RETURN NVL(v_total, 0);\n    END;\nEND;\n/"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene paquetes; los procedimientos se agrupan por esquema."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No tiene paquetes; las funciones se agrupan en esquemas."
+        }
+      ],
+      "relacionadas": [
+        "plsql:procedimientos",
+        "plsql:dbms-output"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PL/SQL Packages (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/plsql-packages.html"
+        },
+        {
+          "titulo": "CREATE PACKAGE Statement (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/CREATE-PACKAGE-statement.html"
+        }
+      ]
+    },
+    {
+      "id": "atajos:aplicacion",
+      "categoria": "atajos",
+      "titulo": "Atajos de teclado de Mi Gestor BD Accesible",
+      "alias": [
+        "atajos",
+        "teclas",
+        "teclado",
+        "f1",
+        "f5",
+        "f6",
+        "f8",
+        "menú",
+        "aplicaciones"
+      ],
+      "resumen": "Las teclas para moverte por la aplicación sin ratón.",
+      "secciones": [
+        {
+          "titulo": "En cualquier lugar",
+          "parrafos": [
+            "F1: abre la ayuda del elemento donde estás. En el editor, explica la palabra de SQL bajo el cursor. Si no hay ayuda para ese elemento, abre la portada.",
+            "F8: vuelve al explorador de objetos, al último nodo donde estabas.",
+            "Control+N: abre una consulta conectada a la base de datos del nodo donde estás. Si ya hay una abierta, cambia su base y conserva el texto.",
+            "Control+T: abre otra pestaña de consulta en la base del nodo (o en la de la pestaña actual, si estás en el editor). Control+W cierra la pestaña activa y Control+Tab o Control+Mayúsculas+Tab cambian de pestaña. En la lista de pestañas, las flechas izquierda y derecha pasan de una a otra.",
+            "F5: ejecuta la consulta completa, o solo el texto seleccionado.",
+            "F6 y Mayúsculas+F6: pasan entre el editor, los resultados y los mensajes, hacia adelante o hacia atrás.",
+            "Control+O: abre un archivo .sql en el editor. Si hay cambios sin guardar, primero pregunta si quieres guardarlos.",
+            "Control+S: guarda la consulta en su archivo; la primera vez pregunta dónde. Control+Mayúsculas+S: guarda en un archivo nuevo.",
+            "Control+H: muestra el historial de consultas ejecutadas en esta conexión, de la más reciente a la más antigua.",
+            "Control+F: abre la barra para buscar y reemplazar en la consulta. Intro va a la siguiente coincidencia y Mayúsculas+Intro a la anterior; Escape vuelve al editor con el cursor sobre la coincidencia. F3 y Mayúsculas+F3 siguen buscando desde el editor.",
+            "Control+B: busca un objeto por su nombre en la base (tablas, columnas, vistas, procedimientos, funciones, índices, restricciones, disparadores y secuencias). Las flechas recorren los resultados e Intro lleva al objeto en el árbol. Control+B otra vez recupera la última búsqueda.",
+            "Alt o F10: activa la barra de menús (Archivo, Editar, Consulta y Ayuda), con todas las acciones principales y sus atajos. Las flechas recorren los menús, Intro elige una opción y Escape vuelve a donde estabas."
+          ]
+        },
+        {
+          "titulo": "En el editor con Oracle",
+          "parrafos": [
+            "Cada sentencia SQL termina en punto y coma. Los bloques PL/SQL, como BEGIN, DECLARE o CREATE PROCEDURE, terminan en una línea que solo tiene una barra /.",
+            "Los cambios de INSERT, UPDATE, DELETE y MERGE quedan pendientes hasta que ejecutes COMMIT; ROLLBACK los deshace. Mientras haya cambios pendientes, verás un aviso sobre los resultados.",
+            "Cada pestaña tiene su propia sesión: un COMMIT o un ROLLBACK en una pestaña no toca los cambios de otra, y otra pestaña no ve tus cambios hasta que los confirmes.",
+            "Los mensajes de DBMS_OUTPUT.PUT_LINE aparecen en el panel de mensajes, y los errores de compilación de PL/SQL traen su línea y columna."
+          ]
+        },
+        {
+          "titulo": "En los resultados y los mensajes",
+          "parrafos": [
+            "Cada resultado es una tabla: usa los comandos de tabla de tu lector de pantalla para moverte por filas y columnas. La primera columna es el número de fila.",
+            "En los mensajes, cada error tiene un botón «Ir a la línea» que lleva el cursor del editor al comienzo de esa línea.",
+            "Cada resultado tiene los botones «Copiar tabla», que la copia separada por tabulaciones para pegarla en una hoja de cálculo, y «Exportar a CSV». Con la tecla 3 de tu lector de pantalla saltas de un resultado al siguiente."
+          ]
+        },
+        {
+          "titulo": "En el explorador de objetos",
+          "parrafos": [
+            "Flecha abajo y flecha arriba: siguiente y anterior nodo.",
+            "Flecha derecha: expande el nodo; si ya está expandido, entra al primer hijo.",
+            "Flecha izquierda: contrae el nodo; si ya está contraído, sube al padre.",
+            "Inicio y Fin: primer y último nodo visible.",
+            "Intro: sobre una tabla, la describe; sobre una carpeta, la expande o la contrae.",
+            "Tecla Aplicaciones o Mayúsculas+F10: abre el menú de acciones del nodo, como Nueva consulta, Nueva tabla, Seleccionar las primeras 100 filas, Generar script o Eliminar."
+          ]
+        },
+        {
+          "titulo": "En el menú de acciones",
+          "parrafos": [
+            "Flecha abajo y flecha arriba recorren las acciones; Inicio y Fin van a la primera y a la última. Una letra salta a la siguiente acción que empieza con ella.",
+            "Intro o Espacio ejecutan la acción. Escape o Tab cierran el menú y vuelven al nodo.",
+            "Las acciones que terminan en puntos suspensivos abren un cuadro de diálogo que muestra el SQL antes de ejecutarlo. Las de eliminar piden confirmación."
+          ]
+        },
+        {
+          "titulo": "En la ayuda",
+          "parrafos": [
+            "Escape: cierra la ayuda y vuelve al lugar donde estabas.",
+            "Los temas relacionados son botones: actívalos con Intro para abrir esa ficha. El botón Atrás vuelve a la ficha anterior."
+          ]
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [],
+      "fuentes": []
+    }
+  ]
+}
