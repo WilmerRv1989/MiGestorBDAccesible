@@ -1,21 +1,17 @@
 ## Resumen
 
-<!-- Qué cambia y por qué, en pocas frases. -->
+Qué cambia y por qué, en pocas frases.
 
 Cierra #
 
-## Criterios de aceptación y pruebas
+## Pruebas
 
-<!-- Una línea por criterio: AC-n, las pruebas que lo demuestran y su
-resultado. Bórrala si el cambio no tiene criterios. -->
+Qué pruebas cubren el cambio y su resultado. Si el issue tiene criterios de aceptación (AC-1, AC-2…), una línea por criterio con la prueba que lo demuestra.
 
 ## Verificación
 
-<!-- «dotnet build» y «dotnet test», con su resultado. Di qué comprobaciones
-no se ejecutaron y por qué. Si el cambio se ve o se oye, di si se probó con un
-lector de pantalla y con cuál. -->
+El resultado de dotnet build y dotnet test, y qué comprobaciones no se hicieron y por qué. Si el cambio se ve o se oye, con qué lector de pantalla se probó.
 
 ## Documentación
 
-<!-- Qué se revisó y qué cambió: README, MANUAL.md, fichas de ayuda (F1).
-«No hace falta nada» es válido después de revisarlo. -->
+Qué se revisó y qué cambió: README, MANUAL.md o las fichas de ayuda (F1). Si no hace falta nada, dilo.
