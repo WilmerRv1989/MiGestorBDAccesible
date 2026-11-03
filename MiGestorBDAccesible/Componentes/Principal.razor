@@ -1,4 +1,5 @@
 @implements IDisposable
+@inject AlmacenConexionesService almacen
 @inject ProveedoresService proveedores
 @inject AnunciadorService anunciador
 @inject IJSRuntime js
@@ -203,11 +204,17 @@
             return;
         }
 
+        var contrasena = almacen.ObtenerContrasena(conexion);
+        if (contrasena.Estado == EstadoContrasena.NoDescifrable)
+        {
+            EditarConexion(conexion);
+            return;
+        }
+
         _conectando = true;
         await anunciador.AnunciarAsync($"Conectando a {conexion.Nombre}…");
 
-        var contrasena = AlmacenConexionesService.ObtenerContrasena(conexion);
-        var resultado = await proveedores.Obtener(conexion.Motor).ProbarConexionAsync(conexion, contrasena);
+        var resultado = await proveedores.Obtener(conexion.Motor).ProbarConexionAsync(conexion, contrasena.Texto);
 
         _conectando = false;
 
@@ -217,7 +224,7 @@
             return;
         }
 
-        _conexionActiva = new ConexionActiva(conexion, contrasena, resultado);
+        _conexionActiva = new ConexionActiva(conexion, contrasena.Texto, resultado);
         _vista = Vista.Conectado;
 
         if (resultado.Advertencia is not null)

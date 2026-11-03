@@ -30,7 +30,9 @@ namespace MiGestorBDAccesible.Modelos
 
         public bool TieneContrasenaGuardada { get; set; }
 
-        public static FormularioConexionModelo Desde(ConexionModelo conexion) => new()
+        public bool ContrasenaNoDescifrable { get; set; }
+
+        public static FormularioConexionModelo Desde(ConexionModelo conexion, ContrasenaGuardada contrasena) => new()
         {
             Nombre = conexion.Nombre,
             Motor = conexion.Motor,
@@ -41,7 +43,8 @@ namespace MiGestorBDAccesible.Modelos
             ConfiarCertificado = conexion.ConfiarCertificado,
             BaseDatosInicial = conexion.BaseDatosInicial,
             NombreServicio = conexion.NombreServicio,
-            TieneContrasenaGuardada = !string.IsNullOrEmpty(conexion.ContrasenaCifrada)
+            TieneContrasenaGuardada = contrasena.Estado == EstadoContrasena.Disponible,
+            ContrasenaNoDescifrable = contrasena.Estado == EstadoContrasena.NoDescifrable
         };
 
         public void AplicarA(ConexionModelo conexion)
@@ -73,7 +76,9 @@ namespace MiGestorBDAccesible.Modelos
                 && string.IsNullOrEmpty(Contrasena)
                 && !TieneContrasenaGuardada)
             {
-                yield return new ValidationResult("Escribe la contraseña.", [nameof(Contrasena)]);
+                yield return new ValidationResult(ContrasenaNoDescifrable
+                    ? ContrasenaGuardada.AvisoNoDescifrable
+                    : "Escribe la contraseña.", [nameof(Contrasena)]);
             }
         }
     }

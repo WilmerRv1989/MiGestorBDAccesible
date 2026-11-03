@@ -64,7 +64,7 @@ namespace MiGestorBDAccesible.Pruebas
         public void EtiquetaDiceNombreBaseYEstado()
         {
             var conjunto = new ConjuntoPestanasModelo();
-            var pestana = conjunto.Abrir("tienda", "SELECT 1", @"C:\sql\ventas.sql");
+            var pestana = conjunto.Abrir("tienda", "SELECT 1", Path.Combine(Path.GetTempPath(), "sql", "ventas.sql"));
             pestana.Texto = "SELECT 2";
             pestana.CambiosPendientes = true;
 
@@ -78,7 +78,7 @@ namespace MiGestorBDAccesible.Pruebas
         {
             var conjunto = new ConjuntoPestanasModelo();
             conjunto.Abrir("a", "SELECT 1");
-            var segunda = conjunto.Abrir("b", "SELECT 2", @"C:\x.sql");
+            var segunda = conjunto.Abrir("b", "SELECT 2", Path.Combine(Path.GetTempPath(), "x.sql"));
             conjunto.Abrir("c", titulo: "Script CREATE de la vista v");
             conjunto.Activar(segunda);
 

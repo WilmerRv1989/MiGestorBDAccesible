@@ -29,7 +29,8 @@ namespace MiGestorBDAccesible.Core.Conexiones
             _ => 3306
         };
 
-        public static bool AdmiteAutenticacionWindows(this TipoMotor motor) => motor == TipoMotor.SqlServer;
+        public static bool AdmiteAutenticacionWindows(this TipoMotor motor) =>
+            motor == TipoMotor.SqlServer && OperatingSystem.IsWindows();
 
         public static bool UsaNombreServicio(this TipoMotor motor) => motor == TipoMotor.Oracle;
 

@@ -60,6 +60,11 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
 
         public static string CadenaConexion(ConexionModelo conexion, string? contrasena, string? baseDatos = null)
         {
+            if (conexion.Autenticacion == TipoAutenticacion.Windows && !TipoMotor.SqlServer.AdmiteAutenticacionWindows())
+            {
+                throw new InvalidOperationException("La autenticación de Windows solo está disponible en Windows.");
+            }
+
             var constructor = new SqlConnectionStringBuilder
             {
                 DataSource = conexion.Puerto.HasValue

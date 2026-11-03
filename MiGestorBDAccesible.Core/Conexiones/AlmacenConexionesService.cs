@@ -1,7 +1,5 @@
 using System.Globalization;
 using System.Runtime.ExceptionServices;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -17,6 +15,7 @@ namespace MiGestorBDAccesible.Core.Conexiones
 
         private readonly string _rutaArchivo;
         private readonly TimeProvider _reloj;
+        private readonly IProtectorContrasenas _protector;
         private readonly SemaphoreSlim _cerrojo = new(1, 1);
 
         public AlmacenConexionesService()
@@ -33,8 +32,10 @@ namespace MiGestorBDAccesible.Core.Conexiones
         {
             _rutaArchivo = rutaArchivo;
             _reloj = reloj;
+            _protector = OperatingSystem.IsWindows()
+                ? new ProtectorDpapi()
+                : new ProtectorDataProtection(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(rutaArchivo))!, "claves"));
         }
-
         public async Task<ResultadoCargaConexiones> CargarAsync()
         {
             await _cerrojo.WaitAsync();
@@ -76,7 +77,7 @@ namespace MiGestorBDAccesible.Core.Conexiones
         {
             if (!string.IsNullOrEmpty(contrasenaNueva))
             {
-                conexion.ContrasenaCifrada = Cifrar(contrasenaNueva);
+                conexion.ContrasenaCifrada = _protector.Proteger(contrasenaNueva);
             }
 
             if (conexion.Autenticacion == TipoAutenticacion.Windows)
@@ -123,29 +124,9 @@ namespace MiGestorBDAccesible.Core.Conexiones
             }
         }
 
-        public static string? ObtenerContrasena(ConexionModelo conexion)
+        public ContrasenaGuardada ObtenerContrasena(ConexionModelo conexion)
         {
-            if (string.IsNullOrEmpty(conexion.ContrasenaCifrada))
-            {
-                return null;
-            }
-
-            var datos = ProtectedData.Unprotect(
-                Convert.FromBase64String(conexion.ContrasenaCifrada),
-                null,
-                DataProtectionScope.CurrentUser);
-
-            return Encoding.UTF8.GetString(datos);
-        }
-
-        private static string Cifrar(string texto)
-        {
-            var datos = ProtectedData.Protect(
-                Encoding.UTF8.GetBytes(texto),
-                null,
-                DataProtectionScope.CurrentUser);
-
-            return Convert.ToBase64String(datos);
+            return _protector.Desproteger(conexion.ContrasenaCifrada);
         }
 
         private async Task<List<ConexionModelo>> LeerParaModificarAsync()
