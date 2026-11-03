@@ -20,9 +20,18 @@ namespace MiGestorBDAccesible.Core.Conexiones
 
         public string Proteger(string texto)
         {
-            var cifrada = CrearProtector().Protect(texto);
-            CorregirPermisosArchivos();
-            return cifrada;
+            try
+            {
+                var cifrada = CrearProtector().Protect(texto);
+                CorregirPermisosArchivos();
+                return cifrada;
+            }
+            catch (Exception error) when (error is CryptographicException or XmlException)
+            {
+                throw new IOException($"No se pudo cifrar la contraseña con las claves guardadas en «{_carpetaClaves}». " +
+                    "Antes de volver a guardar, restaura un anillo de claves válido o guarda una copia y aparta la carpeta «claves» dañada para crear un anillo nuevo. " +
+                    "No se ha borrado ninguna clave.", error);
+            }
         }
 
         public ContrasenaGuardada Desproteger(string? cifrada)
