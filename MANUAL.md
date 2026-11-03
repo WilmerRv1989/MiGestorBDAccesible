@@ -92,6 +92,20 @@ Al conectarte, la aplicación anuncia el servidor y su versión, y recupera las 
 
 Usa el botón **Desconectar**, arriba en la ventana, o **Archivo, Desconectar**. Si tienes cambios sin confirmar en alguna pestaña o en el panel de editar filas, la aplicación te pregunta antes si quieres confirmarlos (COMMIT) o deshacerlos (ROLLBACK).
 
+### Si no se pueden leer las conexiones guardadas
+
+Tus conexiones se guardan en `%APPDATA%\MiGestorBDAccesible\conexiones.json`. Si el archivo está vacío, dañado o no contiene una lista válida, la aplicación lo conserva en la misma carpeta con el nombre `conexiones.json.danado-AAAAMMDD-HHMMSS`, con la fecha y hora local. Si ya existe una copia con ese nombre, añade un sufijo como `-2` para no sobrescribirla. La lista se abre vacía y puedes guardar conexiones nuevas.
+
+Si solo algunas conexiones no se pueden leer, por ejemplo porque usan un motor desconocido, la aplicación conserva una copia exacta del archivo original y guarda de nuevo las conexiones legibles, ordenadas por nombre. Al volver a abrir la lista no se descartan otra vez ni se crea otra copia. Las copias se conservan aunque guardes conexiones después; la aplicación no ofrece restaurarlas.
+
+Al abrir la lista, el lector de pantalla anuncia lo ocurrido después de enfocar el título: si el archivo estaba dañado, cuántas conexiones se descartaron y, cuando hay una copia, su nombre y su carpeta. El aviso también aparece en la lista.
+
+Si otro programa bloquea el archivo o no tienes permiso para leerlo, la aplicación anuncia el error y deja el archivo intacto, sin moverlo ni copiarlo. Hasta resolverlo, no puedes guardar ni eliminar conexiones. Si lo intentas, el lector anuncia el error de forma urgente; al guardar, conservas los datos del formulario y el foco para poder reintentarlo.
+
+Si se pudieron leer algunas conexiones pero falla la copia o la reescritura del archivo, la lista muestra las conexiones legibles, ordenadas por nombre. El aviso indica cuántas se descartaron, el error al conservar o reescribir el archivo y que no puedes guardar ni eliminar conexiones hasta resolverlo. Si se llegó a crear la copia, también indica su nombre y su carpeta.
+
+Al guardar, la aplicación escribe primero en un archivo temporal en la misma carpeta y solo sustituye `conexiones.json` cuando termina. Si falla la escritura, conserva completo el archivo anterior.
+
 ## El explorador de objetos
 
 El explorador es un árbol. Muestra el servidor, sus bases de datos (en Oracle, sus esquemas) y, dentro de cada una, carpetas con sus objetos: Tablas, Vistas, Procedimientos, Funciones, Secuencias y, en Oracle, Paquetes. Cada carpeta dice cuántos objetos tiene. Dentro de cada tabla hay carpetas con sus columnas, llaves, índices, restricciones CHECK y disparadores.
