@@ -81,11 +81,13 @@
         <div class="campo">
             <label for="contrasena">Contraseña</label>
             <InputText id="contrasena" type="password" @bind-Value="_formulario.Contrasena"
-                       autocomplete="off" aria-describedby="ayuda-contrasena" />
+                       @ref="_campoContrasena" autocomplete="off" aria-describedby="ayuda-contrasena" />
             <span id="ayuda-contrasena" class="ayuda">
-                @(_formulario.TieneContrasenaGuardada
-                    ? "Hay una contraseña guardada. Déjala vacía para conservarla."
-                    : "Se guarda cifrada con tu usuario de Windows.")
+                @(_formulario.ContrasenaNoDescifrable
+                    ? ContrasenaGuardada.AvisoNoDescifrable
+                    : _formulario.TieneContrasenaGuardada
+                        ? "Hay una contraseña guardada. Déjala vacía para conservarla."
+                        : "Se guarda cifrada para usarla en este equipo.")
             </span>
             <ValidationMessage For="() => _formulario.Contrasena" />
         </div>
@@ -127,11 +129,12 @@
     private FormularioConexionModelo _formulario = new();
     private EditContext _contexto = default!;
     private ElementReference _titulo;
+    private InputText? _campoContrasena;
     private bool _probando;
 
     protected override void OnInitialized()
     {
-        _formulario = Conexion is null ? new() : FormularioConexionModelo.Desde(Conexion);
+        _formulario = Conexion is null ? new() : FormularioConexionModelo.Desde(Conexion, almacen.ObtenerContrasena(Conexion));
         _contexto = new EditContext(_formulario);
     }
 
@@ -139,7 +142,14 @@
     {
         if (firstRender)
         {
-            await _titulo.FocusAsync();
+            if (_formulario.ContrasenaNoDescifrable)
+            {
+                await AvisarContrasenaAsync();
+            }
+            else
+            {
+                await _titulo.FocusAsync();
+            }
         }
     }
 
@@ -172,6 +182,13 @@
 
     private async Task ProbarAsync()
     {
+        var contrasena = ObtenerContrasenaActual();
+        if (contrasena.Estado == EstadoContrasena.NoDescifrable)
+        {
+            await AvisarContrasenaAsync();
+            return;
+        }
+
         if (!_contexto.Validate())
         {
             await AnunciarErroresAsync();
@@ -184,11 +201,7 @@
         var prueba = new ConexionModelo();
         _formulario.AplicarA(prueba);
 
-        var contrasena = string.IsNullOrEmpty(_formulario.Contrasena) && Conexion is not null
-            ? AlmacenConexionesService.ObtenerContrasena(Conexion)
-            : _formulario.Contrasena;
-
-        var resultado = await proveedores.Obtener(prueba.Motor).ProbarConexionAsync(prueba, contrasena);
+        var resultado = await proveedores.Obtener(prueba.Motor).ProbarConexionAsync(prueba, contrasena.Texto);
 
         _probando = false;
 
@@ -208,6 +221,12 @@
 
     private async Task GuardarAsync()
     {
+        if (ObtenerContrasenaActual().Estado == EstadoContrasena.NoDescifrable)
+        {
+            await AvisarContrasenaAsync();
+            return;
+        }
+
         var conexion = Conexion ?? new ConexionModelo();
         _formulario.AplicarA(conexion);
 
@@ -226,9 +245,41 @@
 
     private async Task AnunciarErroresAsync()
     {
+        if (_formulario.ContrasenaNoDescifrable && string.IsNullOrEmpty(_formulario.Contrasena)
+            && _formulario.Autenticacion == TipoAutenticacion.UsuarioYContrasena)
+        {
+            await AvisarContrasenaAsync();
+            return;
+        }
+
         var errores = _contexto.GetValidationMessages().ToList();
         var resumen = errores.Count == 1 ? "Falta 1 dato" : $"Faltan {errores.Count} datos";
 
         await anunciador.AnunciarUrgenteAsync($"{string.Join(" ", errores)} {resumen}.");
+    }
+
+    private ContrasenaGuardada ObtenerContrasenaActual()
+    {
+        if (_formulario.Autenticacion == TipoAutenticacion.Windows)
+        {
+            return ContrasenaGuardada.SinContrasena;
+        }
+
+        return !string.IsNullOrEmpty(_formulario.Contrasena)
+            ? ContrasenaGuardada.Disponible(_formulario.Contrasena)
+            : Conexion is not null ? almacen.ObtenerContrasena(Conexion) : ContrasenaGuardada.SinContrasena;
+    }
+
+    private async Task AvisarContrasenaAsync()
+    {
+        _formulario.TieneContrasenaGuardada = false;
+        _formulario.ContrasenaNoDescifrable = true;
+        StateHasChanged();
+        if (_campoContrasena?.Element is { } campo)
+        {
+            await campo.FocusAsync();
+        }
+
+        await anunciador.AnunciarUrgenteAsync(ContrasenaGuardada.AvisoNoDescifrable);
     }
 }

@@ -82,6 +82,12 @@ Las opciones que necesitan una conexión o una consulta abierta se anuncian como
 
 La contraseña se guarda cifrada con tu cuenta de Windows: nadie más puede leerla, ni siquiera copiando tus archivos a otro equipo.
 
+Si una contraseña guardada no se puede descifrar, al conectar, probar o editar oirás «La contraseña guardada no se puede usar en este equipo. Vuelve a escribirla.». La aplicación abre el formulario de edición y coloca el foco en **Contraseña**. Escribe de nuevo la contraseña y guarda la conexión; hasta entonces no se intenta conectar con la contraseña inutilizable. La ayuda del campo te pide escribirla de nuevo en lugar de ofrecer conservarla.
+
+La ventana de la aplicación sigue siendo solo para Windows. El núcleo, las pruebas y las herramientas también funcionan en macOS. Allí las contraseñas se protegen con ASP.NET Core Data Protection y sus claves se guardan en la subcarpeta `claves`, junto a `conexiones.json`, con acceso solo para tu usuario (carpeta 700 y archivos 600). Conserva esa carpeta: si se pierde o se daña, tendrás que volver a escribir las contraseñas. Las contraseñas cifradas no se pueden trasladar entre Windows y macOS. En Windows se mantiene el cifrado DPAPI compatible con la versión 1.0.
+
+La autenticación de Windows de SQL Server solo se puede usar en Windows. En macOS las conexiones guardadas con ella siguen en la lista, pero al probarlas o abrirlas se informa «La autenticación de Windows solo está disponible en Windows.» antes de intentar conectar.
+
 ### Conectarte, editar y eliminar
 
 Cada conexión de la lista tiene tres botones: **Conectar**, **Editar** y **Eliminar**. Eliminar pide confirmación y solo borra la conexión guardada, no la base de datos.
