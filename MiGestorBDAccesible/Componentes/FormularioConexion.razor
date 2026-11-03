@@ -211,7 +211,16 @@
         var conexion = Conexion ?? new ConexionModelo();
         _formulario.AplicarA(conexion);
 
-        await almacen.GuardarAsync(conexion, _formulario.Contrasena);
+        try
+        {
+            await almacen.GuardarAsync(conexion, _formulario.Contrasena);
+        }
+        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo guardar la conexión. Tus datos siguen en el formulario. {error.Message}");
+            return;
+        }
+
         await AlTerminar.InvokeAsync($"Conexión {conexion.Nombre} guardada.");
     }
 

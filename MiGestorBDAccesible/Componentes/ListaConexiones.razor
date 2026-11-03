@@ -9,11 +9,16 @@
 }
 else
 {
-    @if (_conexiones.Count == 0)
+    @if (!string.IsNullOrEmpty(_avisoCarga))
+    {
+        <p>@_avisoCarga</p>
+    }
+
+    @if (_conexiones.Count == 0 && string.IsNullOrEmpty(_avisoCarga))
     {
         <p>Todavía no tienes conexiones guardadas. Crea la primera con el botón Nueva conexión.</p>
     }
-    else
+    else if (_conexiones.Count > 0)
     {
         <ul class="lista-conexiones" aria-label="Conexiones guardadas">
             @foreach (var conexion in _conexiones)
@@ -60,6 +65,9 @@ else
     [Parameter] public EventCallback<ConexionModelo> AlConectar { get; set; }
 
     private List<ConexionModelo>? _conexiones;
+    private string? _avisoCarga;
+    private bool _tituloEnfocado;
+    private bool _cargaAnunciada;
     private ConexionModelo? _pendienteEliminar;
     private bool _enfocarConfirmacion;
     private ElementReference _titulo;
@@ -67,7 +75,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _conexiones = await almacen.ListaAsync();
+        await CargarAsync();
+    }
+
+    private async Task CargarAsync()
+    {
+        var resultado = await almacen.CargarAsync();
+        _conexiones = resultado.Conexiones;
+        _avisoCarga = AlmacenConexionesService.DescribirCarga(resultado);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -75,10 +90,16 @@ else
         if (firstRender)
         {
             await _titulo.FocusAsync();
+            _tituloEnfocado = true;
+        }
 
-            if (!string.IsNullOrEmpty(Aviso))
+        if (_tituloEnfocado && _conexiones is not null && !_cargaAnunciada)
+        {
+            _cargaAnunciada = true;
+            var mensaje = string.Join(" ", new[] { Aviso, _avisoCarga }.Where(aviso => !string.IsNullOrEmpty(aviso)));
+            if (!string.IsNullOrEmpty(mensaje))
             {
-                await AnunciarTrasFocoAsync(Aviso);
+                await AnunciarTrasFocoAsync(mensaje);
             }
         }
 
@@ -103,13 +124,22 @@ else
 
     private async Task EliminarAsync(ConexionModelo conexion)
     {
-        await almacen.EliminarAsync(conexion.Id);
+        try
+        {
+            await almacen.EliminarAsync(conexion.Id);
+        }
+        catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
+        {
+            await anunciador.AnunciarUrgenteAsync($"No se pudo eliminar la conexión. {error.Message}");
+            return;
+        }
+
         _pendienteEliminar = null;
-        _conexiones = await almacen.ListaAsync();
+        await CargarAsync();
 
         StateHasChanged();
         await _titulo.FocusAsync();
-        await AnunciarTrasFocoAsync($"Conexión {conexion.Nombre} eliminada. Quedan {_conexiones.Count}.");
+        await AnunciarTrasFocoAsync($"Conexión {conexion.Nombre} eliminada. Quedan {_conexiones!.Count}. {_avisoCarga}");
     }
 
     private async Task AnunciarTrasFocoAsync(string mensaje)
