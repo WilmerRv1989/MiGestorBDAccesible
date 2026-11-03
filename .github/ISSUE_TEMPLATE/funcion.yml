@@ -1,0 +1,29 @@
+name: Función nueva
+description: Algo que el programa todavía no hace.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema
+      description: A quién afecta y qué no puede hacer hoy.
+    validations:
+      required: true
+  - type: textarea
+    id: alcance
+    attributes:
+      label: Alcance
+      description: Qué incluye y, de forma explícita, qué queda fuera.
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: Uno por cada comportamiento observable, numerados AC-1, AC-2, cada uno como CUANDO <situación> ENTONCES <resultado observable>, con el nivel de prueba más bajo que lo demuestra. Lo que solo se puede comprobar con un lector de pantalla se marca como manual.
+      placeholder: |
+        - AC-1 (unitaria): CUANDO ... ENTONCES ...
+        - AC-2 (manual, NVDA): CUANDO ... ENTONCES ...
+  - type: textarea
+    id: riesgos
+    attributes:
+      label: Decisiones y riesgos
+      description: Dependencias, motores afectados y riesgos abiertos.

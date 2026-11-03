@@ -1,0 +1,30 @@
+name: Error
+description: Algo no funciona como debería.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: observado
+    attributes:
+      label: Qué pasa
+      description: Lo que ocurre, con los pasos exactos para repetirlo, el motor de base de datos y el lector de pantalla que usas.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas que pasara
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Información de la versión
+      description: En el menú Ayuda, abre Acerca de, usa «Copiar la información de la versión» y pégala aquí.
+      render: text
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      description: Opcional, para quien vaya a corregirlo. La prueba de regresión que debe fallar antes del arreglo y pasar después, como CUANDO ... ENTONCES ..., numerada AC-n.
+      placeholder: |
+        - AC-1 (unitaria): CUANDO ... ENTONCES ...
