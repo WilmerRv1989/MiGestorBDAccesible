@@ -34,7 +34,6 @@ namespace MiGestorBDAccesible.Core.Conexiones
             _rutaArchivo = rutaArchivo;
             _reloj = reloj;
         }
-
         public async Task<ResultadoCargaConexiones> CargarAsync()
         {
             await _cerrojo.WaitAsync();
@@ -123,19 +122,9 @@ namespace MiGestorBDAccesible.Core.Conexiones
             }
         }
 
-        public static string? ObtenerContrasena(ConexionModelo conexion)
+        public ContrasenaGuardada ObtenerContrasena(ConexionModelo conexion)
         {
-            if (string.IsNullOrEmpty(conexion.ContrasenaCifrada))
-            {
-                return null;
-            }
-
-            var datos = ProtectedData.Unprotect(
-                Convert.FromBase64String(conexion.ContrasenaCifrada),
-                null,
-                DataProtectionScope.CurrentUser);
-
-            return Encoding.UTF8.GetString(datos);
+            throw new NotImplementedException();
         }
 
         private static string Cifrar(string texto)

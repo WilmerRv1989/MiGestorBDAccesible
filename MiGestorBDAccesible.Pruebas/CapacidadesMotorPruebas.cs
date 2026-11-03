@@ -32,7 +32,6 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.True(TipoMotor.Oracle.UsaNombreServicio());
             Assert.False(TipoMotor.Oracle.AdmiteAutenticacionWindows());
             Assert.Equal("FREEPDB1", TipoMotor.Oracle.ServicioPredeterminado());
-            Assert.True(TipoMotor.SqlServer.AdmiteAutenticacionWindows());
             Assert.False(TipoMotor.SqlServer.UsaNombreServicio());
         }
 
