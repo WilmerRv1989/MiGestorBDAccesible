@@ -1,0 +1,33 @@
+# La aplicación apunta a net10.0-windows con WPF, así que solo compila y se
+# prueba en Windows. Este trabajo ejecuta lo mismo que «dotnet build» y
+# «dotnet test» en un equipo con Windows, en cada pull request y en cada push
+# a main. El checkout no guarda el token en .git/config, y cada acción está
+# fijada por el SHA completo de su commit.
+name: compilacion
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  compilar:
+    name: Compilar y probar
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Compilar y probar
+        shell: pwsh
+        run: |
+          dotnet build MiGestorBDAccesible.sln --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test MiGestorBDAccesible.sln --no-build --nologo
+          exit $LASTEXITCODE

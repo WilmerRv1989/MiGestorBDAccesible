@@ -1,0 +1,5 @@
+# Los archivos se guardan con LF y varias pruebas comparan scripts generados
+# con cadenas literales de varias líneas. Con core.autocrlf=true, que es lo
+# habitual en Windows y en los runners de GitHub Actions, esas cadenas pasan a
+# tener CRLF y las pruebas fallan. Se fija LF en el árbol de trabajo para C#.
+*.cs text eol=lf
