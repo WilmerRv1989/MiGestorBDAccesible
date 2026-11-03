@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace MiGestorBDAccesible.Core.Conexiones
 {
     public enum EstadoContrasena
@@ -26,5 +28,11 @@ namespace MiGestorBDAccesible.Core.Conexiones
         public EstadoContrasena Estado { get; }
 
         public string? Texto { get; }
+
+        private bool PrintMembers(StringBuilder texto)
+        {
+            texto.Append($"Estado = {Estado}");
+            return true;
+        }
     }
 }
