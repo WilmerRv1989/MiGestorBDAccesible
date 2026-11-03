@@ -295,7 +295,6 @@ namespace MiGestorBDAccesible.Core.Conexiones
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException)
                 {
-                    // La limpieza no debe ocultar el error original de escritura.
                 }
             }
         }

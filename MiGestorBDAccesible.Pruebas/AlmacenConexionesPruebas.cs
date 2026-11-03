@@ -182,8 +182,6 @@ namespace MiGestorBDAccesible.Pruebas
 
         private static string ArchivoValido => $"[{Conexion("alfa", "SqlServer")}]";
 
-        // Dos conexiones legibles, una de un motor que esta versión no conoce y
-        // un elemento que no es un objeto.
         private static string ArchivoParcial =>
             $"[{Conexion("beta", "PostgreSql")}, {Conexion("gamma", "Firebird")}, {Conexion("alfa", "Oracle")}, 42]";
 
@@ -216,8 +214,6 @@ namespace MiGestorBDAccesible.Pruebas
             protected override Stream AbrirParaEscribir(string ruta) => new FlujoQueFalla(ruta);
         }
 
-        // Escribe los primeros bytes en el archivo y luego falla, como un corte a
-        // mitad de guardado.
         private sealed class FlujoQueFalla(string ruta) : FileStream(ruta, FileMode.Create, FileAccess.Write, FileShare.None)
         {
             private const int Limite = 16;

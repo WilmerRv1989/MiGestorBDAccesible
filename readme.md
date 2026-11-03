@@ -20,8 +20,9 @@ Mi Gestor BD Accesible está pensado para usarse por completo con el teclado y u
 * **Para entender una base:** describir el modelo completo, con el orden de carga y los posibles problemas; el camino de JOIN entre dos tablas; buscar cualquier objeto por su nombre; y ver qué objetos usa cada uno y quién lo usa.
 * **Ayuda con F1** sobre la palabra de SQL que tienes bajo el cursor, con ejemplos para tu motor, y un **manual de usuario** completo.
 * **Una barra de menús** con Alt o F10, para descubrir todo lo que hace el programa y sus atajos.
+* **Avisos de versiones nuevas:** el programa te dice cuándo hay una actualización y la instala con tu permiso.
 
-Funciona en Windows 10 y 11 de 64 bits. Lo pruebo a diario con NVDA. No necesita Internet y no envía ningún dato: tus conexiones y sus contraseñas se quedan en tu equipo, cifradas con tu cuenta de Windows.
+Funciona en Windows 10 y 11 de 64 bits. Lo pruebo a diario con NVDA. No necesita internet para trabajar. Solo se conecta a GitHub para saber si hay una versión nueva, una vez al día como mucho, y puedes desactivarlo. No envía tus datos ni tus conexiones: tus contraseñas se quedan en tu equipo, cifradas con tu cuenta de Windows.
 
 ## Cómo instalarlo
 

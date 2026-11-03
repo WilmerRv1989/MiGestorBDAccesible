@@ -26,7 +26,7 @@ if ($LASTEXITCODE -ne 0) { throw "No se pudo exportar el manual." }
 & $makensis /V2 "/DVERSION=$version" "/DVERSION_CORTA=$versionCorta" "/DFUENTE=$publicado" "/DSALIDA=$instalador" $script
 if ($LASTEXITCODE -ne 0) { throw "NSIS no pudo crear el instalador." }
 
-$manual = Join-Path $salida "Manual de Mi Gestor BD Accesible $versionCorta.html"
+$manual = Join-Path $salida "MiGestorBDAccesible-$versionCorta-manual.html"
 Copy-Item (Join-Path $publicado "Manual.html") $manual -Force
 
 $tamano = [math]::Round((Get-Item $instalador).Length / 1MB, 1)

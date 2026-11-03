@@ -156,8 +156,19 @@ window.miGestor = {
             case "ayuda": this.abrirAyuda(); break;
             case "atajos": this.abrirAyudaCon("atajos:aplicacion"); break;
             case "manual": this.abrirAyudaCon("manual"); break;
+            case "actualizaciones": this.abrirActualizaciones(); break;
             case "acercaDe": this.abrirAyudaCon("acerca-de"); break;
         }
+    },
+
+    abrirActualizaciones() {
+        if (!this._ayuda || this.dialogoAbierto()) {
+            return;
+        }
+
+        const activo = document.activeElement;
+        this._focoPrevio = activo && activo !== document.body ? activo : null;
+        this._ayuda.invokeMethodAsync("AbrirActualizaciones");
     },
 
     enfocarSeccion(id) {

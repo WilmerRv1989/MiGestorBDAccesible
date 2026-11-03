@@ -1,3 +1,5 @@
+using MiGestorBDAccesible.Core;
+using MiGestorBDAccesible.Core.Actualizaciones;
 using MiGestorBDAccesible.Core.Ayuda;
 using MiGestorBDAccesible.Core.Conexiones;
 using MiGestorBDAccesible.Core.Definicion;
@@ -36,6 +38,8 @@ namespace MiGestorBDAccesible
             servicios.AddSingleton<ArchivosService>();
             servicios.AddSingleton<HistorialConsultasService>();
             servicios.AddSingleton<SesionEditorService>();
+            servicios.AddSingleton<PreferenciasService>();
+            servicios.AddSingleton(new ActualizacionesService(ActualizacionesService.CrearCliente(InformacionAplicacion.VersionCompleta(typeof(MainWindow).Assembly))));
 
             var proveedor = servicios.BuildServiceProvider();
             _proveedores = proveedor.GetRequiredService<ProveedoresService>();
@@ -45,6 +49,15 @@ namespace MiGestorBDAccesible
 
             vistaBlazor.BlazorWebViewInitialized += ConfigurarVistaWeb;
             Closing += AlCerrar;
+            Closed += AlTerminarDeCerrar;
+        }
+
+        private void AlTerminarDeCerrar(object? sender, EventArgs e)
+        {
+            if (ActualizacionPendiente.Instalador is { } instalador && System.IO.File.Exists(instalador))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(instalador) { UseShellExecute = true });
+            }
         }
 
         private async void AlCerrar(object? sender, CancelEventArgs e)
@@ -65,6 +78,11 @@ namespace MiGestorBDAccesible
 
             if (respuesta == MessageBoxResult.Cancel)
             {
+                if (ActualizacionPendiente.Instalador is not null)
+                {
+                    ActualizacionPendiente.AvisarCierreCancelado();
+                }
+
                 return;
             }
 

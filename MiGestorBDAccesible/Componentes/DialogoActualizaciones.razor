@@ -1,0 +1,215 @@
+@using MiGestorBDAccesible.Core
+@using MiGestorBDAccesible.Core.Actualizaciones
+@implements IDisposable
+@inject ActualizacionesService actualizaciones
+@inject PreferenciasService preferencias
+@inject AnunciadorService anunciador
+
+<DialogoAccion Titulo="Buscar actualizaciones" AlCancelar="CerrarAsync">
+    @switch (_estado)
+    {
+        case Estado.Buscando:
+            <p>Buscando actualizaciones…</p>
+            break;
+
+        case Estado.Error:
+            <p>No se pudo comprobar si hay una versión nueva. Revisa tu conexión a internet.</p>
+            <p class="ayuda">@_error</p>
+            break;
+
+        case Estado.AlDia:
+            <p>Tienes la versión más reciente: @VersionActual.</p>
+            break;
+
+        default:
+            <p>Tienes la versión @VersionActual. Hay una versión nueva: @_publicada!.VersionCorta.</p>
+            @if (_estado == Estado.Descargando)
+            {
+                <p>Descargando la versión @_publicada.VersionCorta: @_porcentaje %.</p>
+            }
+            else if (_estado == Estado.Descargada)
+            {
+                <p>Descarga comprobada. @InformacionAplicacion.Nombre se va a cerrar y se abrirá el instalador.</p>
+            }
+            else if (_estado == Estado.SinInstalar)
+            {
+                <p>La actualización quedó descargada. Puedes volver a elegir Descargar e instalar cuando quieras.</p>
+            }
+            else if (_errorDescarga is not null)
+            {
+                <p class="error">@_errorDescarga</p>
+            }
+            <h3>Qué trae la versión @_publicada.VersionCorta</h3>
+            <div class="manual">@((MarkupString)_notasHtml)</div>
+            break;
+    }
+
+    <div class="campo casilla">
+        <input id="buscar-al-iniciar" type="checkbox" checked="@_buscarAlIniciar" @onchange="CambiarBuscarAlIniciarAsync" />
+        <label for="buscar-al-iniciar">Buscar actualizaciones al iniciar</label>
+    </div>
+
+    <div class="acciones">
+        @if (_publicada is not null && _estado is Estado.Nueva or Estado.SinInstalar)
+        {
+            <button class="principal" disabled="@(_publicada.Instalador is null)" @onclick="DescargarAsync">Descargar e instalar</button>
+        }
+        @if (_estado == Estado.Descargando)
+        {
+            <button @onclick="CancelarDescarga">Cancelar la descarga</button>
+        }
+        @if (_publicada is not null && !string.IsNullOrEmpty(_publicada.Pagina) && _estado is not (Estado.AlDia or Estado.Error))
+        {
+            <a class="boton" href="@_publicada.Pagina" target="_blank" rel="noopener">Abrir la página de la versión</a>
+        }
+        @if (_publicada is not null && _estado is Estado.Nueva or Estado.SinInstalar)
+        {
+            <button @onclick="OmitirAsync">No avisarme de esta versión</button>
+        }
+        <button data-foco-inicial @onclick="CerrarAsync">Cerrar</button>
+    </div>
+</DialogoAccion>
+
+@code {
+    [Parameter] public EventCallback AlCerrar { get; set; }
+
+    private enum Estado { Buscando, Error, AlDia, Nueva, Descargando, Descargada, SinInstalar }
+
+    private Estado _estado = Estado.Buscando;
+    private VersionPublicadaModelo? _publicada;
+    private string _notasHtml = "";
+    private string? _error;
+    private string? _errorDescarga;
+    private bool _buscarAlIniciar = true;
+    private int _porcentaje;
+    private CancellationTokenSource? _descarga;
+
+    private static string VersionCompleta => InformacionAplicacion.VersionCompleta(typeof(DialogoActualizaciones).Assembly);
+
+    private static string VersionActual => InformacionAplicacion.VersionCorta(VersionCompleta);
+
+    protected override async Task OnInitializedAsync()
+    {
+        ActualizacionPendiente.CierreCancelado += CierreCancelado;
+        _buscarAlIniciar = (await preferencias.LeerAsync()).BuscarAlIniciar;
+        await BuscarAsync();
+    }
+
+    private async Task BuscarAsync()
+    {
+        try
+        {
+            _publicada = await actualizaciones.ConsultarAsync();
+            await preferencias.CambiarAsync(p => p.UltimaBusqueda = DateTimeOffset.Now);
+        }
+        catch (Exception ex)
+        {
+            _estado = Estado.Error;
+            _error = ex.Message;
+            await anunciador.AnunciarAsync("No se pudo comprobar si hay una versión nueva. Revisa tu conexión a internet.");
+            return;
+        }
+
+        if (ActualizacionesService.EsMasNueva(_publicada, VersionCompleta))
+        {
+            _estado = Estado.Nueva;
+            _notasHtml = ActualizacionesService.NotasHtml(_publicada.Notas);
+            await anunciador.AnunciarAsync($"Tienes la versión {VersionActual}. Hay una versión nueva: {_publicada.VersionCorta}.");
+        }
+        else
+        {
+            _estado = Estado.AlDia;
+            await anunciador.AnunciarAsync($"Tienes la versión más reciente: {VersionActual}.");
+        }
+    }
+
+    private async Task CambiarBuscarAlIniciarAsync(ChangeEventArgs e)
+    {
+        _buscarAlIniciar = (bool)e.Value!;
+        await preferencias.CambiarAsync(p => p.BuscarAlIniciar = _buscarAlIniciar);
+    }
+
+    private async Task OmitirAsync()
+    {
+        var etiqueta = _publicada!.Etiqueta;
+        await preferencias.CambiarAsync(p => p.VersionOmitida = etiqueta);
+        await anunciador.AnunciarAsync($"No te avisaré al iniciar de la versión {_publicada.VersionCorta}. Puedes instalarla desde aquí cuando quieras.");
+    }
+
+    private async Task DescargarAsync()
+    {
+        _estado = Estado.Descargando;
+        _errorDescarga = null;
+        _porcentaje = 0;
+        _descarga = new CancellationTokenSource();
+        StateHasChanged();
+        await anunciador.AnunciarAsync($"Descargando la versión {_publicada!.VersionCorta}…");
+
+        var avance = new Progress<double>(fraccion =>
+        {
+            var porcentaje = (int)(fraccion * 100);
+
+            if (porcentaje != _porcentaje)
+            {
+                _porcentaje = porcentaje;
+                StateHasChanged();
+            }
+        });
+
+        string ruta;
+
+        try
+        {
+            ruta = await actualizaciones.DescargarAsync(_publicada, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "MiGestorBDAccesible"), avance, _descarga.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            _estado = Estado.Nueva;
+            await anunciador.AnunciarAsync("Descarga cancelada.");
+            return;
+        }
+        catch (Exception ex)
+        {
+            _estado = Estado.Nueva;
+            _errorDescarga = ex is HuellaIncorrectaException ? ex.Message : $"No se pudo descargar la versión nueva. {ex.Message}";
+            await anunciador.AnunciarUrgenteAsync(_errorDescarga);
+            return;
+        }
+        finally
+        {
+            _descarga = null;
+        }
+
+        _estado = Estado.Descargada;
+        StateHasChanged();
+        await anunciador.AnunciarAsync($"Descarga comprobada. {InformacionAplicacion.Nombre} se va a cerrar y se abrirá el instalador.");
+        await Task.Delay(3000);
+
+        ActualizacionPendiente.Instalador = ruta;
+        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => System.Windows.Application.Current.MainWindow?.Close());
+    }
+
+    private void CierreCancelado()
+    {
+        InvokeAsync(async () =>
+        {
+            _estado = Estado.SinInstalar;
+            StateHasChanged();
+            await anunciador.AnunciarAsync("La actualización quedó descargada. Puedes volver a elegir Descargar e instalar cuando quieras.");
+        });
+    }
+
+    private void CancelarDescarga() => _descarga?.Cancel();
+
+    private async Task CerrarAsync()
+    {
+        _descarga?.Cancel();
+        await AlCerrar.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        ActualizacionPendiente.CierreCancelado -= CierreCancelado;
+        _descarga?.Cancel();
+    }
+}

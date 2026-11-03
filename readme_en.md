@@ -22,8 +22,9 @@ The program and its manual are in Spanish.
 * **To understand a database:** describe the whole model, with the load order and possible problems; the JOIN path between two tables; find any object by name; and see what each object uses and what uses it.
 * **Help with F1** on the SQL word under the cursor, with examples for your engine, and a complete **user manual**.
 * **A menu bar** with Alt or F10, to discover everything the program does and its shortcuts.
+* **New version notices:** the program tells you when an update is available and installs it with your permission.
 
-It runs on 64-bit Windows 10 and 11. I test it every day with NVDA. It does not need the Internet and does not send any data: your connections and their passwords stay on your computer, encrypted with your Windows account.
+It runs on 64-bit Windows 10 and 11. I test it every day with NVDA. It does not need the Internet to work. It only connects to GitHub to check whether there is a new version, at most once a day, and you can turn that off. It does not send your data or your connections: your passwords stay on your computer, encrypted with your Windows account.
 
 ## How to install it
 

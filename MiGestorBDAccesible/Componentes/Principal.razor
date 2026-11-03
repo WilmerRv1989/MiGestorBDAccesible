@@ -2,12 +2,14 @@
 @inject ProveedoresService proveedores
 @inject AnunciadorService anunciador
 @inject IJSRuntime js
+@inject MiGestorBDAccesible.Core.Actualizaciones.ActualizacionesService actualizaciones
+@inject MiGestorBDAccesible.Core.Actualizaciones.PreferenciasService preferencias
 
 <Anunciador />
 
-<BarraMenus Inerte="_ayudaAbierta" />
+<BarraMenus Inerte="_ayudaAbierta || _actualizacionesAbierto" />
 
-<main class="@(_vista == Vista.Conectado ? "ancho" : null)" inert="@_ayudaAbierta">
+<main class="@(_vista == Vista.Conectado ? "ancho" : null)" inert="@(_ayudaAbierta || _actualizacionesAbierto)">
     <ErrorBoundary @ref="_barrera">
         <ErrorContent Context="error">
             <section role="alert" class="error-inesperado">
@@ -46,6 +48,11 @@
     </ErrorBoundary>
 </main>
 
+@if (_actualizacionesAbierto)
+{
+    <DialogoActualizaciones AlCerrar="CerrarActualizaciones" />
+}
+
 @if (_ayudaAbierta)
 {
     <DialogoAyuda Motor="_conexionActiva?.Conexion.Motor ?? TipoMotor.SqlServer"
@@ -71,6 +78,7 @@
         _barrera?.Recover();
     }
     private bool _ayudaAbierta;
+    private bool _actualizacionesAbierto;
     private bool _restaurarFoco;
     private List<string> _temasAyuda = [];
 
@@ -80,6 +88,7 @@
         {
             _referencia = DotNetObjectReference.Create(this);
             await js.InvokeVoidAsync("miGestor.registrarAyuda", _referencia);
+            _ = BuscarActualizacionesAlIniciarAsync();
         }
 
         if (_restaurarFoco)
@@ -98,6 +107,48 @@
             _ayudaAbierta = true;
             StateHasChanged();
         });
+    }
+
+    [JSInvokable]
+    public Task AbrirActualizaciones()
+    {
+        return InvokeAsync(() =>
+        {
+            _actualizacionesAbierto = true;
+            StateHasChanged();
+        });
+    }
+
+    private void CerrarActualizaciones()
+    {
+        _actualizacionesAbierto = false;
+        _restaurarFoco = true;
+    }
+
+    private async Task BuscarActualizacionesAlIniciarAsync()
+    {
+        try
+        {
+            var actuales = await preferencias.LeerAsync();
+
+            if (!MiGestorBDAccesible.Core.Actualizaciones.ActualizacionesService.DebeBuscar(actuales, DateTimeOffset.Now))
+            {
+                return;
+            }
+
+            var publicada = await actualizaciones.ConsultarAsync();
+            await preferencias.CambiarAsync(p => p.UltimaBusqueda = DateTimeOffset.Now);
+            var version = MiGestorBDAccesible.Core.InformacionAplicacion.VersionCompleta(typeof(Principal).Assembly);
+
+            if (MiGestorBDAccesible.Core.Actualizaciones.ActualizacionesService.DebeAvisar(publicada, version, actuales))
+            {
+                await Task.Delay(4000);
+                await anunciador.AnunciarAsync(MiGestorBDAccesible.Core.Actualizaciones.ActualizacionesService.AnuncioAlIniciar(publicada));
+            }
+        }
+        catch (Exception)
+        {
+        }
     }
 
     [JSInvokable]

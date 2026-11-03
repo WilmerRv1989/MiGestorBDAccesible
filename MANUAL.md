@@ -23,7 +23,7 @@ Todo lo que la aplicación hace se anuncia con mensajes que tu lector de pantall
 
 ## Instalar y desinstalar
 
-1. Abre el archivo del instalador, `MiGestorBDAccesible-1.0-instalador.exe`.
+1. Abre el archivo del instalador, que se llama `MiGestorBDAccesible-` seguido del número de versión y `-instalador.exe`.
 2. Como el instalador no tiene firma digital, Windows puede mostrar el aviso «Windows protegió su PC». Elige «Más información» y después el botón «Ejecutar de todas formas».
 3. Sigue el asistente: la bienvenida, la carpeta de instalación y el botón Instalar.
 4. En la última página puedes marcar «Crear un acceso directo en el escritorio» y «Abrir Mi Gestor BD Accesible». Después pulsa Terminar.
@@ -58,7 +58,7 @@ Cada opción dice su atajo de teclado, así la barra también te sirve para apre
 - **Archivo**: Nueva consulta, Nueva pestaña, Abrir archivo, Guardar, Guardar como, Cerrar pestaña, Desconectar y Salir.
 - **Editar**: Buscar y reemplazar, Buscar siguiente, Buscar objeto e Historial de consultas.
 - **Consulta**: Ejecutar y Cancelar la ejecución.
-- **Ayuda**: Ayuda, Atajos de teclado, Manual de usuario y Acerca de Mi Gestor BD Accesible.
+- **Ayuda**: Ayuda, Atajos de teclado, Manual de usuario, Buscar actualizaciones y Acerca de Mi Gestor BD Accesible.
 
 Las opciones que necesitan una conexión o una consulta abierta se anuncian como «no disponible» cuando todavía no se pueden usar. Si eliges una, la aplicación te dice qué le falta.
 
@@ -325,6 +325,35 @@ Escape cierra la ayuda y te devuelve a donde estabas.
 **Windows no me deja abrir el instalador.** Es el aviso de SmartScreen: elige «Más información» y después «Ejecutar de todas formas».
 
 **¿Dónde quedan mis conexiones?** En tu carpeta de usuario de Windows, con las contraseñas cifradas. Desinstalar el programa no las borra.
+
+## Actualizaciones
+
+Mi Gestor BD Accesible te avisa cuando hay una versión nueva y la instala con tu permiso. Nunca se instala nada solo.
+
+### Al iniciar
+
+Una vez al día como mucho, al abrir el programa, se consulta en segundo plano si hay una versión nueva. Si la hay, se anuncia una sola vez, después del título de la lista de conexiones. Si no hay novedades o no hay internet, no se dice nada.
+
+### Buscar actualizaciones
+
+En el menú **Ayuda**, **Buscar actualizaciones…** comprueba en ese momento si hay una versión nueva:
+
+- Si ya tienes la última, te lo dice con tu número de versión.
+- Si hay una nueva, te dice cuál es y muestra qué trae.
+- Si no se puede comprobar, te avisa que revises tu conexión a internet.
+
+Botones:
+
+- **Descargar e instalar**: descarga el instalador, comprueba que sea exactamente el publicado y, si todo está bien, cierra el programa y abre el instalador de siempre. Si tienes cambios sin confirmar, antes te pregunta qué hacer con ellos, como al salir. Tus conexiones, pestañas e historial se conservan.
+- **Abrir la página de la versión**, en tu navegador.
+- **No avisarme de esta versión**: deja de avisarte al iniciar hasta que salga otra más nueva.
+- **Cerrar**.
+
+La casilla **Buscar actualizaciones al iniciar** activa o desactiva la búsqueda automática.
+
+### Qué se envía
+
+Para saber cuál es la última versión, el programa consulta la página pública de versiones del proyecto en GitHub, como cuando abres una página web. No envía tus datos, tus conexiones ni tus consultas.
 
 ## Licencia y código fuente
 

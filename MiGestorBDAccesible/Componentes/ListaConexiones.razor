@@ -139,7 +139,7 @@ else
 
         StateHasChanged();
         await _titulo.FocusAsync();
-        await AnunciarTrasFocoAsync($"Conexión {conexion.Nombre} eliminada. Quedan {_conexiones!.Count}. {_avisoCarga}");
+        await AnunciarTrasFocoAsync(string.Join(" ", new[] { $"Conexión {conexion.Nombre} eliminada.", _avisoCarga, $"Quedan {_conexiones!.Count}." }.Where(parte => !string.IsNullOrEmpty(parte))));
     }
 
     private async Task AnunciarTrasFocoAsync(string mensaje)
