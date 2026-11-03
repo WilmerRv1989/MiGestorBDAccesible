@@ -26,11 +26,23 @@ namespace MiGestorBDAccesible.Core.Conexiones
                 CorregirPermisosArchivos();
                 return cifrada;
             }
-            catch (Exception error) when (error is CryptographicException or XmlException)
+            catch (Exception error) when (error is CryptographicException or IOException or UnauthorizedAccessException)
             {
-                throw new IOException($"No se pudo cifrar la contraseña con las claves guardadas en «{_carpetaClaves}». " +
-                    "Antes de volver a guardar, restaura un anillo de claves válido o guarda una copia y aparta la carpeta «claves» dañada para crear un anillo nuevo. " +
-                    "No se ha borrado ninguna clave.", error);
+                var causa = error;
+                for (Exception? interna = error; interna is not null; interna = interna.InnerException)
+                {
+                    if (interna is XmlException)
+                    {
+                        throw new IOException($"No se pudo cifrar la contraseña con las claves guardadas en «{_carpetaClaves}». " +
+                            "Antes de volver a guardar, restaura un anillo de claves válido o guarda una copia y aparta la carpeta «claves» dañada para crear un anillo nuevo. " +
+                            "No se ha borrado ninguna clave.", error);
+                    }
+
+                    causa = interna;
+                }
+
+                throw new IOException($"No se pudo cifrar la contraseña con las claves de la carpeta «{_carpetaClaves}». " +
+                    $"Comprueba el acceso a la carpeta y el espacio disponible, y vuelve a intentarlo. Detalle: {causa.Message}", error);
             }
         }
 

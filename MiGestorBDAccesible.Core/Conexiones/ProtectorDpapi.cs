@@ -9,8 +9,15 @@ namespace MiGestorBDAccesible.Core.Conexiones
     {
         public string Proteger(string texto)
         {
-            var datos = ProtectedData.Protect(Encoding.UTF8.GetBytes(texto), null, DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(datos);
+            try
+            {
+                var datos = ProtectedData.Protect(Encoding.UTF8.GetBytes(texto), null, DataProtectionScope.CurrentUser);
+                return Convert.ToBase64String(datos);
+            }
+            catch (CryptographicException error)
+            {
+                throw new IOException("No se pudo cifrar la contraseña con tu usuario de Windows. Cierra sesión, vuelve a entrar y prueba de nuevo.", error);
+            }
         }
 
         public ContrasenaGuardada Desproteger(string? cifrada)
