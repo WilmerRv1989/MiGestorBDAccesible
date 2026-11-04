@@ -2895,7 +2895,8 @@
           "titulo": "Uso",
           "parrafos": [
             "Todo lo que va entre $$ y $$ es un texto literal: puede tener comillas simples, puntos y coma y saltos de línea.",
-            "Se puede poner una etiqueta entre los dólares, como $cuerpo$ … $cuerpo$, para anidar un texto con $$ dentro de otro.",
+            "Se puede poner una etiqueta entre los dólares, como $cuerpo$ … $cuerpo$, para anidar un texto con $$ dentro de otro. Las etiquetas admiten letras con acentos, como $función$, y el cierre debe usar la misma etiqueta, respetando mayúsculas y minúsculas.",
+            "Si dejas sin cerrar un texto entre signos de dólar, no se ejecuta nada del script y el error te indica la línea donde empieza el texto.",
             "$1 y $2, en cambio, son parámetros, no signos de dólar de texto."
           ],
           "ejemplo": "SELECT $$Texto con 'comillas' y ; punto y coma$$ AS texto;"
