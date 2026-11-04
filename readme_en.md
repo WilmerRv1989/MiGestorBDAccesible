@@ -67,6 +67,8 @@ The next version will add MySQL, MariaDB and SQLite. If you use another engine o
 
 If something does not work, if you have an idea or you just want to tell me how it went, write to me at contacto@wilmer-rv.com or open an [issue on GitHub](https://github.com/WilmerRv1989/MiGestorBDAccesible/issues). To help me help you, open the About window (Help menu), use "Copiar la información de la versión" (copy version information) and paste it into your message. I read everything.
 
+If you find a security vulnerability, do not report it in a public issue: follow the [security policy](SECURITY.md) to tell me privately.
+
 Made with love by Wilmer Rodríguez Vega ([wilmer-rv.com](https://wilmer-rv.com)).
 
 Licensed under the GNU GPL, version 3 or later, with an [additional permission](EXCEPCION-ORACLE.md) to be used with the official Oracle driver.
