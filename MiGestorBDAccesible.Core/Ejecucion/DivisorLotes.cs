@@ -7,6 +7,8 @@ namespace MiGestorBDAccesible.Core.Ejecucion
 
     public static partial class DivisorLotes
     {
+        public const int RepeticionesMaximas = 10000;
+
         [GeneratedRegex(@"^\s*GO(?:\s+(\d+))?\s*(?:--.*)?$", RegexOptions.IgnoreCase)]
         private static partial Regex SeparadorGo();
 

@@ -78,5 +78,86 @@ namespace MiGestorBDAccesible.Pruebas
 
             Assert.Equal([1, 2], sentencias.Select(s => s.LineaInicial));
         }
+
+        [Fact]
+        public void AC4_ConservaElCuerpoDeUnaFuncionConEtiquetaNoAscii()
+        {
+            var parametros = DivisorPostgreSql.Dividir("SELECT $1a$; SELECT 2;");
+            Assert.Equal(["SELECT $1a$", "SELECT 2"], parametros.Select(s => s.Texto));
+
+            var mayusculas = Assert.Single(DivisorPostgreSql.Dividir("SELECT $A$a;$a$;b$A$;"));
+            Assert.Equal("SELECT $A$a;$a$;b$A$", mayusculas.Texto);
+
+            var funcion = "CREATE FUNCTION f() RETURNS int AS $función$\nBEGIN\n  UPDATE cuentas SET saldo = 0;\n  RETURN 1;\nEND;\n$función$ LANGUAGE plpgsql";
+            var sentencias = DivisorPostgreSql.Dividir(funcion + ";\nSELECT f();");
+
+            Assert.Equal(2, sentencias.Count);
+            Assert.Equal(funcion, sentencias[0].Texto);
+            Assert.Equal(1, sentencias[0].LineaInicial);
+            Assert.Equal(new SentenciaPostgreSql("SELECT f()", 7), sentencias[1]);
+        }
+
+        [Theory]
+        [InlineData("é")]
+        [InlineData("€")]
+        [InlineData("–")]
+        [InlineData("😀")]
+        [InlineData("日本")]
+        [InlineData("\u0080")]
+        [InlineData("\u00a0")]
+        [InlineData("\u0301")]
+        [InlineData("a1é")]
+        [InlineData("_é1")]
+        public void AC4_AdmiteCaracteresNoAsciiEnLasEtiquetas(string etiqueta)
+        {
+            var texto = $"SELECT ${etiqueta}$a;b${etiqueta}$";
+
+            var sentencia = Assert.Single(DivisorPostgreSql.Dividir(texto + ";"));
+
+            Assert.Equal(texto, sentencia.Texto);
+            Assert.Equal(1, sentencia.LineaInicial);
+        }
+
+        [Theory]
+        [InlineData("€")]
+        [InlineData("–")]
+        [InlineData("😀")]
+        [InlineData("\u0080")]
+        [InlineData("\u0301")]
+        public void AC4_NoAbreUnaCadenaDolarDentroDeUnIdentificadorNoAscii(string caracter)
+        {
+            var primera = $"select 1 as x{caracter}$t$";
+            var sentencias = DivisorPostgreSql.Dividir(primera + "; delete from t; select 2 as y$t$;");
+
+            Assert.Equal([primera, "delete from t", "select 2 as y$t$"], sentencias.Select(s => s.Texto));
+        }
+
+        [Theory]
+        [InlineData("$tag$")]
+        [InlineData("$función$")]
+        [InlineData("$€$")]
+        [InlineData("$$")]
+        public void AC5_RechazaUnaCadenaDolarSinCerrarAunqueHayaSentenciasAnteriores(string etiqueta)
+        {
+            var script = $"SELECT 1;\n\nDO\n{etiqueta}\nBEGIN\n  UPDATE cuentas SET saldo = 0;\nEND;";
+
+            var error = Assert.Throws<ScriptNoDivisibleException>(() => DivisorPostgreSql.Dividir(script));
+
+            Assert.Equal(4, error.Linea);
+            Assert.False(string.IsNullOrWhiteSpace(error.Message));
+        }
+
+        [Theory]
+        [InlineData("$A$", "$a$")]
+        [InlineData("$É$", "$é$")]
+        public void AC5_UnaEtiquetaConDistintasMayusculasNoCierraLaCadena(string apertura, string cierre)
+        {
+            var script = $"SELECT 1;\nSELECT\n{apertura}a;\n{cierre};\nUPDATE cuentas SET saldo = 0;";
+
+            var error = Assert.Throws<ScriptNoDivisibleException>(() => DivisorPostgreSql.Dividir(script));
+
+            Assert.Equal(3, error.Linea);
+            Assert.False(string.IsNullOrWhiteSpace(error.Message));
+        }
     }
 }
