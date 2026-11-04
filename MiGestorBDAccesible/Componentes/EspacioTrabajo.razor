@@ -39,7 +39,7 @@
     <div class="zona-detalle">
         @if (_filasTabla is not null)
         {
-            <EditorFilas @key="_versionFilas" @ref="_editorFilas"
+            <EditorFilas @key="@($"filas{_versionFilas}")" @ref="_editorFilas"
                          Conexion="Conexion"
                          BaseDatos="@(_filasBase ?? string.Empty)"
                          Tabla="_filasTabla"
@@ -48,7 +48,7 @@
 
         @if (_baseNuevaTabla is not null)
         {
-            <FormularioTabla @key="_versionFormulario"
+            <FormularioTabla @key="@($"tabla{_versionFormulario}")"
                              Conexion="Conexion"
                              BaseDatos="@_baseNuevaTabla"
                              DefinicionInicial="_definicionInicial"

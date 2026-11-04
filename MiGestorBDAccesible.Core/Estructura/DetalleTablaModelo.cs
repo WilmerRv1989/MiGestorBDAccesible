@@ -13,6 +13,8 @@ namespace MiGestorBDAccesible.Core.Estructura
 
         public long Filas { get; init; }
 
+        public string? Almacenamiento { get; init; }
+
         public List<ColumnaModelo> Columnas { get; init; } = [];
 
         public List<IndiceModelo> Indices { get; init; } = [];

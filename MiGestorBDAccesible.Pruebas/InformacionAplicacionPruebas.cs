@@ -7,7 +7,7 @@ namespace MiGestorBDAccesible.Pruebas
         [Fact]
         public void LaVersionVieneDeLosDatosDelProyecto()
         {
-            Assert.Equal("1.1.0", InformacionAplicacion.VersionCompleta(typeof(InformacionAplicacion).Assembly));
+            Assert.Equal("1.2.0", InformacionAplicacion.VersionCompleta(typeof(InformacionAplicacion).Assembly));
         }
 
         [Fact]

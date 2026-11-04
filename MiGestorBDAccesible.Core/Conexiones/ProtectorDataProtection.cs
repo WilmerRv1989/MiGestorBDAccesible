@@ -79,7 +79,6 @@ namespace MiGestorBDAccesible.Core.Conexiones
 
             CorregirPermisosArchivos();
 
-            // Cada operación consulta el anillo en disco, aunque se hayan perdido sus claves.
             return DataProtectionProvider.Create(new DirectoryInfo(_carpetaClaves),
                 opciones => opciones.SetApplicationName(NombreAplicacion)).CreateProtector(Proposito);
         }

@@ -8,7 +8,7 @@ namespace MiGestorBDAccesible.Core.Estructura
 
         public string EsquemaPredeterminado { get; init; } = "dbo";
 
-        public string NombreCompleto => $"{Esquema}.{Nombre}";
+        public string NombreCompleto => Esquema == "" ? Nombre : $"{Esquema}.{Nombre}";
 
         public string NombreCorto(string? esquemaPredeterminado = null) =>
             Esquema == (esquemaPredeterminado ?? EsquemaPredeterminado) ? Nombre : NombreCompleto;

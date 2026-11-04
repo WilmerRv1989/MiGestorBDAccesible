@@ -11,6 +11,9 @@ namespace MiGestorBDAccesible.Core.Conexiones
 
     public static class TipoMotorExtensiones
     {
+        public static IReadOnlyList<TipoMotor> EnOrdenAlfabetico { get; } =
+            Enum.GetValues<TipoMotor>().OrderBy(m => m.Nombre(), StringComparer.OrdinalIgnoreCase).ToList();
+
         public static string Nombre(this TipoMotor motor) => motor switch
         {
             TipoMotor.SqlServer => "SQL Server",
@@ -36,8 +39,15 @@ namespace MiGestorBDAccesible.Core.Conexiones
 
         public static string? ServicioPredeterminado(this TipoMotor motor) => motor == TipoMotor.Oracle ? "FREEPDB1" : null;
 
-        public static bool AdmiteBaseInicial(this TipoMotor motor) => motor is TipoMotor.SqlServer or TipoMotor.PostgreSql;
+        public static bool AdmiteBaseInicial(this TipoMotor motor) => motor is TipoMotor.SqlServer or TipoMotor.PostgreSql or TipoMotor.MySql or TipoMotor.MariaDb;
 
         public static string? BaseInicialPredeterminada(this TipoMotor motor) => motor == TipoMotor.PostgreSql ? "postgres" : null;
+
+        public static string AyudaBaseInicial(this TipoMotor motor) => motor switch
+        {
+            TipoMotor.PostgreSql => "PostgreSQL siempre se conecta a una base; desde ella se ven las demás. Si la dejas vacía se usa postgres.",
+            TipoMotor.MySql or TipoMotor.MariaDb => "Si la dejas vacía te conectas al servidor sin elegir base, y eliges la base en el explorador.",
+            _ => "Si la dejas vacía se usa la base predeterminada del usuario."
+        };
     }
 }

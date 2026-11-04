@@ -1,6 +1,6 @@
 # MiGestorBDAccesible
 
-*A screen reader accessible database manager for SQL Server, Oracle and PostgreSQL.*
+*A screen reader accessible database manager for SQL Server, Oracle, PostgreSQL, MySQL and MariaDB.*
 
 Hi, I'm Wilmer. I work and study with databases, and I use a screen reader. The usual tools, like SSMS, SQL Developer or pgAdmin, are very complete, but they are hard to use with NVDA: trees that are not announced well, results you cannot move through, forms that do not tell you what they expect. I got tired of fighting with them, so I decided to make my own.
 
@@ -14,7 +14,7 @@ The program and its manual are in Spanish.
 
 ## What you will find
 
-* **Three engines:** SQL Server 2017 and later, Oracle 19c and later (including Oracle Free) and PostgreSQL 14 and later.
+* **Five engines:** SQL Server 2017 and later, Oracle 19c and later (including Oracle Free), PostgreSQL 14 and later, MySQL 8.0 and later and MariaDB 10.6 and later.
 * **An object explorer** shaped as a tree: databases, tables, columns, keys, indexes, views, procedures, functions, sequences, triggers and, in Oracle, packages. Enter describes the item in front of you, in words.
 * **A query editor** with several tabs, results as tables you move through with your screen reader's table commands, messages with "Go to line" for errors, history, and find and replace.
 * **Forms to create and modify tables,** indexes, CHECK constraints and foreign keys, which check your data before applying a change and warn you about what could break.

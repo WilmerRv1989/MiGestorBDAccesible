@@ -16,6 +16,8 @@ namespace MiGestorBDAccesible.Core.Estructura
 
         public bool? IdentidadSiempre { get; init; }
 
+        public long? SiguienteIdentidad { get; init; }
+
         public string? ValorPredeterminado { get; init; }
 
         public string? NombrePredeterminado { get; init; }

@@ -44,7 +44,8 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.True(proveedores.EstaDisponible(TipoMotor.SqlServer));
             Assert.True(proveedores.EstaDisponible(TipoMotor.Oracle));
             Assert.True(proveedores.EstaDisponible(TipoMotor.PostgreSql));
-            Assert.False(proveedores.EstaDisponible(TipoMotor.MySql));
+            Assert.True(proveedores.EstaDisponible(TipoMotor.MySql));
+            Assert.True(proveedores.EstaDisponible(TipoMotor.MariaDb));
             Assert.Equal("Esquemas", oracle.Capacidades.ContenedoresTitulo);
             Assert.False(oracle.Capacidades.PuedeCrearContenedores);
             Assert.Empty(oracle.Capacidades.ReglasAlActualizar);
@@ -125,6 +126,24 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.Contains("(GENERATED AS IDENTITY)", columna);
             Assert.DoesNotContain("IDENTITY(1, 1)", columna);
             Assert.Equal("PK_CLIENTES: índice de la clave principal (PRIMARY KEY), sobre Id.", indice);
+        }
+
+        [Fact]
+        public void LosMotoresActualesTienenEsquemas()
+        {
+            Assert.True(new ProveedorSqlServer().Capacidades.TieneEsquemas);
+            Assert.True(new Core.Proveedores.Oracle.ProveedorOracle().Capacidades.TieneEsquemas);
+            Assert.True(new Core.Proveedores.PostgreSql.ProveedorPostgreSql().Capacidades.TieneEsquemas);
+        }
+
+        [Fact]
+        public void UnaTablaSinEsquemaSeNombraSoloConSuNombre()
+        {
+            var tabla = new TablaModelo { Esquema = "", Nombre = "clientes", EsquemaPredeterminado = "" };
+
+            Assert.Equal("clientes", tabla.NombreCompleto);
+            Assert.Equal("clientes", tabla.NombreCorto());
+            Assert.Equal("dbo.Clientes", new TablaModelo { Nombre = "Clientes" }.NombreCompleto);
         }
     }
 }

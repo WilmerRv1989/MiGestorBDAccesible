@@ -31,8 +31,6 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.Equal(Mensaje, resultado.Error);
         }
 
-        // Toda conexión de SQL Server pasa por la cadena de conexión: si no se
-        // puede formar, no se llega a crear la conexión.
         [FactSoloMacOS]
         public void AC7_LaCadenaDeConexionConAutenticacionWindowsFallaFueraDeWindows()
         {
@@ -80,8 +78,6 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.False(TipoMotor.SqlServer.AdmiteAutenticacionWindows());
         }
 
-        // Nadie escucha en el puerto 9 de la propia máquina: si se intentara
-        // conectar, el error sería otro.
         private static ConexionModelo ConexionWindows() => new()
         {
             Nombre = "windows",

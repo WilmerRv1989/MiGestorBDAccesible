@@ -8,13 +8,14 @@ namespace MiGestorBDAccesible.Modelos
         [Required(ErrorMessage = "Escribe un nombre para la conexión.")]
         public string Nombre { get; set; } = "";
 
-        public TipoMotor Motor { get; set; } = TipoMotor.SqlServer;
+        [Required(ErrorMessage = "Elige el motor de base de datos.")]
+        public TipoMotor? Motor { get; set; }
 
         [Required(ErrorMessage = "Escribe el servidor.")]
         public string Servidor { get; set; } = "localhost";
 
         [Range(1, 65535, ErrorMessage = "El puerto debe estar entre 1 y 65535.")]
-        public int? Puerto { get; set; } = TipoMotor.SqlServer.PuertoPredeterminado();
+        public int? Puerto { get; set; }
 
         public TipoAutenticacion Autenticacion { get; set; } = TipoAutenticacion.UsuarioYContrasena;
 
@@ -50,19 +51,19 @@ namespace MiGestorBDAccesible.Modelos
         public void AplicarA(ConexionModelo conexion)
         {
             conexion.Nombre = Nombre.Trim();
-            conexion.Motor = Motor;
+            conexion.Motor = Motor!.Value;
             conexion.Servidor = Servidor.Trim();
             conexion.Puerto = Puerto;
             conexion.Autenticacion = Autenticacion;
             conexion.Usuario = Usuario?.Trim();
             conexion.ConfiarCertificado = ConfiarCertificado;
-            conexion.BaseDatosInicial = !Motor.AdmiteBaseInicial() || string.IsNullOrWhiteSpace(BaseDatosInicial) ? null : BaseDatosInicial.Trim();
-            conexion.NombreServicio = Motor.UsaNombreServicio() && !string.IsNullOrWhiteSpace(NombreServicio) ? NombreServicio.Trim() : null;
+            conexion.BaseDatosInicial = Motor?.AdmiteBaseInicial() != true || string.IsNullOrWhiteSpace(BaseDatosInicial) ? null : BaseDatosInicial.Trim();
+            conexion.NombreServicio = Motor?.UsaNombreServicio() == true && !string.IsNullOrWhiteSpace(NombreServicio) ? NombreServicio.Trim() : null;
         }
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            if (Motor.UsaNombreServicio() && string.IsNullOrWhiteSpace(NombreServicio))
+            if (Motor?.UsaNombreServicio() == true && string.IsNullOrWhiteSpace(NombreServicio))
             {
                 yield return new ValidationResult("Escribe el nombre de servicio.", [nameof(NombreServicio)]);
             }

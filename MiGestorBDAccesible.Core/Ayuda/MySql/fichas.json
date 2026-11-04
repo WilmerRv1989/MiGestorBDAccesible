@@ -1,0 +1,2960 @@
+{
+  "motor": "MySQL",
+  "tituloProgramacion": "Programación en MySQL",
+  "fichas": [
+    {
+      "id": "tipo:enteros",
+      "categoria": "tipo",
+      "titulo": "int, bigint y otros enteros: números sin decimales",
+      "alias": [
+        "int",
+        "integer",
+        "bigint",
+        "mediumint",
+        "smallint",
+        "tinyint",
+        "int unsigned",
+        "bigint unsigned",
+        "smallint unsigned",
+        "tinyint unsigned",
+        "mediumint unsigned",
+        "unsigned",
+        "entero"
+      ],
+      "resumen": "Guardan números sin decimales. Se diferencian en el rango de valores y en cuánto espacio ocupan.",
+      "secciones": [
+        {
+          "titulo": "Rangos",
+          "parrafos": [
+            "tinyint: de menos 128 a 127. Ocupa 1 byte.",
+            "smallint: hasta 32 767. Ocupa 2 bytes.",
+            "mediumint: hasta unos 8 millones. Ocupa 3 bytes.",
+            "int: unos 2 mil millones, positivos o negativos. Ocupa 4 bytes. Es el más usado, por ejemplo para los id.",
+            "bigint: hasta unos 9 trillones. Ocupa 8 bytes.",
+            "Si un valor no cabe, MySQL da el error 1264, «Out of range value»."
+          ],
+          "ejemplo": "CREATE TABLE ficha_asistencias (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    alumno_id int NOT NULL,\n    clases smallint DEFAULT 0\n);"
+        },
+        {
+          "titulo": "UNSIGNED: solo positivos",
+          "parrafos": [
+            "UNSIGNED quita los números negativos y duplica el máximo: int unsigned llega a unos 4 mil millones.",
+            "Una llave foránea exige exactamente el mismo tipo en los dos lados: int no se puede unir con int unsigned."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "int, bigint, smallint y tinyint, que allí va de 0 a 255. No existe UNSIGNED."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "NUMBER(p) para enteros, o INTEGER, que Oracle guarda como NUMBER(38)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "integer, bigint y smallint. No existe UNSIGNED."
+        }
+      ],
+      "relacionadas": [
+        "concepto:identity",
+        "tipo:decimal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Tipos enteros",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/integer-types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:decimal",
+      "categoria": "tipo",
+      "titulo": "decimal: números con decimales exactos",
+      "alias": [
+        "decimal",
+        "numeric",
+        "dec",
+        "fixed",
+        "dinero"
+      ],
+      "resumen": "Guarda números con una cantidad fija de decimales, sin errores de redondeo. Es el tipo correcto para dinero.",
+      "secciones": [
+        {
+          "titulo": "Precisión y escala",
+          "parrafos": [
+            "decimal(10, 2) guarda hasta 10 dígitos en total, y 2 de ellos son decimales: el máximo es 99 999 999.99.",
+            "numeric es otro nombre para decimal.",
+            "Si el número no cabe, MySQL da el error 1264. Si trae más decimales, los redondea."
+          ],
+          "ejemplo": "SELECT nombre, precio, precio * 1.13 AS con_impuesto\nFROM productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "decimal(p, s) o numeric(p, s), igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "NUMBER(p, s)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "numeric(p, s)."
+        }
+      ],
+      "relacionadas": [
+        "tipo:flotantes",
+        "tipo:enteros"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DECIMAL y NUMERIC",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/fixed-point-types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:flotantes",
+      "categoria": "tipo",
+      "titulo": "float y double: números aproximados",
+      "alias": [
+        "float",
+        "double",
+        "double precision",
+        "real"
+      ],
+      "resumen": "Guardan números muy grandes o muy pequeños, pero de forma aproximada.",
+      "secciones": [
+        {
+          "titulo": "Cuándo usarlos",
+          "parrafos": [
+            "float tiene unos 7 dígitos de precisión y double unos 15.",
+            "Sirven para mediciones y cálculos científicos. Para dinero usa decimal: 0.1 más 0.2 no da exactamente 0.3 en un double."
+          ],
+          "ejemplo": "SELECT CAST(0.1 AS double) + CAST(0.2 AS double) AS aproximado;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "real y float."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "BINARY_FLOAT y BINARY_DOUBLE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "real y double precision."
+        }
+      ],
+      "relacionadas": [
+        "tipo:decimal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: FLOAT y DOUBLE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/floating-point-types.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:varchar",
+      "categoria": "tipo",
+      "titulo": "varchar y char: texto con largo máximo",
+      "alias": [
+        "varchar",
+        "char",
+        "character",
+        "character varying",
+        "texto corto"
+      ],
+      "resumen": "varchar guarda texto de largo variable hasta un máximo. char guarda un largo fijo.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usan",
+          "parrafos": [
+            "varchar(100) admite hasta 100 caracteres, no bytes. El texto corto ocupa solo lo que mide.",
+            "char(10) siempre reserva 10 caracteres: sirve para códigos de largo fijo. Hasta 255.",
+            "Si el texto es más largo, en el modo estricto MySQL da el error 1406, «Data too long»."
+          ],
+          "ejemplo": "SELECT nombre, CHAR_LENGTH(nombre) AS caracteres\nFROM clientes\nWHERE nombre LIKE 'A%';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "nvarchar(n) para texto con acentos; varchar depende de la intercalación."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "VARCHAR2(n CHAR)."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "varchar(n), y text sin límite, que es lo más usado."
+        }
+      ],
+      "relacionadas": [
+        "tipo:text",
+        "palabra:funciones-texto"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CHAR y VARCHAR",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/char.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:text",
+      "categoria": "tipo",
+      "titulo": "text: textos largos",
+      "alias": [
+        "text",
+        "tinytext",
+        "mediumtext",
+        "longtext",
+        "texto largo"
+      ],
+      "resumen": "Guardan textos largos, como comentarios o artículos.",
+      "secciones": [
+        {
+          "titulo": "Tamaños",
+          "parrafos": [
+            "tinytext: 255 bytes. text: 64 kilobytes. mediumtext: 16 megabytes. longtext: 4 gigabytes.",
+            "Los límites están en bytes: una letra con tilde ocupa 2.",
+            "Un índice normal sobre text necesita indicar cuántos caracteres usa, como nota(10). Para buscar palabras se usa un índice FULLTEXT."
+          ],
+          "ejemplo": "CREATE TABLE ficha_articulos (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    cuerpo text NOT NULL,\n    FULLTEXT INDEX ft_cuerpo (cuerpo)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "nvarchar(max)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CLOB."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "text."
+        }
+      ],
+      "relacionadas": [
+        "tipo:varchar",
+        "concepto:indice"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: BLOB y TEXT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/blob.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:enum",
+      "categoria": "tipo",
+      "titulo": "enum y set: una lista fija de valores",
+      "alias": [
+        "enum",
+        "set",
+        "lista de valores"
+      ],
+      "resumen": "enum admite un solo valor de una lista fija. set admite varios de la lista.",
+      "secciones": [
+        {
+          "titulo": "enum",
+          "parrafos": [
+            "estado enum('nuevo', 'enviado', 'entregado') solo acepta esos tres textos.",
+            "Son cómodos y muy usados en cursos, pero agregar un valor obliga a modificar la tabla. Si la lista cambia seguido, conviene una tabla aparte con una llave foránea."
+          ],
+          "ejemplo": "CREATE TABLE ficha_envios (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    estado enum('nuevo', 'enviado', 'entregado') NOT NULL DEFAULT 'nuevo'\n);\nINSERT INTO ficha_envios (estado) VALUES ('enviado');"
+        },
+        {
+          "titulo": "set",
+          "parrafos": [
+            "colores set('rojo', 'verde', 'azul') acepta combinaciones, como 'rojo,azul'."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No existe: se usa CHECK."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "No existe: se usa CHECK."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE TYPE … AS ENUM crea un tipo propio."
+        }
+      ],
+      "relacionadas": [
+        "concepto:check"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: ENUM",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/enum.html"
+        },
+        {
+          "titulo": "MySQL: SET",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/set.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:date",
+      "categoria": "tipo",
+      "titulo": "date y year: fechas",
+      "alias": [
+        "date",
+        "year",
+        "fecha"
+      ],
+      "resumen": "date guarda solo la fecha, sin hora. year guarda solo el año.",
+      "secciones": [
+        {
+          "titulo": "Formato",
+          "parrafos": [
+            "Las fechas se escriben como texto en el formato año-mes-día: '2026-11-03'.",
+            "Van del año 1000 al 9999. Las funciones como CURDATE() devuelven la fecha de hoy."
+          ],
+          "ejemplo": "SELECT nombre, fecha_registro\nFROM clientes\nWHERE fecha_registro >= '2026-03-01';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "date, igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "DATE también guarda la hora."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "date, igual."
+        }
+      ],
+      "relacionadas": [
+        "tipo:datetime",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DATE, DATETIME y TIMESTAMP",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:datetime",
+      "categoria": "tipo",
+      "titulo": "datetime y timestamp: fecha y hora",
+      "alias": [
+        "datetime",
+        "timestamp",
+        "fecha y hora"
+      ],
+      "resumen": "Guardan la fecha con la hora. Se diferencian en la zona horaria y en el rango.",
+      "secciones": [
+        {
+          "titulo": "La diferencia",
+          "parrafos": [
+            "datetime guarda exactamente lo que escribes, y llega hasta el año 9999. Es la recomendada.",
+            "timestamp se convierte según la zona horaria de la sesión, y solo llega al año 2038.",
+            "Con un número entre paréntesis guardan fracciones de segundo: datetime(3) guarda milésimas."
+          ],
+          "ejemplo": "CREATE TABLE ficha_visitas (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    creada datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,\n    cambiada datetime DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "datetime2 y datetimeoffset."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "TIMESTAMP y TIMESTAMP WITH TIME ZONE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "timestamp y timestamptz."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "palabra:fechas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DATE, DATETIME y TIMESTAMP",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/datetime.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:time",
+      "categoria": "tipo",
+      "titulo": "time: horas y duraciones",
+      "alias": [
+        "time",
+        "hora",
+        "duración"
+      ],
+      "resumen": "Guarda una hora del día o una duración, que puede pasar de 24 horas.",
+      "secciones": [
+        {
+          "titulo": "Valores",
+          "parrafos": [
+            "Se escribe como '08:30:00'. Admite duraciones de hasta 838 horas, y negativas.",
+            "TIMEDIFF resta dos horas y devuelve un time."
+          ],
+          "ejemplo": "SELECT TIMEDIFF('17:30:00', '08:00:00') AS jornada;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "time, solo horas del día."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "INTERVAL DAY TO SECOND."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "time e interval."
+        }
+      ],
+      "relacionadas": [
+        "tipo:datetime"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: El tipo TIME",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/time.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:boolean",
+      "categoria": "tipo",
+      "titulo": "boolean y tinyint(1): verdadero o falso",
+      "alias": [
+        "boolean",
+        "bool",
+        "tinyint(1)",
+        "bit",
+        "verdadero",
+        "falso"
+      ],
+      "resumen": "MySQL no tiene un tipo lógico propio: boolean es otro nombre para tinyint(1), y guarda 1 o 0.",
+      "secciones": [
+        {
+          "titulo": "Cómo funciona",
+          "parrafos": [
+            "TRUE vale 1 y FALSE vale 0.",
+            "Como en el fondo es un número, la columna acepta otros valores, como 5. Para limitarla agrega un CHECK.",
+            "bit(n) es otro tipo: guarda n bits, y se ve en hexadecimal."
+          ],
+          "ejemplo": "CREATE TABLE ficha_avisos (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    activo boolean NOT NULL DEFAULT TRUE\n);\nINSERT INTO ficha_avisos (activo) VALUES (FALSE);\nSELECT id, activo FROM ficha_avisos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "bit, con 1 o 0."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "BOOLEAN existe desde Oracle 23ai."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "boolean de verdad, con true y false."
+        }
+      ],
+      "relacionadas": [
+        "tipo:enteros"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Tipos numéricos",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/numeric-type-syntax.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:json",
+      "categoria": "tipo",
+      "titulo": "json: datos JSON",
+      "alias": [
+        "json",
+        "json_extract",
+        "json_valid"
+      ],
+      "resumen": "Guarda documentos JSON en un formato binario y comprueba que sean válidos.",
+      "secciones": [
+        {
+          "titulo": "Leer un valor",
+          "parrafos": [
+            "JSON_EXTRACT lee un valor con una ruta como $.color. JSON_UNQUOTE le quita las comillas."
+          ],
+          "ejemplo": "CREATE TABLE ficha_ajustes (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    datos json NOT NULL\n);\nINSERT INTO ficha_ajustes (datos) VALUES ('{\"color\": \"azul\"}');\nSELECT JSON_UNQUOTE(JSON_EXTRACT(datos, '$.color')) AS color FROM ficha_ajustes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "MariaDB",
+          "texto": "En MariaDB, json es un texto con una comprobación, no un tipo binario."
+        },
+        {
+          "motor": "SQL Server",
+          "texto": "nvarchar(max) con funciones como JSON_VALUE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "JSON desde 21c."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "jsonb, en binario y con índices."
+        }
+      ],
+      "relacionadas": [
+        "tipo:text"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: El tipo JSON",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/json.html"
+        }
+      ]
+    },
+    {
+      "id": "tipo:blob",
+      "categoria": "tipo",
+      "titulo": "blob y binary: datos binarios",
+      "alias": [
+        "blob",
+        "tinyblob",
+        "mediumblob",
+        "longblob",
+        "binary",
+        "varbinary"
+      ],
+      "resumen": "Guardan bytes, como archivos o imágenes.",
+      "secciones": [
+        {
+          "titulo": "Tamaños",
+          "parrafos": [
+            "tinyblob: 255 bytes. blob: 64 kilobytes. mediumblob: 16 megabytes. longblob: 4 gigabytes.",
+            "binary(n) y varbinary(n) guardan pocos bytes, como una huella.",
+            "El panel de edición de filas no edita estas columnas, y los resultados las muestran en hexadecimal."
+          ],
+          "ejemplo": "SELECT HEX('Ana') AS hexadecimal;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "varbinary(max)."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "BLOB y RAW."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "bytea."
+        }
+      ],
+      "relacionadas": [
+        "tipo:text"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: BLOB y TEXT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/blob.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:tabla",
+      "categoria": "concepto",
+      "titulo": "Tabla",
+      "alias": [
+        "tabla",
+        "tablas",
+        "table",
+        "fila",
+        "columna"
+      ],
+      "resumen": "Una tabla guarda datos en filas y columnas. Cada columna tiene un tipo, y cada fila es un registro.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Las tablas viven dentro de una base de datos, y se escriben como clientes, o como tiendapractica.clientes desde otra base.",
+            "Cada tabla usa un motor de almacenamiento; el normal es InnoDB."
+          ],
+          "ejemplo": "SELECT * FROM clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Dentro de un esquema, normalmente dbo."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Dentro del esquema de un usuario."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Dentro de un esquema, normalmente public."
+        }
+      ],
+      "relacionadas": [
+        "palabra:create-table",
+        "concepto:bases-esquemas",
+        "concepto:motores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE TABLE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-table.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:null",
+      "categoria": "concepto",
+      "titulo": "NULL: sin valor",
+      "alias": [
+        "null",
+        "not null",
+        "vacío",
+        "is null",
+        "obligatoria",
+        "opcional"
+      ],
+      "resumen": "NULL significa que no hay valor. No es lo mismo que cero ni que un texto vacío.",
+      "secciones": [
+        {
+          "titulo": "Comparar con NULL",
+          "parrafos": [
+            "Se pregunta con IS NULL o IS NOT NULL: columna = NULL nunca es verdadero.",
+            "NOT NULL hace que la columna sea obligatoria. Si falta el dato, MySQL da el error 1048.",
+            "MySQL tiene además el operador <=>, que compara teniendo en cuenta los NULL."
+          ],
+          "ejemplo": "SELECT nombre\nFROM clientes\nWHERE correo IS NOT NULL;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, sin el operador <=>."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Allí un texto vacío se guarda como NULL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual. IS NOT DISTINCT FROM equivale a <=>."
+        }
+      ],
+      "relacionadas": [
+        "palabra:funciones-nulos-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Trabajar con NULL",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/working-with-null.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:clave-principal",
+      "categoria": "concepto",
+      "titulo": "Clave principal (PRIMARY KEY)",
+      "alias": [
+        "primary key",
+        "clave principal",
+        "pk",
+        "llave primaria",
+        "clave primaria"
+      ],
+      "resumen": "Identifica cada fila de forma única. Sus valores no se repiten ni pueden ser NULL.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Una tabla tiene una sola clave principal, de una columna o compuesta.",
+            "Su índice siempre se llama PRIMARY, aunque escribas otro nombre en la restricción.",
+            "En InnoDB, las filas se guardan ordenadas por la clave principal."
+          ],
+          "ejemplo": "CREATE TABLE ficha_paises (\n    codigo char(2) NOT NULL,\n    nombre varchar(60) NOT NULL,\n    CONSTRAINT pk_ficha_paises PRIMARY KEY (codigo)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; el índice lleva el nombre de la restricción."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual."
+        }
+      ],
+      "relacionadas": [
+        "concepto:identity",
+        "concepto:llave-foranea",
+        "concepto:unique"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Claves principales",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/primary-key-optimization.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:llave-foranea",
+      "categoria": "concepto",
+      "titulo": "Llave foránea (FOREIGN KEY)",
+      "alias": [
+        "foreign key",
+        "llave foránea",
+        "fk",
+        "clave foránea",
+        "references"
+      ],
+      "resumen": "Une una columna con la clave de otra tabla: MySQL no deja guardar un valor que no exista allá.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Solo funciona en tablas InnoDB. En una tabla MyISAM se acepta el texto, pero no hace nada.",
+            "Los dos lados deben tener el mismo tipo, incluido UNSIGNED.",
+            "MySQL crea solo un índice sobre la columna si no existe.",
+            "Errores típicos: 1452, el valor no existe en la tabla destino; 1451, hay filas que apuntan a la que intentas borrar."
+          ],
+          "ejemplo": "CREATE TABLE ficha_resenas (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    producto_id int NOT NULL,\n    CONSTRAINT fk_ficha_resenas_productos FOREIGN KEY (producto_id) REFERENCES productos (id)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, y no crea el índice sola."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual, y no crea el índice sola."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y no crea el índice sola."
+        }
+      ],
+      "relacionadas": [
+        "concepto:reglas-referenciales",
+        "concepto:uno-a-muchos",
+        "concepto:motores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Llaves foráneas",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-table-foreign-keys.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:reglas-referenciales",
+      "categoria": "concepto",
+      "titulo": "Reglas ON DELETE y ON UPDATE",
+      "alias": [
+        "on delete",
+        "on update",
+        "cascade",
+        "restrict",
+        "set null",
+        "no action"
+      ],
+      "resumen": "Dicen qué pasa con las filas relacionadas al borrar o cambiar la fila a la que apuntan.",
+      "secciones": [
+        {
+          "titulo": "Las reglas",
+          "parrafos": [
+            "RESTRICT: no se permite si hay filas relacionadas. Es lo predeterminado.",
+            "NO ACTION: en MySQL hace lo mismo que RESTRICT.",
+            "CASCADE: también se borran o cambian las filas relacionadas.",
+            "SET NULL: las filas relacionadas quedan en NULL; la columna debe admitirlo.",
+            "SET DEFAULT: InnoDB la rechaza, así que la aplicación no la ofrece."
+          ],
+          "ejemplo": "CREATE TABLE ficha_notas (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    cliente_id int,\n    FOREIGN KEY (cliente_id) REFERENCES clientes (id) ON DELETE SET NULL ON UPDATE CASCADE\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "NO ACTION, CASCADE, SET NULL y SET DEFAULT."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Solo ON DELETE, con CASCADE y SET NULL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Las cinco, y NO ACTION se puede comprobar al final."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Llaves foráneas",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-table-foreign-keys.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:uno-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de uno a muchos",
+      "alias": [
+        "uno a muchos",
+        "1 a n"
+      ],
+      "resumen": "Una fila de una tabla se relaciona con muchas filas de otra, como un cliente con sus pedidos.",
+      "secciones": [
+        {
+          "titulo": "Cómo se hace",
+          "parrafos": [
+            "La tabla del lado «muchos» guarda una llave foránea hacia la otra."
+          ],
+          "ejemplo": "SELECT c.nombre, p.fecha\nFROM clientes c\nJOIN pedidos p ON p.cliente_id = c.id;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "concepto:llave-foranea",
+        "concepto:muchos-a-muchos",
+        "palabra:join"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Usar llaves foráneas",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/example-foreign-keys.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:muchos-a-muchos",
+      "categoria": "concepto",
+      "titulo": "Relación de muchos a muchos",
+      "alias": [
+        "muchos a muchos",
+        "tabla intermedia",
+        "n a n"
+      ],
+      "resumen": "Dos tablas se relacionan a través de una tercera, como los pedidos y los productos.",
+      "secciones": [
+        {
+          "titulo": "La tabla intermedia",
+          "parrafos": [
+            "Tiene una llave foránea hacia cada tabla, y normalmente una clave principal compuesta por las dos.",
+            "En el menú de una base está el Asistente de tabla intermedia."
+          ],
+          "ejemplo": "SELECT p.id AS pedido, pr.nombre, pp.cantidad\nFROM pedidos p\nJOIN pedido_productos pp ON pp.pedido_id = p.id\nJOIN productos pr ON pr.id = pp.producto_id;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "concepto:uno-a-muchos",
+        "palabra:join"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Usar llaves foráneas",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/example-foreign-keys.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:identity",
+      "categoria": "concepto",
+      "titulo": "AUTO_INCREMENT: números automáticos",
+      "alias": [
+        "auto_increment",
+        "autoincrement",
+        "identity",
+        "número automático",
+        "last_insert_id"
+      ],
+      "resumen": "MySQL pone solo el siguiente número en la columna al insertar una fila.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "Solo una columna por tabla, y tiene que ser parte de una llave, normalmente la clave principal.",
+            "El valor inicial es de la tabla: AUTO_INCREMENT = 1000 al crearla.",
+            "De cuánto sube no se define por columna: lo decide la variable auto_increment_increment.",
+            "LAST_INSERT_ID() devuelve el número que se acaba de generar en tu sesión."
+          ],
+          "ejemplo": "INSERT INTO categorias (nombre) VALUES ('Ficha AI');\nSELECT LAST_INSERT_ID() AS nuevo_id;\nDELETE FROM categorias WHERE nombre = 'Ficha AI';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "IDENTITY(1, 1) y SCOPE_IDENTITY()."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "GENERATED AS IDENTITY."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "GENERATED ALWAYS AS IDENTITY, y RETURNING para leerlo."
+        }
+      ],
+      "relacionadas": [
+        "concepto:clave-principal",
+        "concepto:secuencias"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: AUTO_INCREMENT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/example-auto-increment.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:unique",
+      "categoria": "concepto",
+      "titulo": "UNIQUE: valor único",
+      "alias": [
+        "unique",
+        "único",
+        "valor único"
+      ],
+      "resumen": "No deja repetir un valor en la columna. Si se repite, MySQL da el error 1062.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Una restricción UNIQUE es a la vez un índice.",
+            "Admite varios NULL, porque NULL no es igual a NULL."
+          ],
+          "ejemplo": "SELECT correo, COUNT(*) AS veces\nFROM clientes\nGROUP BY correo\nHAVING COUNT(*) > 1;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Solo admite un NULL."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Varios NULL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Varios NULL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:indice",
+        "concepto:clave-principal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE INDEX",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-index.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:default",
+      "categoria": "concepto",
+      "titulo": "DEFAULT: valor predeterminado",
+      "alias": [
+        "default",
+        "predeterminado",
+        "valor predeterminado"
+      ],
+      "resumen": "El valor que toma la columna cuando el INSERT no la menciona.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Puede ser un valor fijo, como 0 o 'nuevo'.",
+            "Una expresión va entre paréntesis, como DEFAULT (CURRENT_DATE). CURRENT_TIMESTAMP es la excepción: se escribe sin paréntesis.",
+            "Si la columna es obligatoria y no tiene DEFAULT, MySQL da el error 1364."
+          ],
+          "ejemplo": "CREATE TABLE ficha_tareas (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    prioridad tinyint NOT NULL DEFAULT 3,\n    creada date NOT NULL DEFAULT (CURRENT_DATE)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual, y crea una restricción con nombre."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, sin paréntesis para las expresiones."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Valores predeterminados",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/data-type-defaults.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:check",
+      "categoria": "concepto",
+      "titulo": "CHECK: condición de una columna",
+      "alias": [
+        "check",
+        "restricción",
+        "condición"
+      ],
+      "resumen": "Rechaza las filas que no cumplen una condición.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Se cumplen desde MySQL 8.0.16; las versiones anteriores las aceptaban y las ignoraban. El error es 3819.",
+            "Las filas con NULL pasan: un CHECK solo rechaza lo que da falso.",
+            "Al crearlo, MySQL comprueba siempre las filas que ya existen."
+          ],
+          "ejemplo": "CREATE TABLE ficha_descuentos (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    porcentaje int NOT NULL,\n    CONSTRAINT ck_ficha_porcentaje CHECK (porcentaje BETWEEN 0 AND 100)\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual; WITH NOCHECK no comprueba las filas existentes."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual; ENABLE NOVALIDATE no las comprueba."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual; NOT VALID no las comprueba."
+        }
+      ],
+      "relacionadas": [
+        "tipo:enum"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Restricciones CHECK",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-table-check-constraints.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:indice",
+      "categoria": "concepto",
+      "titulo": "Índices",
+      "alias": [
+        "index",
+        "índice",
+        "índices",
+        "fulltext",
+        "create index",
+        "match",
+        "against"
+      ],
+      "resumen": "Hacen más rápidas las búsquedas, a cambio de más espacio y de escrituras un poco más lentas.",
+      "secciones": [
+        {
+          "titulo": "Tipos en MySQL",
+          "parrafos": [
+            "Normal, de tipo BTREE: sirve para =, <, >, BETWEEN y ORDER BY.",
+            "UNIQUE: además no deja repetir.",
+            "FULLTEXT: busca palabras en textos largos con MATCH … AGAINST.",
+            "Sobre los primeros caracteres de una columna: nombre(10).",
+            "No hay índices con columnas incluidas ni índices filtrados."
+          ],
+          "ejemplo": "CREATE INDEX ix_ficha_clientes_nombre ON clientes (nombre);\nDROP INDEX ix_ficha_clientes_nombre ON clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Agrupados, no agrupados, con INCLUDE y filtrados."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "B-tree y bitmap."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "btree, gin, gist y otros, con INCLUDE y filtrados."
+        }
+      ],
+      "relacionadas": [
+        "concepto:unique",
+        "concepto:clave-principal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE INDEX",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-index.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:columna-calculada",
+      "categoria": "concepto",
+      "titulo": "Columna calculada",
+      "alias": [
+        "generated",
+        "generated always",
+        "calculada",
+        "virtual",
+        "stored",
+        "persistent"
+      ],
+      "resumen": "Su valor sale de una fórmula con otras columnas. No se escribe a mano.",
+      "secciones": [
+        {
+          "titulo": "Virtual o guardada",
+          "parrafos": [
+            "VIRTUAL se calcula al leer, y no ocupa espacio.",
+            "STORED se guarda en disco y se actualiza sola."
+          ],
+          "ejemplo": "CREATE TABLE ficha_lineas (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    cantidad int NOT NULL,\n    precio decimal(10, 2) NOT NULL,\n    total decimal(12, 2) AS (cantidad * precio) STORED\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "AS expresión, con PERSISTED para guardarla."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "GENERATED ALWAYS AS, siempre virtual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "GENERATED ALWAYS AS, virtual o STORED."
+        }
+      ],
+      "relacionadas": [
+        "concepto:default"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Columnas generadas",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-table-generated-columns.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:vistas",
+      "categoria": "concepto",
+      "titulo": "Vistas (VIEW)",
+      "alias": [
+        "view",
+        "vista",
+        "vistas",
+        "create view"
+      ],
+      "resumen": "Una vista es una consulta guardada con nombre. Se consulta como si fuera una tabla.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "CREATE OR REPLACE VIEW la crea o la cambia.",
+            "Las vistas simples se pueden actualizar; las que usan GROUP BY no."
+          ],
+          "ejemplo": "CREATE OR REPLACE VIEW ficha_v_clientes AS\nSELECT id, nombre FROM clientes;\nSELECT * FROM ficha_v_clientes;\nDROP VIEW ficha_v_clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE OR ALTER VIEW."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE OR REPLACE VIEW, y vistas materializadas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE OR REPLACE VIEW, y vistas materializadas."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE VIEW",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-view.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:procedimientos",
+      "categoria": "concepto",
+      "titulo": "Procedimientos almacenados",
+      "alias": [
+        "procedure",
+        "procedimiento",
+        "procedimientos",
+        "call",
+        "create procedure",
+        "out",
+        "inout"
+      ],
+      "resumen": "Un procedimiento guarda un grupo de sentencias con nombre. Se ejecuta con CALL.",
+      "secciones": [
+        {
+          "titulo": "Parámetros",
+          "parrafos": [
+            "IN recibe un valor, OUT devuelve uno e INOUT hace las dos cosas.",
+            "Los de salida se leen con una variable de sesión, como @total.",
+            "Un procedimiento puede devolver varios resultados con SELECT.",
+            "Al crearlo desde un script se usa DELIMITER, porque el cuerpo lleva punto y coma."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE PROCEDURE ficha_contar (IN p_cliente int, OUT p_total int)\nBEGIN\n    SELECT COUNT(*) INTO p_total FROM pedidos WHERE cliente_id = p_cliente;\nEND$$\nDELIMITER ;\nCALL ficha_contar(1, @total);\nSELECT @total AS pedidos;\nDROP PROCEDURE ficha_contar;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE PROCEDURE y EXEC."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE PROCEDURE en PL/SQL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE PROCEDURE y CALL, con el cuerpo entre signos de dólar."
+        }
+      ],
+      "relacionadas": [
+        "concepto:funciones",
+        "rutinas:delimiter",
+        "rutinas:variables"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE PROCEDURE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-procedure.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:funciones",
+      "categoria": "concepto",
+      "titulo": "Funciones almacenadas",
+      "alias": [
+        "function",
+        "función",
+        "funciones",
+        "create function",
+        "returns",
+        "deterministic"
+      ],
+      "resumen": "Una función recibe parámetros y devuelve un valor. Se usa dentro de una consulta.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "Siempre lleva RETURNS con el tipo, y RETURN en el cuerpo.",
+            "Con el registro binario activado, el servidor pide declarar DETERMINISTIC, NO SQL o READS SQL DATA; si no, da el error 1418 o 1419."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE FUNCTION ficha_con_impuesto (p_precio decimal(10, 2))\nRETURNS decimal(12, 2)\nDETERMINISTIC\nBEGIN\n    RETURN p_precio * 1.13;\nEND$$\nDELIMITER ;\nSELECT nombre, ficha_con_impuesto(precio) AS total FROM productos;\nDROP FUNCTION ficha_con_impuesto;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE FUNCTION, y funciones que devuelven tablas."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE FUNCTION en PL/SQL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE FUNCTION, también en SQL puro."
+        }
+      ],
+      "relacionadas": [
+        "concepto:procedimientos",
+        "rutinas:delimiter"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE FUNCTION",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-function.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:disparadores",
+      "categoria": "concepto",
+      "titulo": "Disparadores (TRIGGER)",
+      "alias": [
+        "trigger",
+        "disparador",
+        "disparadores",
+        "create trigger",
+        "new",
+        "old"
+      ],
+      "resumen": "Un disparador se ejecuta solo antes o después de un INSERT, UPDATE o DELETE, una vez por cada fila.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Se crea sobre una tabla, con BEFORE o AFTER.",
+            "NEW es la fila nueva y OLD la anterior.",
+            "No se pueden deshabilitar: para desactivarlo hay que borrarlo.",
+            "Con SIGNAL rechaza la operación con un mensaje propio."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE TRIGGER ficha_trg_precio\nBEFORE INSERT ON productos\nFOR EACH ROW\nBEGIN\n    IF NEW.precio < 0 THEN\n        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El precio no puede ser negativo.';\n    END IF;\nEND$$\nDELIMITER ;\nDROP TRIGGER ficha_trg_precio;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "AFTER e INSTEAD OF, una vez por sentencia, y se pueden deshabilitar."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Por fila o por sentencia, y se pueden deshabilitar."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Llaman a una función, y se pueden deshabilitar."
+        }
+      ],
+      "relacionadas": [
+        "rutinas:signal",
+        "rutinas:delimiter"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE TRIGGER",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-trigger.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:secuencias",
+      "categoria": "concepto",
+      "titulo": "Secuencias (SEQUENCE)",
+      "alias": [
+        "sequence",
+        "secuencia",
+        "secuencias",
+        "nextval",
+        "lastval"
+      ],
+      "resumen": "MySQL no tiene secuencias: los números automáticos se hacen con AUTO_INCREMENT.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Si necesitas una numeración aparte de una tabla, se suele usar una tabla con un contador.",
+            "MariaDB sí tiene CREATE SEQUENCE."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CREATE SEQUENCE y NEXT VALUE FOR."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CREATE SEQUENCE y secuencia.NEXTVAL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CREATE SEQUENCE y nextval('nombre')."
+        }
+      ],
+      "relacionadas": [
+        "concepto:identity"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: AUTO_INCREMENT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/example-auto-increment.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:bases-esquemas",
+      "categoria": "concepto",
+      "titulo": "Bases de datos y esquemas",
+      "alias": [
+        "database",
+        "schema",
+        "base de datos",
+        "esquema",
+        "create database",
+        "information_schema"
+      ],
+      "resumen": "En MySQL, base de datos y esquema son lo mismo: CREATE SCHEMA es otro nombre de CREATE DATABASE.",
+      "secciones": [
+        {
+          "titulo": "Qué cambia",
+          "parrafos": [
+            "No hay un nivel como dbo o public: las tablas están directo en la base.",
+            "Una consulta puede usar tablas de otra base del mismo servidor: otra_base.clientes.",
+            "USE cambia la base activa de la sesión.",
+            "Las bases mysql, information_schema, performance_schema y sys son del sistema."
+          ],
+          "ejemplo": "SELECT DATABASE() AS base_activa;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Servidor, bases y esquemas."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Un esquema por usuario."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Servidor, bases y esquemas, y no se puede consultar otra base."
+        }
+      ],
+      "relacionadas": [
+        "palabra:use",
+        "concepto:catalogo"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE DATABASE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-database.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:mayusculas-nombres",
+      "categoria": "concepto",
+      "titulo": "Mayúsculas y acentos graves en los nombres",
+      "alias": [
+        "mayúsculas",
+        "minúsculas",
+        "acento grave",
+        "backtick",
+        "lower_case_table_names",
+        "comillas"
+      ],
+      "resumen": "En Linux, los nombres de tabla distinguen mayúsculas; en Windows no. Los nombres raros van entre acentos graves.",
+      "secciones": [
+        {
+          "titulo": "Mayúsculas",
+          "parrafos": [
+            "Cada tabla se guarda en un archivo, así que manda el sistema: en Linux, Clientes y clientes son tablas distintas.",
+            "Los nombres de columna nunca distinguen mayúsculas.",
+            "La costumbre más segura es escribir todo en minúsculas."
+          ]
+        },
+        {
+          "titulo": "Acentos graves",
+          "parrafos": [
+            "Un nombre con espacios, o que es palabra reservada, va entre acentos graves: `order`.",
+            "Las comillas dobles son para textos, salvo que el modo ANSI_QUOTES esté activo."
+          ],
+          "ejemplo": "SELECT `nombre` FROM `clientes`;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Corchetes: [order]."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Comillas dobles, y guarda en mayúsculas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Comillas dobles, y guarda en minúsculas."
+        }
+      ],
+      "relacionadas": [
+        "concepto:tabla"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Mayúsculas en identificadores",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/identifier-case-sensitivity.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:motores",
+      "categoria": "concepto",
+      "titulo": "Motores de almacenamiento: InnoDB y MyISAM",
+      "alias": [
+        "engine",
+        "innodb",
+        "myisam",
+        "motor de almacenamiento",
+        "aria",
+        "memory"
+      ],
+      "resumen": "Cada tabla usa un motor que decide cómo se guardan los datos. El normal es InnoDB.",
+      "secciones": [
+        {
+          "titulo": "InnoDB y los demás",
+          "parrafos": [
+            "InnoDB tiene transacciones y llaves foráneas.",
+            "MyISAM es antiguo: no tiene ni lo uno ni lo otro. Si una tabla lo usa, la descripción lo avisa.",
+            "MEMORY guarda los datos en la memoria y se pierden al reiniciar."
+          ],
+          "ejemplo": "SELECT table_name, engine\nFROM information_schema.tables\nWHERE table_schema = DATABASE() AND table_type = 'BASE TABLE';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No existe este concepto."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "No existe este concepto."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No existe este concepto."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones",
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Motores de almacenamiento",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/storage-engines.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:transacciones",
+      "categoria": "concepto",
+      "titulo": "Transacciones: COMMIT y ROLLBACK",
+      "alias": [
+        "transaction",
+        "transacción",
+        "start transaction",
+        "begin",
+        "commit",
+        "rollback",
+        "autocommit",
+        "savepoint"
+      ],
+      "resumen": "Una transacción agrupa cambios: se guardan todos con COMMIT o se deshacen todos con ROLLBACK.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "Cada sentencia se confirma sola (autocommit), salvo después de START TRANSACTION o de SET autocommit = 0.",
+            "Solo funcionan en tablas InnoDB."
+          ],
+          "ejemplo": "START TRANSACTION;\nUPDATE productos SET precio = precio * 2 WHERE id = 1;\nROLLBACK;"
+        },
+        {
+          "titulo": "El DDL confirma solo",
+          "parrafos": [
+            "CREATE, ALTER, DROP y TRUNCATE confirman también lo que tengas pendiente: es un COMMIT implícito, y ya no se puede deshacer.",
+            "La aplicación te avisa cuando pasa."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Confirma solo; BEGIN TRANSACTION."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "No confirma solo, y el DDL hace COMMIT."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Confirma solo, y el DDL también se puede deshacer."
+        }
+      ],
+      "relacionadas": [
+        "concepto:motores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: START TRANSACTION",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/commit.html"
+        },
+        {
+          "titulo": "MySQL: Sentencias con COMMIT implícito",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:modo-sql",
+      "categoria": "concepto",
+      "titulo": "sql_mode: el modo estricto",
+      "alias": [
+        "sql_mode",
+        "strict",
+        "estricto",
+        "only_full_group_by",
+        "modo sql"
+      ],
+      "resumen": "sql_mode decide qué tan exigente es el servidor con los datos y las consultas.",
+      "secciones": [
+        {
+          "titulo": "Lo más común",
+          "parrafos": [
+            "STRICT_TRANS_TABLES: un valor que no cabe da error, en lugar de recortarse con una advertencia.",
+            "ONLY_FULL_GROUP_BY: rechaza un SELECT con columnas que no están en el GROUP BY.",
+            "Por eso una consulta de un curso antiguo puede fallar en un servidor moderno."
+          ],
+          "ejemplo": "SELECT @@sql_mode AS modo;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "PostgreSQL",
+          "texto": "Siempre es estricto."
+        }
+      ],
+      "relacionadas": [
+        "palabra:group-by",
+        "tipo:varchar"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Modos SQL",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/sql-mode.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:catalogo",
+      "categoria": "concepto",
+      "titulo": "information_schema y SHOW",
+      "alias": [
+        "information_schema",
+        "catálogo",
+        "describe",
+        "desc",
+        "show tables"
+      ],
+      "resumen": "information_schema es una base de solo lectura con la descripción de todo: tablas, columnas, llaves.",
+      "secciones": [
+        {
+          "titulo": "Dónde mirar",
+          "parrafos": [
+            "information_schema.tables y columns describen la estructura. SHOW es la forma corta.",
+            "En la aplicación no hace falta: pulsa Intro sobre una tabla en el explorador."
+          ],
+          "ejemplo": "SELECT column_name, column_type\nFROM information_schema.columns\nWHERE table_schema = DATABASE() AND table_name = 'clientes';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "sys.tables y sys.columns."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Vistas ALL_TABLES y ALL_TAB_COLUMNS."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "pg_catalog."
+        }
+      ],
+      "relacionadas": [
+        "palabra:show"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: INFORMATION_SCHEMA",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/information-schema.html"
+        }
+      ]
+    },
+    {
+      "id": "concepto:consola",
+      "categoria": "concepto",
+      "titulo": "Órdenes de la consola mysql",
+      "alias": [
+        "consola",
+        "source",
+        "exit",
+        "quit",
+        "cliente mysql",
+        "mariadb"
+      ],
+      "resumen": "Algunas órdenes no son SQL: son del programa de consola. La más común, DELIMITER, sí funciona en el editor.",
+      "secciones": [
+        {
+          "titulo": "Qué pasa aquí",
+          "parrafos": [
+            "DELIMITER funciona en el editor, y no se envía al servidor.",
+            "SOURCE, \\G, exit y similares son solo del programa de consola: para abrir un archivo usa Control+O."
+          ],
+          "ejemplo": "SHOW TABLES;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "PostgreSQL",
+          "texto": "psql tiene órdenes parecidas, como \\d."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "SQL*Plus tiene órdenes como la barra /."
+        },
+        {
+          "motor": "SQL Server",
+          "texto": "sqlcmd y SSMS usan GO."
+        }
+      ],
+      "relacionadas": [
+        "rutinas:delimiter"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Órdenes del cliente mysql",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/mysql-commands.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:select",
+      "categoria": "palabra",
+      "titulo": "SELECT: leer datos",
+      "alias": [
+        "select",
+        "from",
+        "distinct",
+        "as"
+      ],
+      "resumen": "Lee filas de una o varias tablas.",
+      "secciones": [
+        {
+          "titulo": "Forma básica",
+          "parrafos": [
+            "SELECT columnas FROM tabla. El asterisco trae todas.",
+            "DISTINCT quita las filas repetidas, y AS le da otro nombre a una columna."
+          ],
+          "ejemplo": "SELECT DISTINCT categoria_id AS categoria\nFROM productos;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "palabra:where",
+        "palabra:limit",
+        "palabra:join"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: SELECT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/select.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:where",
+      "categoria": "palabra",
+      "titulo": "WHERE: filtrar filas",
+      "alias": [
+        "where",
+        "like",
+        "between",
+        "in",
+        "and",
+        "or",
+        "not"
+      ],
+      "resumen": "Deja solo las filas que cumplen una condición.",
+      "secciones": [
+        {
+          "titulo": "Operadores",
+          "parrafos": [
+            "=, <>, <, >, BETWEEN, IN y LIKE, donde % es cualquier texto.",
+            "LIKE no distingue mayúsculas con las intercalaciones normales."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nWHERE precio BETWEEN 20 AND 60 AND nombre LIKE '%a%';"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "palabra:select",
+        "concepto:null"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Operadores de comparación",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/comparison-operators.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:join",
+      "categoria": "palabra",
+      "titulo": "JOIN: unir tablas",
+      "alias": [
+        "join",
+        "inner join",
+        "left join",
+        "right join",
+        "on",
+        "cross join"
+      ],
+      "resumen": "Une filas de dos tablas por una condición.",
+      "secciones": [
+        {
+          "titulo": "Tipos",
+          "parrafos": [
+            "JOIN, o INNER JOIN, trae solo las filas que coinciden.",
+            "LEFT JOIN trae todas las de la izquierda, con NULL donde no hay pareja.",
+            "En el menú de una base, Camino de JOIN busca cómo unir dos tablas."
+          ],
+          "ejemplo": "SELECT c.nombre, p.id AS pedido\nFROM clientes c\nLEFT JOIN pedidos p ON p.cliente_id = c.id;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "También FULL JOIN."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "También FULL JOIN."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "También FULL JOIN."
+        }
+      ],
+      "relacionadas": [
+        "concepto:llave-foranea"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: JOIN",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/join.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:group-by",
+      "categoria": "palabra",
+      "titulo": "GROUP BY y HAVING: agrupar",
+      "alias": [
+        "group by",
+        "having",
+        "count",
+        "sum",
+        "avg",
+        "min",
+        "max"
+      ],
+      "resumen": "Agrupa filas y calcula totales por grupo.",
+      "secciones": [
+        {
+          "titulo": "Reglas",
+          "parrafos": [
+            "COUNT, SUM, AVG, MIN y MAX calculan por grupo. HAVING filtra los grupos.",
+            "Con ONLY_FULL_GROUP_BY, cada columna del SELECT debe estar en el GROUP BY o dentro de una de esas funciones."
+          ],
+          "ejemplo": "SELECT categoria_id, COUNT(*) AS cantidad, AVG(precio) AS promedio\nFROM productos\nGROUP BY categoria_id\nHAVING COUNT(*) > 1;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "concepto:modo-sql"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Funciones de agregación",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/aggregate-functions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:order-by",
+      "categoria": "palabra",
+      "titulo": "ORDER BY: ordenar",
+      "alias": [
+        "order by",
+        "asc",
+        "desc"
+      ],
+      "resumen": "Ordena el resultado. Sin ORDER BY, el orden no está garantizado.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usa",
+          "parrafos": [
+            "ASC es de menor a mayor y DESC de mayor a menor.",
+            "Los NULL van primero con ASC."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nORDER BY precio DESC, nombre;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "Los NULL van al final con ASC."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Los NULL van al final con ASC."
+        }
+      ],
+      "relacionadas": [
+        "palabra:limit"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: SELECT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/select.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:limit",
+      "categoria": "palabra",
+      "titulo": "LIMIT: limitar filas",
+      "alias": [
+        "limit",
+        "offset",
+        "paginar",
+        "primeras filas"
+      ],
+      "resumen": "Devuelve solo las primeras filas del resultado.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usa",
+          "parrafos": [
+            "LIMIT 10 trae 10 filas. LIMIT 10 OFFSET 20 se salta 20 antes.",
+            "Úsalo con ORDER BY: si no, cuáles filas salen es casualidad."
+          ],
+          "ejemplo": "SELECT nombre, precio\nFROM productos\nORDER BY precio DESC\nLIMIT 3;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "TOP (10) u OFFSET … FETCH."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "FETCH FIRST 10 ROWS ONLY."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "LIMIT, igual."
+        }
+      ],
+      "relacionadas": [
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: SELECT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/select.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:insert",
+      "categoria": "palabra",
+      "titulo": "INSERT: agregar filas",
+      "alias": [
+        "insert",
+        "insert into",
+        "values",
+        "returning"
+      ],
+      "resumen": "Agrega filas a una tabla.",
+      "secciones": [
+        {
+          "titulo": "Formas",
+          "parrafos": [
+            "Se pueden insertar varias filas en una sola sentencia, separadas por comas.",
+            "Para saber el número automático: SELECT LAST_INSERT_ID()."
+          ],
+          "ejemplo": "INSERT INTO categorias (nombre) VALUES ('Ficha 1'), ('Ficha 2');\nDELETE FROM categorias WHERE nombre LIKE 'Ficha %';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "MariaDB",
+          "texto": "MariaDB tiene además INSERT … RETURNING."
+        },
+        {
+          "motor": "SQL Server",
+          "texto": "OUTPUT inserted.id."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "RETURNING … INTO."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "RETURNING."
+        }
+      ],
+      "relacionadas": [
+        "palabra:on-duplicate",
+        "concepto:identity"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: INSERT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/insert.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:on-duplicate",
+      "categoria": "palabra",
+      "titulo": "ON DUPLICATE KEY UPDATE y REPLACE",
+      "alias": [
+        "on duplicate key update",
+        "replace",
+        "insert ignore",
+        "upsert"
+      ],
+      "resumen": "Insertan una fila, o actualizan la que ya existe con esa clave.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "INSERT … ON DUPLICATE KEY UPDATE actualiza la fila existente.",
+            "REPLACE borra la fila y la vuelve a insertar: dispara los borrados en cascada.",
+            "INSERT IGNORE se salta las filas que chocan, y deja una advertencia."
+          ],
+          "ejemplo": "INSERT INTO categorias (id, nombre) VALUES (1, 'Libros')\nON DUPLICATE KEY UPDATE nombre = VALUES(nombre);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "MERGE."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "MERGE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "INSERT … ON CONFLICT DO UPDATE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:insert"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: ON DUPLICATE KEY UPDATE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html"
+        },
+        {
+          "titulo": "MySQL: REPLACE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/replace.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:update",
+      "categoria": "palabra",
+      "titulo": "UPDATE: cambiar filas",
+      "alias": [
+        "update",
+        "set"
+      ],
+      "resumen": "Cambia valores de filas existentes.",
+      "secciones": [
+        {
+          "titulo": "Cuidado",
+          "parrafos": [
+            "Sin WHERE se cambian todas las filas.",
+            "Se puede actualizar con un JOIN, y usar LIMIT."
+          ],
+          "ejemplo": "START TRANSACTION;\nUPDATE productos p\nJOIN categorias c ON c.id = p.categoria_id\nSET p.precio = p.precio * 1.1\nWHERE c.nombre = 'Audio';\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "palabra:where",
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: UPDATE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/update.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:delete",
+      "categoria": "palabra",
+      "titulo": "DELETE y TRUNCATE: borrar filas",
+      "alias": [
+        "delete",
+        "delete from",
+        "truncate"
+      ],
+      "resumen": "DELETE borra filas. TRUNCATE vacía la tabla de golpe.",
+      "secciones": [
+        {
+          "titulo": "Diferencias",
+          "parrafos": [
+            "Sin WHERE, DELETE borra todas las filas.",
+            "TRUNCATE no se puede deshacer, reinicia el AUTO_INCREMENT y no funciona si otra tabla apunta a esta."
+          ],
+          "ejemplo": "START TRANSACTION;\nDELETE FROM pedido_productos WHERE pedido_id = 1;\nROLLBACK;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "palabra:where",
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DELETE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/delete.html"
+        },
+        {
+          "titulo": "MySQL: TRUNCATE TABLE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/truncate-table.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:create-table",
+      "categoria": "palabra",
+      "titulo": "CREATE TABLE",
+      "alias": [
+        "create table",
+        "create",
+        "if not exists",
+        "like"
+      ],
+      "resumen": "Crea una tabla nueva.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "IF NOT EXISTS evita el error si ya existe.",
+            "CREATE TABLE nueva LIKE vieja copia la estructura.",
+            "ENGINE elige el motor de almacenamiento.",
+            "Confirma solo lo que tengas pendiente."
+          ],
+          "ejemplo": "CREATE TABLE IF NOT EXISTS ficha_copia LIKE categorias;\nDROP TABLE ficha_copia;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "concepto:tabla",
+        "concepto:motores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CREATE TABLE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/create-table.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:alter-table",
+      "categoria": "palabra",
+      "titulo": "ALTER TABLE: cambiar una tabla",
+      "alias": [
+        "alter table",
+        "alter",
+        "add column",
+        "modify column",
+        "change column",
+        "rename column",
+        "drop column",
+        "rename table"
+      ],
+      "resumen": "Cambia la estructura de una tabla existente.",
+      "secciones": [
+        {
+          "titulo": "Las más usadas",
+          "parrafos": [
+            "ADD COLUMN agrega y DROP COLUMN quita.",
+            "MODIFY COLUMN cambia el tipo, y pide la definición completa: lo que omitas se pierde, como NOT NULL.",
+            "RENAME COLUMN cambia el nombre y CHANGE COLUMN cambia nombre y tipo.",
+            "AFTER coloca la columna en un lugar."
+          ],
+          "ejemplo": "CREATE TABLE ficha_cambios (id int PRIMARY KEY);\nALTER TABLE ficha_cambios ADD COLUMN nota varchar(50) AFTER id;\nALTER TABLE ficha_cambios MODIFY COLUMN nota varchar(100) NOT NULL;\nDROP TABLE ficha_cambios;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ALTER COLUMN, y a veces hay que recrear la tabla."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "MODIFY."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "ALTER COLUMN … TYPE."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: ALTER TABLE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/alter-table.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:drop",
+      "categoria": "palabra",
+      "titulo": "DROP: borrar objetos",
+      "alias": [
+        "drop",
+        "drop table",
+        "drop database",
+        "if exists"
+      ],
+      "resumen": "Borra una tabla, una base u otro objeto, para siempre.",
+      "secciones": [
+        {
+          "titulo": "En MySQL",
+          "parrafos": [
+            "No hay papelera, y no se puede deshacer con ROLLBACK.",
+            "IF EXISTS evita el error y deja una nota.",
+            "Una tabla a la que apunta una llave foránea no se puede borrar hasta quitar la llave."
+          ],
+          "ejemplo": "DROP TABLE IF EXISTS ficha_no_existe;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "Tiene papelera."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Se puede deshacer dentro de una transacción."
+        }
+      ],
+      "relacionadas": [
+        "concepto:transacciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DROP TABLE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/drop-table.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:use",
+      "categoria": "palabra",
+      "titulo": "USE: cambiar de base",
+      "alias": [
+        "use"
+      ],
+      "resumen": "Elige la base activa de la sesión.",
+      "secciones": [
+        {
+          "titulo": "Cómo funciona",
+          "parrafos": [
+            "Si no hay base elegida, MySQL da el error 1046, «No database selected».",
+            "En la aplicación, Control+N abre una consulta en la base del nodo."
+          ],
+          "ejemplo": "USE tiendapractica;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "USE, igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "ALTER SESSION SET CURRENT_SCHEMA."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No existe: hay que conectarse a la otra base."
+        }
+      ],
+      "relacionadas": [
+        "concepto:bases-esquemas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: USE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/use.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:show",
+      "categoria": "palabra",
+      "titulo": "SHOW: ver información",
+      "alias": [
+        "show",
+        "show tables",
+        "show databases",
+        "show create table",
+        "show columns",
+        "show warnings",
+        "show variables"
+      ],
+      "resumen": "Muestra información del servidor en forma corta.",
+      "secciones": [
+        {
+          "titulo": "Los más usados",
+          "parrafos": [
+            "SHOW TABLES, SHOW DATABASES, SHOW COLUMNS FROM tabla.",
+            "SHOW CREATE TABLE devuelve el CREATE exacto.",
+            "SHOW WARNINGS muestra las advertencias; la aplicación ya las pone en el panel de mensajes."
+          ],
+          "ejemplo": "SHOW CREATE TABLE clientes;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "concepto:catalogo"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: SHOW",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/show.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:conversion",
+      "categoria": "palabra",
+      "titulo": "CAST y CONVERT: cambiar de tipo",
+      "alias": [
+        "cast",
+        "convert",
+        "conversión"
+      ],
+      "resumen": "Convierten un valor a otro tipo.",
+      "secciones": [
+        {
+          "titulo": "Destinos",
+          "parrafos": [
+            "Los destinos son especiales: CHAR, SIGNED, UNSIGNED, DECIMAL, DATE y DATETIME.",
+            "No se puede escribir CAST(x AS int) ni AS varchar."
+          ],
+          "ejemplo": "SELECT CAST('42' AS SIGNED) + 1 AS numero, CAST(precio AS CHAR) AS texto\nFROM productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CAST y CONVERT, con cualquier tipo."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "CAST, TO_CHAR y TO_NUMBER."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CAST, y valor::tipo."
+        }
+      ],
+      "relacionadas": [],
+      "fuentes": [
+        {
+          "titulo": "MySQL: CAST y CONVERT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/cast-functions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-texto",
+      "categoria": "palabra",
+      "titulo": "Funciones de texto",
+      "alias": [
+        "concat",
+        "concat_ws",
+        "length",
+        "char_length",
+        "upper",
+        "lower",
+        "substring",
+        "replace",
+        "trim",
+        "left",
+        "right",
+        "group_concat"
+      ],
+      "resumen": "Trabajan con textos.",
+      "secciones": [
+        {
+          "titulo": "Las más usadas",
+          "parrafos": [
+            "CONCAT une textos: las dos barras || no sirven por omisión, porque significan OR.",
+            "CHAR_LENGTH cuenta caracteres y LENGTH cuenta bytes: «ñ» mide 2 bytes.",
+            "GROUP_CONCAT une los valores de un grupo."
+          ],
+          "ejemplo": "SELECT CONCAT(nombre, ' <', correo, '>') AS contacto,\n       UPPER(LEFT(nombre, 3)) AS inicio\nFROM clientes;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CONCAT y LEN."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "El operador || y LENGTH."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "El operador || y length."
+        }
+      ],
+      "relacionadas": [],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Funciones de texto",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/string-functions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:fechas",
+      "categoria": "palabra",
+      "titulo": "Funciones de fecha",
+      "alias": [
+        "now",
+        "curdate",
+        "current_date",
+        "date_format",
+        "date_add",
+        "datediff",
+        "year",
+        "month",
+        "day",
+        "timestampdiff",
+        "interval"
+      ],
+      "resumen": "Trabajan con fechas y horas.",
+      "secciones": [
+        {
+          "titulo": "Las más usadas",
+          "parrafos": [
+            "NOW() da fecha y hora, y CURDATE() solo la fecha.",
+            "DATE_ADD suma con INTERVAL. DATEDIFF cuenta días.",
+            "DATE_FORMAT da formato: '%d/%m/%Y'."
+          ],
+          "ejemplo": "SELECT fecha, DATE_FORMAT(fecha, '%d/%m/%Y') AS con_formato,\n       DATE_ADD(fecha, INTERVAL 30 DAY) AS vence,\n       DATEDIFF(CURDATE(), fecha) AS dias\nFROM pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "GETDATE, DATEADD y DATEDIFF."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "SYSDATE y TO_CHAR."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "now() e INTERVAL."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "tipo:datetime"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Funciones de fecha",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/date-and-time-functions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-nulos-case",
+      "categoria": "palabra",
+      "titulo": "IFNULL, COALESCE, IF y CASE",
+      "alias": [
+        "ifnull",
+        "coalesce",
+        "nullif",
+        "if",
+        "case",
+        "when"
+      ],
+      "resumen": "Eligen un valor según una condición.",
+      "secciones": [
+        {
+          "titulo": "Las más usadas",
+          "parrafos": [
+            "IFNULL(a, b) da b si a es NULL. COALESCE acepta más valores.",
+            "IF(condición, a, b) es propio de MySQL. CASE es el estándar."
+          ],
+          "ejemplo": "SELECT nombre,\n       IF(precio > 50, 'caro', 'barato') AS rango,\n       CASE WHEN precio < 20 THEN 'bajo' WHEN precio < 60 THEN 'medio' ELSE 'alto' END AS nivel\nFROM productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ISNULL e IIF."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "NVL y DECODE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "COALESCE y CASE."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Funciones de control de flujo",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/flow-control-functions.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:delimiter",
+      "categoria": "plsql",
+      "titulo": "DELIMITER: escribir cuerpos con punto y coma",
+      "alias": [
+        "delimiter",
+        "$$",
+        "//"
+      ],
+      "resumen": "Cambia el separador de sentencias mientras se escribe un procedimiento, una función o un disparador.",
+      "secciones": [
+        {
+          "titulo": "Por qué hace falta",
+          "parrafos": [
+            "El cuerpo lleva punto y coma por dentro, y sin DELIMITER el script se cortaría ahí.",
+            "DELIMITER va en su propia línea. No es SQL: lo entiende el editor y no se envía al servidor.",
+            "Al terminar se vuelve al punto y coma con DELIMITER ;."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE PROCEDURE ficha_hola ()\nBEGIN\n    SELECT 1;\n    SELECT 2;\nEND$$\nDELIMITER ;\nDROP PROCEDURE ficha_hola;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "PostgreSQL",
+          "texto": "Signos de dólar: $$ … $$."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Una barra / en su propia línea."
+        },
+        {
+          "motor": "SQL Server",
+          "texto": "GO en su propia línea."
+        }
+      ],
+      "relacionadas": [
+        "concepto:procedimientos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Definir programas almacenados",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/stored-programs-defining.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:variables",
+      "categoria": "plsql",
+      "titulo": "Variables",
+      "alias": [
+        "declare",
+        "set",
+        "variable",
+        "@",
+        "select into",
+        "variables de sesión"
+      ],
+      "resumen": "Hay variables locales de un programa y variables de sesión con @.",
+      "secciones": [
+        {
+          "titulo": "Las dos clases",
+          "parrafos": [
+            "DECLARE crea una variable local, solo dentro de BEGIN … END, y al inicio del bloque.",
+            "@nombre es una variable de sesión: no se declara y dura hasta desconectar.",
+            "SET asigna, y SELECT … INTO guarda el resultado de una consulta."
+          ],
+          "ejemplo": "SET @total = (SELECT COUNT(*) FROM productos);\nSELECT @total AS productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "DECLARE @nombre."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "En la sección DECLARE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "En la sección DECLARE."
+        }
+      ],
+      "relacionadas": [
+        "concepto:procedimientos"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DECLARE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/declare-local-variable.html"
+        },
+        {
+          "titulo": "MySQL: Variables de sesión",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/user-variables.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:if-case",
+      "categoria": "plsql",
+      "titulo": "IF y CASE en programas",
+      "alias": [
+        "if",
+        "then",
+        "elseif",
+        "end if",
+        "end case"
+      ],
+      "resumen": "Eligen qué sentencias ejecutar.",
+      "secciones": [
+        {
+          "titulo": "Formas",
+          "parrafos": [
+            "IF condición THEN … ELSEIF … ELSE … END IF.",
+            "CASE … END CASE, y si ningún caso coincide y no hay ELSE, da error.",
+            "Solo funcionan dentro de un programa. En una consulta se usa la función IF."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE FUNCTION ficha_nivel (p_precio decimal(10, 2))\nRETURNS varchar(10)\nDETERMINISTIC\nBEGIN\n    IF p_precio > 50 THEN\n        RETURN 'caro';\n    END IF;\n    RETURN 'barato';\nEND$$\nDELIMITER ;\nSELECT ficha_nivel(80) AS nivel;\nDROP FUNCTION ficha_nivel;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "palabra:funciones-nulos-case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: IF",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/if.html"
+        },
+        {
+          "titulo": "MySQL: CASE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/case.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:bucles",
+      "categoria": "plsql",
+      "titulo": "Bucles: WHILE, REPEAT y LOOP",
+      "alias": [
+        "while",
+        "repeat",
+        "loop",
+        "leave",
+        "iterate"
+      ],
+      "resumen": "Repiten sentencias dentro de un programa.",
+      "secciones": [
+        {
+          "titulo": "Formas",
+          "parrafos": [
+            "WHILE condición DO … END WHILE.",
+            "REPEAT … UNTIL condición END REPEAT.",
+            "LOOP se repite hasta que LEAVE lo termina. ITERATE pasa a la siguiente vuelta."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE FUNCTION ficha_suma (p_hasta int)\nRETURNS int\nDETERMINISTIC\nBEGIN\n    DECLARE v_total int DEFAULT 0;\n    DECLARE v_i int DEFAULT 1;\n    WHILE v_i <= p_hasta DO\n        SET v_total = v_total + v_i;\n        SET v_i = v_i + 1;\n    END WHILE;\n    RETURN v_total;\nEND$$\nDELIMITER ;\nSELECT ficha_suma(4) AS suma;\nDROP FUNCTION ficha_suma;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "rutinas:variables"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: WHILE",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/while.html"
+        },
+        {
+          "titulo": "MySQL: LOOP",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/loop.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:handlers",
+      "categoria": "plsql",
+      "titulo": "Manejar errores: DECLARE HANDLER",
+      "alias": [
+        "handler",
+        "declare handler",
+        "exit handler",
+        "continue handler",
+        "sqlexception",
+        "not found"
+      ],
+      "resumen": "Un manejador dice qué hacer cuando ocurre un error dentro de un programa.",
+      "secciones": [
+        {
+          "titulo": "Tipos",
+          "parrafos": [
+            "EXIT termina el bloque, y CONTINUE sigue con la sentencia siguiente.",
+            "SQLEXCEPTION atrapa cualquier error, y NOT FOUND el final de un cursor."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE PROCEDURE ficha_seguro ()\nBEGIN\n    DECLARE EXIT HANDLER FOR SQLEXCEPTION\n    BEGIN\n        ROLLBACK;\n        SELECT 'Se deshizo todo' AS resultado;\n    END;\n    START TRANSACTION;\n    INSERT INTO categorias (id, nombre) VALUES (1, 'repetida');\n    COMMIT;\nEND$$\nDELIMITER ;\nCALL ficha_seguro();\nDROP PROCEDURE ficha_seguro;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "TRY … CATCH."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "EXCEPTION WHEN."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "EXCEPTION WHEN."
+        }
+      ],
+      "relacionadas": [
+        "rutinas:signal"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: DECLARE HANDLER",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/declare-handler.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:signal",
+      "categoria": "plsql",
+      "titulo": "SIGNAL: lanzar un error propio",
+      "alias": [
+        "signal",
+        "sqlstate",
+        "message_text",
+        "resignal",
+        "45000"
+      ],
+      "resumen": "Lanza un error con un mensaje propio.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usa",
+          "parrafos": [
+            "SQLSTATE '45000' significa «error definido por el usuario».",
+            "Sirve para rechazar datos desde un disparador."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE PROCEDURE ficha_rechazar (p_valor int)\nBEGIN\n    IF p_valor < 0 THEN\n        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El valor no puede ser negativo.';\n    END IF;\nEND$$\nDELIMITER ;\nCALL ficha_rechazar(1);\nDROP PROCEDURE ficha_rechazar;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "THROW."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "RAISE_APPLICATION_ERROR."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "RAISE EXCEPTION."
+        }
+      ],
+      "relacionadas": [
+        "concepto:disparadores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: SIGNAL",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/signal.html"
+        }
+      ]
+    },
+    {
+      "id": "rutinas:cursores",
+      "categoria": "plsql",
+      "titulo": "Cursores",
+      "alias": [
+        "cursor",
+        "declare cursor",
+        "open",
+        "fetch",
+        "close"
+      ],
+      "resumen": "Un cursor recorre el resultado de una consulta fila por fila.",
+      "secciones": [
+        {
+          "titulo": "Pasos",
+          "parrafos": [
+            "DECLARE cursor, OPEN, FETCH en un bucle y CLOSE.",
+            "Necesita un manejador NOT FOUND para saber cuándo termina.",
+            "Casi siempre una sola consulta es más rápida."
+          ],
+          "ejemplo": "DELIMITER $$\nCREATE PROCEDURE ficha_recorrer ()\nBEGIN\n    DECLARE v_fin int DEFAULT 0;\n    DECLARE v_precio decimal(10, 2);\n    DECLARE v_total decimal(12, 2) DEFAULT 0;\n    DECLARE c CURSOR FOR SELECT precio FROM productos;\n    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_fin = 1;\n    OPEN c;\n    bucle: LOOP\n        FETCH c INTO v_precio;\n        IF v_fin = 1 THEN\n            LEAVE bucle;\n        END IF;\n        SET v_total = v_total + v_precio;\n    END LOOP;\n    CLOSE c;\n    SELECT v_total AS total;\nEND$$\nDELIMITER ;\nCALL ficha_recorrer();\nDROP PROCEDURE ficha_recorrer;"
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [
+        "rutinas:handlers",
+        "rutinas:bucles"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Cursores",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/cursors.html"
+        }
+      ]
+    },
+    {
+      "id": "atajos:aplicacion",
+      "categoria": "atajos",
+      "titulo": "Atajos de teclado de Mi Gestor BD Accesible",
+      "alias": [
+        "atajos",
+        "teclas",
+        "teclado",
+        "f1",
+        "f5",
+        "f6",
+        "f8",
+        "menú",
+        "aplicaciones"
+      ],
+      "resumen": "Las teclas para moverte por la aplicación sin ratón.",
+      "secciones": [
+        {
+          "titulo": "En cualquier lugar",
+          "parrafos": [
+            "F1: abre la ayuda del elemento donde estás. En el editor, explica la palabra de SQL bajo el cursor. Si no hay ayuda para ese elemento, abre la portada.",
+            "F8: vuelve al explorador de objetos, al último nodo donde estabas.",
+            "Control+N: abre una consulta conectada a la base de datos del nodo donde estás. Si ya hay una abierta, cambia su base y conserva el texto.",
+            "Control+T: abre otra pestaña de consulta en la base del nodo (o en la de la pestaña actual, si estás en el editor). Control+W cierra la pestaña activa y Control+Tab o Control+Mayúsculas+Tab cambian de pestaña. En la lista de pestañas, las flechas izquierda y derecha pasan de una a otra.",
+            "F5: ejecuta la consulta completa, o solo el texto seleccionado.",
+            "F6 y Mayúsculas+F6: pasan entre el editor, los resultados y los mensajes, hacia adelante o hacia atrás.",
+            "Control+O: abre un archivo .sql en el editor. Si hay cambios sin guardar, primero pregunta si quieres guardarlos.",
+            "Control+S: guarda la consulta en su archivo; la primera vez pregunta dónde. Control+Mayúsculas+S: guarda en un archivo nuevo.",
+            "Control+H: muestra el historial de consultas ejecutadas en esta conexión, de la más reciente a la más antigua.",
+            "Control+F: abre la barra para buscar y reemplazar en la consulta. Intro va a la siguiente coincidencia y Mayúsculas+Intro a la anterior; Escape vuelve al editor con el cursor sobre la coincidencia. F3 y Mayúsculas+F3 siguen buscando desde el editor.",
+            "Control+B: busca un objeto por su nombre en la base (tablas, columnas, vistas, procedimientos, funciones, índices, restricciones, disparadores y secuencias). Las flechas recorren los resultados e Intro lleva al objeto en el árbol. Control+B otra vez recupera la última búsqueda.",
+            "Alt o F10: activa la barra de menús (Archivo, Editar, Consulta y Ayuda), con todas las acciones principales y sus atajos. Las flechas recorren los menús, Intro elige una opción y Escape vuelve a donde estabas."
+          ]
+        },
+        {
+          "titulo": "En el editor con PostgreSQL",
+          "parrafos": [
+            "Cada sentencia termina en punto y coma. El cuerpo de las funciones y de los bloques DO va entre signos de dólar, $$ … $$, y el editor no corta en los puntos y coma de adentro.",
+            "Cada sentencia se confirma sola. Si escribes BEGIN, los cambios quedan pendientes hasta COMMIT o ROLLBACK, y verás un aviso sobre los resultados.",
+            "Cada pestaña tiene su propia sesión en cada base: un COMMIT o un ROLLBACK en una pestaña no toca a las demás. Para trabajar en otra base, ponte sobre ella en el explorador y pulsa Control+N (misma pestaña) o Control+T (pestaña nueva).",
+            "Los mensajes de RAISE NOTICE aparecen en el panel de mensajes, y los comandos de psql, como \\d, se explican sin enviarse al servidor."
+          ]
+        },
+        {
+          "titulo": "En los resultados y los mensajes",
+          "parrafos": [
+            "Cada resultado es una tabla: usa los comandos de tabla de tu lector de pantalla para moverte por filas y columnas. La primera columna es el número de fila.",
+            "En los mensajes, cada error tiene un botón «Ir a la línea» que lleva el cursor del editor al comienzo de esa línea.",
+            "Cada resultado tiene los botones «Copiar tabla», que la copia separada por tabulaciones para pegarla en una hoja de cálculo, y «Exportar a CSV». Con la tecla 3 de tu lector de pantalla saltas de un resultado al siguiente."
+          ]
+        },
+        {
+          "titulo": "En el explorador de objetos",
+          "parrafos": [
+            "Flecha abajo y flecha arriba: siguiente y anterior nodo.",
+            "Flecha derecha: expande el nodo; si ya está expandido, entra al primer hijo.",
+            "Flecha izquierda: contrae el nodo; si ya está contraído, sube al padre.",
+            "Inicio y Fin: primer y último nodo visible.",
+            "Intro: sobre una tabla, la describe; sobre una carpeta, la expande o la contrae.",
+            "Tecla Aplicaciones o Mayúsculas+F10: abre el menú de acciones del nodo, como Nueva consulta, Nueva tabla, Seleccionar las primeras 100 filas, Generar script o Eliminar."
+          ]
+        },
+        {
+          "titulo": "En el menú de acciones",
+          "parrafos": [
+            "Flecha abajo y flecha arriba recorren las acciones; Inicio y Fin van a la primera y a la última. Una letra salta a la siguiente acción que empieza con ella.",
+            "Intro o Espacio ejecutan la acción. Escape o Tab cierran el menú y vuelven al nodo.",
+            "Las acciones que terminan en puntos suspensivos abren un cuadro de diálogo que muestra el SQL antes de ejecutarlo. Las de eliminar piden confirmación."
+          ]
+        },
+        {
+          "titulo": "En la ayuda",
+          "parrafos": [
+            "Escape: cierra la ayuda y vuelve al lugar donde estabas.",
+            "Los temas relacionados son botones: actívalos con Intro para abrir esa ficha. El botón Atrás vuelve a la ficha anterior."
+          ]
+        }
+      ],
+      "otrosMotores": [],
+      "relacionadas": [],
+      "fuentes": []
+    }
+  ]
+}

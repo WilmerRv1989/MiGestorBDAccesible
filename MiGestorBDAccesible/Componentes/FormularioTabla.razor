@@ -18,11 +18,14 @@
             <input id="tabla-nombre" @bind="_definicion.Nombre" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-tabla-nombre" />
             <span id="ayuda-tabla-nombre" class="ayuda">@AvisoNombreGuardado(_definicion.Nombre)</span>
         </div>
-        <div class="campo">
-            <label for="tabla-esquema">Esquema</label>
-            <input id="tabla-esquema" @bind="_definicion.Esquema" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-esquema" readonly="@(Original is not null)" />
-            <span id="ayuda-esquema" class="ayuda">@(Original is null ? $"Normalmente {Proveedor.EsquemaPredeterminado(Conexion)}." : "El esquema no se cambia desde aquí.")</span>
-        </div>
+        @if (Proveedor.Capacidades.TieneEsquemas)
+        {
+            <div class="campo">
+                <label for="tabla-esquema">Esquema</label>
+                <input id="tabla-esquema" @bind="_definicion.Esquema" @bind:event="oninput" autocomplete="off" aria-describedby="ayuda-esquema" readonly="@(Original is not null)" />
+                <span id="ayuda-esquema" class="ayuda">@(Original is null ? $"Normalmente {Proveedor.EsquemaPredeterminado(Conexion)}." : "El esquema no se cambia desde aquí.")</span>
+            </div>
+        }
     </fieldset>
 
     <h3 id="titulo-columnas" tabindex="-1">Columnas (@_definicion.Columnas.Count)</h3>
@@ -163,10 +166,13 @@
                         <label for="col-semilla">Empieza en</label>
                         <input id="col-semilla" type="number" @bind="_editando.Semilla" @bind:event="oninput" />
                     </div>
-                    <div class="campo">
-                        <label for="col-incremento">Sube de</label>
-                        <input id="col-incremento" type="number" @bind="_editando.Incremento" @bind:event="oninput" />
-                    </div>
+                    @if (Terminos.IncrementoPorColumna)
+                    {
+                        <div class="campo">
+                            <label for="col-incremento">Sube de</label>
+                            <input id="col-incremento" type="number" @bind="_editando.Incremento" @bind:event="oninput" />
+                        </div>
+                    }
                 }
             }
 

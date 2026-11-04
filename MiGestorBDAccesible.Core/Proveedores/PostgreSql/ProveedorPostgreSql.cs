@@ -13,6 +13,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
         private static readonly CapacidadesMotorModelo _capacidades = new()
         {
             SesionPorBase = true,
+            SalidasEnResultados = true,
             DdlTransaccional = true,
             IndiceConcurrente = true,
             MetodosIndice =

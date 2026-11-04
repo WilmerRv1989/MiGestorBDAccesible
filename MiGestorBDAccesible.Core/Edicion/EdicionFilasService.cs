@@ -87,15 +87,15 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public static ClaseValor Clasificar(string tipo)
         {
-            var nombre = Regex.Replace(tipo, @"\s*\(.*?\)", "").Trim().ToLowerInvariant();
+            var nombre = Regex.Replace(tipo, @"\s*\(.*?\)|\s+(unsigned|zerofill)\b", "").Trim().ToLowerInvariant();
 
             return nombre switch
             {
                 "bit" or "boolean" or "bool" => ClaseValor.Logico,
-                "int" or "bigint" or "smallint" or "tinyint" or "integer" or "decimal" or "numeric" or "money" or "smallmoney"
-                    or "float" or "real" or "double precision" or "number" or "binary_float" or "binary_double" => ClaseValor.Numero,
+                "int" or "bigint" or "mediumint" or "smallint" or "tinyint" or "integer" or "decimal" or "numeric" or "money" or "smallmoney"
+                    or "float" or "real" or "double" or "double precision" or "year" or "number" or "binary_float" or "binary_double" => ClaseValor.Numero,
                 var t when t.StartsWith("date") || t.StartsWith("time") || t.StartsWith("smalldatetime") || t.StartsWith("timestamp") => ClaseValor.Fecha,
-                var t when t.Contains("char") || t.Contains("text") || t is "clob" or "nclob" or "xml" or "uuid" or "uniqueidentifier" or "json" or "jsonb" => ClaseValor.Texto,
+                var t when t.Contains("char") || t.Contains("text") || t is "clob" or "nclob" or "xml" or "uuid" or "uniqueidentifier" or "json" or "jsonb" or "enum" or "set" => ClaseValor.Texto,
                 _ => ClaseValor.Otro
             };
         }
@@ -128,7 +128,7 @@ namespace MiGestorBDAccesible.Core.Edicion
         }
 
         public static string ConsultaPagina(DialectoSqlModelo d, DetalleTablaModelo detalle, List<ColumnaEdicionModelo> columnas, List<string> clave, string condicion, int desde) =>
-            $"SELECT {string.Join(", ", columnas.Select(c => d.Columna(c.Nombre)))} FROM {d.Tabla(detalle.Tabla)}{condicion} ORDER BY {string.Join(", ", clave.Select(d.Columna))} OFFSET {desde} ROWS FETCH NEXT {TamanoPagina} ROWS ONLY";
+            $"SELECT {string.Join(", ", columnas.Select(c => d.Columna(c.Nombre)))} FROM {d.Tabla(detalle.Tabla)}{condicion} ORDER BY {string.Join(", ", clave.Select(d.Columna))} {d.Pagina(desde, TamanoPagina)}";
 
         public static string ConsultaConteo(DialectoSqlModelo d, DetalleTablaModelo detalle, string condicion) =>
             $"SELECT COUNT(*) FROM {d.Tabla(detalle.Tabla)}{condicion}";
@@ -191,10 +191,10 @@ namespace MiGestorBDAccesible.Core.Edicion
             var donde = string.IsNullOrWhiteSpace(buscar)
                 ? ""
                 : texto is null
-                    ? $" WHERE CAST({destino} AS VARCHAR(100)) LIKE {d.Texto("varchar", $"%{buscar.Trim()}%")}"
+                    ? $" WHERE {d.ComoTexto(destino)} LIKE {d.Texto("varchar", $"%{buscar.Trim()}%")}"
                     : $" WHERE UPPER({texto}) LIKE UPPER({d.Texto("varchar", $"%{buscar.Trim()}%")})";
 
-            return $"SELECT {destino}{(texto is null ? "" : $", {texto}")} FROM {d.Tabla(llave.TablaDestino)}{donde} ORDER BY {texto ?? destino} OFFSET 0 ROWS FETCH NEXT {MaximoOpciones + 1} ROWS ONLY";
+            return $"SELECT {destino}{(texto is null ? "" : $", {texto}")} FROM {d.Tabla(llave.TablaDestino)}{donde} ORDER BY {texto ?? destino} {d.Pagina(0, MaximoOpciones + 1)}";
         }
 
         public static List<string> Validar(List<ColumnaEdicionModelo> columnas, IReadOnlyDictionary<string, string?> valores, bool nueva)

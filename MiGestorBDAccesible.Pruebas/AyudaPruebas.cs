@@ -54,6 +54,74 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.Equal(esperado, _ayuda.Resolver(TipoMotor.SqlServer, clave)?.Id);
         }
 
+        [Theory]
+        [InlineData(TipoMotor.MySql, "https://dev.mysql.com/doc/refman/8.4/en/")]
+        [InlineData(TipoMotor.MariaDb, "https://mariadb.com/docs/server/")]
+        public void LasFichasDeMySqlYMariaDbEstanCompletasYSinEnlacesRotos(TipoMotor motor, string fuente)
+        {
+            var fichas = _ayuda.Contenido(motor).Fichas;
+            var rotos = fichas
+                .SelectMany(f => f.Relacionadas.Select(r => (f.Id, Relacionada: r)))
+                .Where(par => _ayuda.Obtener(motor, par.Relacionada) is null)
+                .Select(par => $"{par.Id} -> {par.Relacionada}");
+            var incompletas = fichas
+                .Where(f => string.IsNullOrWhiteSpace(f.Resumen) || f.Secciones.Count == 0 || (f.Categoria != AyudaService.CategoriaAtajos && f.Fuentes.Count == 0))
+                .Select(f => f.Id);
+
+            Assert.True(fichas.Count >= 60);
+            Assert.Equal(fichas.Count, fichas.Select(f => f.Id).Distinct().Count());
+            Assert.Empty(rotos);
+            Assert.Empty(incompletas);
+            Assert.All(fichas.SelectMany(f => f.Fuentes), f => Assert.StartsWith(fuente, f.Url));
+            Assert.DoesNotContain(fichas, f => f.Resumen.Contains("{M}") || f.Titulo.Contains("{M}"));
+        }
+
+        [Theory]
+        [InlineData("concepto:tabla")]
+        [InlineData("concepto:identity")]
+        [InlineData("concepto:vistas")]
+        [InlineData("concepto:procedimientos")]
+        [InlineData("concepto:funciones")]
+        [InlineData("concepto:disparadores")]
+        [InlineData("concepto:secuencias")]
+        [InlineData("atajos:aplicacion")]
+        public void MySqlYMariaDbTienenLosTemasQuePideLaAplicacion(string tema)
+        {
+            Assert.NotNull(_ayuda.Obtener(TipoMotor.MySql, tema));
+            Assert.NotNull(_ayuda.Obtener(TipoMotor.MariaDb, tema));
+        }
+
+        [Theory]
+        [InlineData("tipo:int(11)", "tipo:enteros")]
+        [InlineData("tipo:int unsigned", "tipo:enteros")]
+        [InlineData("tipo:decimal(10, 2)", "tipo:decimal")]
+        [InlineData("tipo:enum('a','b')", "tipo:enum")]
+        [InlineData("tipo:longtext", "tipo:text")]
+        [InlineData("palabra:delimiter", "rutinas:delimiter")]
+        [InlineData("palabra:auto_increment", "concepto:identity")]
+        [InlineData("palabra:limit", "palabra:limit")]
+        public void ResuelveLosTiposYLasPalabrasDeMySql(string clave, string esperada)
+        {
+            Assert.Equal(esperada, _ayuda.Resolver(TipoMotor.MySql, clave)?.Id);
+        }
+
+        [Fact]
+        public void CadaVarianteHablaDeSuMotor()
+        {
+            Assert.Contains("MySQL no tiene secuencias", _ayuda.Obtener(TipoMotor.MySql, "concepto:secuencias")!.Resumen);
+            Assert.Contains("entrega números", _ayuda.Obtener(TipoMotor.MariaDb, "concepto:secuencias")!.Resumen);
+            Assert.Contains("MariaDB", _ayuda.Obtener(TipoMotor.MariaDb, "concepto:bases-esquemas")!.Resumen);
+        }
+
+        [Fact]
+        public void LasFichasDeLosOtrosMotoresMencionanAMySql()
+        {
+            foreach (var motor in new[] { TipoMotor.SqlServer, TipoMotor.Oracle, TipoMotor.PostgreSql })
+            {
+                Assert.Contains(_ayuda.Obtener(motor, "concepto:identity")!.OtrosMotores, o => o.Motor.StartsWith("MySQL"));
+            }
+        }
+
         [Fact]
         public void LasFichasDeOracleEstanCompletasYSinEnlacesRotos()
         {

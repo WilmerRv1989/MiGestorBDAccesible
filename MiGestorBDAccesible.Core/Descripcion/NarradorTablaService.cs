@@ -16,6 +16,11 @@ namespace MiGestorBDAccesible.Core.Descripcion
                 $"{tabla} tiene {Contar(detalle.Columnas.Count, "columna", "columnas")} y {Contar(detalle.Filas, "fila", "filas")}."
             };
 
+            if (detalle.Almacenamiento is { } almacenamiento && !almacenamiento.Equals("InnoDB", StringComparison.OrdinalIgnoreCase))
+            {
+                resumen.Add($"Se guarda con el motor {almacenamiento} (ENGINE), que no admite llaves foráneas ni transacciones.");
+            }
+
             if (detalle.EsTablaIntermedia)
             {
                 var destinos = detalle.LlavesForaneas.Select(l => l.TablaDestino.NombreCorto()).Distinct().ToList();
@@ -168,7 +173,9 @@ namespace MiGestorBDAccesible.Core.Descripcion
 
             if (columna.EsIdentidad)
             {
-                partes.Add($"número automático que empieza en {columna.SemillaIdentidad} y sube de {columna.IncrementoIdentidad} en {columna.IncrementoIdentidad} ({terminos.Identidad(columna.SemillaIdentidad, columna.IncrementoIdentidad)})");
+                partes.Add(columna.SemillaIdentidad is null && columna.SiguienteIdentidad is { } siguiente
+                    ? $"número automático que sube de {columna.IncrementoIdentidad} en {columna.IncrementoIdentidad} ({terminos.Identidad(null, columna.IncrementoIdentidad)}), el siguiente será {siguiente}"
+                    : $"número automático que empieza en {columna.SemillaIdentidad} y sube de {columna.IncrementoIdentidad} en {columna.IncrementoIdentidad} ({terminos.Identidad(columna.SemillaIdentidad, columna.IncrementoIdentidad)})");
 
                 if (columna.IdentidadSiempre is { } siempre)
                 {

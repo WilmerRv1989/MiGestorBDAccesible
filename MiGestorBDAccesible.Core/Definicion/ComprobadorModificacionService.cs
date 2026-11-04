@@ -40,6 +40,10 @@ namespace MiGestorBDAccesible.Core.Definicion
         public Func<string, bool> SoloLectura { get; init; } = _ => false;
 
         public Func<string, string> InsertarPredeterminados { get; init; } = tabla => $"INSERT INTO {tabla} DEFAULT VALUES;";
+
+        public Func<int, int, string> Pagina { get; init; } = (desde, cantidad) => $"OFFSET {desde} ROWS FETCH NEXT {cantidad} ROWS ONLY";
+
+        public Func<string, string> ComoTexto { get; init; } = columna => $"CAST({columna} AS VARCHAR(100))";
     }
 
     public class ComprobadorModificacionService

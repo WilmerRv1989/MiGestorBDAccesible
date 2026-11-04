@@ -17,9 +17,10 @@
 
     <div class="campo">
         <label for="motor">Motor de base de datos</label>
-        <InputSelect id="motor" TValue="TipoMotor" Value="_formulario.Motor"
+        <InputSelect id="motor" TValue="TipoMotor?" Value="_formulario.Motor"
                      ValueChanged="CambiarMotor" ValueExpression="() => _formulario.Motor">
-            @foreach (var motor in Enum.GetValues<TipoMotor>())
+            <option value="">Selecciona un motor</option>
+            @foreach (var motor in TipoMotorExtensiones.EnOrdenAlfabetico)
             {
                 var disponible = proveedores.EstaDisponible(motor);
                 <option value="@motor" disabled="@(!disponible)">
@@ -27,6 +28,7 @@
                 </option>
             }
         </InputSelect>
+        <ValidationMessage For="() => _formulario.Motor" />
     </div>
 
     <div class="campo">
@@ -39,11 +41,11 @@
     <div class="campo">
         <label for="puerto">Puerto</label>
         <InputNumber id="puerto" @bind-Value="_formulario.Puerto" aria-describedby="ayuda-puerto" />
-        <span id="ayuda-puerto" class="ayuda">El de @_formulario.Motor.Nombre() es @_formulario.Motor.PuertoPredeterminado(). Déjalo vacío para usar una instancia con nombre.</span>
+        <span id="ayuda-puerto" class="ayuda">@AyudaPuerto</span>
         <ValidationMessage For="() => _formulario.Puerto" />
     </div>
 
-    @if (_formulario.Motor.UsaNombreServicio())
+    @if (_formulario.Motor?.UsaNombreServicio() == true)
     {
         <div class="campo">
             <label for="servicio">Nombre de servicio</label>
@@ -53,7 +55,7 @@
         </div>
     }
 
-    @if (_formulario.Motor.AdmiteAutenticacionWindows())
+    @if (_formulario.Motor?.AdmiteAutenticacionWindows() == true)
     {
         <fieldset>
             <legend>Autenticación</legend>
@@ -102,14 +104,12 @@
         <p id="ayuda-confiar" class="ayuda">Márcala para servidores locales o de prueba, como Docker.</p>
     }
 
-    @if (_formulario.Motor.AdmiteBaseInicial())
+    @if (_formulario.Motor?.AdmiteBaseInicial() == true)
     {
         <div class="campo">
             <label for="base-inicial">Base de datos inicial (opcional)</label>
             <InputText id="base-inicial" @bind-Value="_formulario.BaseDatosInicial" aria-describedby="ayuda-base" />
-            <span id="ayuda-base" class="ayuda">@(_formulario.Motor.BaseInicialPredeterminada() is { } predeterminada
-                ? $"PostgreSQL siempre se conecta a una base; desde ella se ven las demás. Si la dejas vacía se usa {predeterminada}."
-                : "Si la dejas vacía se usa la base predeterminada del usuario.")</span>
+            <span id="ayuda-base" class="ayuda">@_formulario.Motor?.AyudaBaseInicial()</span>
         </div>
     }
 
@@ -153,28 +153,34 @@
         }
     }
 
-    private void CambiarMotor(TipoMotor motor)
+    private string AyudaPuerto => _formulario.Motor is not { } motor
+        ? "Primero elige el motor."
+        : motor == TipoMotor.SqlServer
+            ? $"El de {motor.Nombre()} es {motor.PuertoPredeterminado()}. Déjalo vacío para usar una instancia con nombre."
+            : $"El de {motor.Nombre()} es {motor.PuertoPredeterminado()}.";
+
+    private void CambiarMotor(TipoMotor? motor)
     {
-        var puertoAnterior = _formulario.Motor.PuertoPredeterminado();
+        var puertoAnterior = _formulario.Motor?.PuertoPredeterminado();
 
         if (_formulario.Puerto is null || _formulario.Puerto == puertoAnterior)
         {
-            _formulario.Puerto = motor.PuertoPredeterminado();
+            _formulario.Puerto = motor?.PuertoPredeterminado();
         }
 
-        if (!motor.AdmiteAutenticacionWindows())
+        if (motor?.AdmiteAutenticacionWindows() != true)
         {
             _formulario.Autenticacion = TipoAutenticacion.UsuarioYContrasena;
         }
 
-        if (motor.UsaNombreServicio() && string.IsNullOrWhiteSpace(_formulario.NombreServicio))
+        if (motor?.UsaNombreServicio() == true && string.IsNullOrWhiteSpace(_formulario.NombreServicio))
         {
-            _formulario.NombreServicio = motor.ServicioPredeterminado();
+            _formulario.NombreServicio = motor.Value.ServicioPredeterminado();
         }
 
-        if (string.IsNullOrWhiteSpace(_formulario.BaseDatosInicial) || _formulario.BaseDatosInicial == _formulario.Motor.BaseInicialPredeterminada())
+        if (string.IsNullOrWhiteSpace(_formulario.BaseDatosInicial) || _formulario.BaseDatosInicial == _formulario.Motor?.BaseInicialPredeterminada())
         {
-            _formulario.BaseDatosInicial = motor.BaseInicialPredeterminada();
+            _formulario.BaseDatosInicial = motor?.BaseInicialPredeterminada();
         }
 
         _formulario.Motor = motor;

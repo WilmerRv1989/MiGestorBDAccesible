@@ -1,6 +1,6 @@
 # MiGestorBDAccesible
 
-*Gestor de bases de datos accesible con lector de pantalla, para SQL Server, Oracle y PostgreSQL.*
+*Gestor de bases de datos accesible con lector de pantalla, para SQL Server, Oracle, PostgreSQL, MySQL y MariaDB.*
 
 Hola, soy Wilmer. Trabajo y estudio con bases de datos, y uso un lector de pantalla. Los gestores de siempre, como SSMS, SQL Developer o pgAdmin, son muy completos, pero con NVDA cuesta mucho usarlos: árboles que no se anuncian bien, resultados que no se pueden recorrer, formularios que no dicen qué esperan. Me cansé de pelear con ellos, así que decidí hacer el mío.
 
@@ -12,11 +12,11 @@ Mi Gestor BD Accesible está pensado para usarse por completo con el teclado y u
 
 ## Qué vas a encontrar
 
-* **Tres motores:** SQL Server desde 2017, Oracle desde 19c (incluida Oracle Free) y PostgreSQL desde 14.
+* **Cinco motores:** SQL Server desde 2017, Oracle desde 19c (incluida Oracle Free), PostgreSQL desde 14, MySQL desde 8.0 y MariaDB desde 10.6.
 * **Un explorador de objetos** en forma de árbol: bases de datos, tablas, columnas, llaves, índices, vistas, procedimientos, funciones, secuencias, disparadores y, en Oracle, paquetes. Intro describe lo que tienes delante, en palabras.
 * **Un editor de consultas** con varias pestañas, resultados en tablas que recorres con los comandos de tu lector, mensajes con «Ir a la línea» del error, historial, y buscar y reemplazar.
 * **Formularios para crear y modificar tablas,** índices, restricciones CHECK y llaves foráneas, que revisan tus datos antes de aplicar un cambio y te avisan de lo que se podría romper.
-* **Editar filas** en un panel con su propia transacción: confirmas o deshaces cuando quieras, en los tres motores.
+* **Editar filas** en un panel con su propia transacción: confirmas o deshaces cuando quieras, en todos los motores.
 * **Para entender una base:** describir el modelo completo, con el orden de carga y los posibles problemas; el camino de JOIN entre dos tablas; buscar cualquier objeto por su nombre; y ver qué objetos usa cada uno y quién lo usa.
 * **Ayuda con F1** sobre la palabra de SQL que tienes bajo el cursor, con ejemplos para tu motor, y un **manual de usuario** completo.
 * **Una barra de menús** con Alt o F10, para descubrir todo lo que hace el programa y sus atajos.

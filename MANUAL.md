@@ -6,11 +6,13 @@ Este manual explica, paso a paso, todo lo que puedes hacer con Mi Gestor BD Acce
 
 Mi Gestor BD Accesible es un gestor de bases de datos pensado para usarse por completo con el teclado y un lector de pantalla. Sirve para lo mismo que SSMS, SQL Developer o pgAdmin: conectarte a un servidor, recorrer sus bases de datos y sus objetos, escribir y ejecutar consultas, y crear o modificar tablas.
 
-Funciona con tres motores:
+Funciona con cinco motores:
 
 - SQL Server, desde la versión 2017.
 - Oracle, desde la versión 19c, incluida Oracle Free.
 - PostgreSQL, desde la versión 14.
+- MySQL, desde la versión 8.0.
+- MariaDB, desde la versión 10.6.
 
 Todo lo que la aplicación hace se anuncia con mensajes que tu lector de pantalla lee solo, y casi todo lo que cambia algo en la base de datos te muestra antes el SQL que va a ejecutar y te pide confirmación.
 
@@ -18,7 +20,7 @@ Todo lo que la aplicación hace se anuncia con mensajes que tu lector de pantall
 
 - Windows 10 u 11 de 64 bits.
 - Un lector de pantalla. La aplicación se prueba a diario con NVDA.
-- Un servidor de base de datos al que conectarte: SQL Server, Oracle o PostgreSQL. Puede estar en tu propio equipo, en la red o en un contenedor de Docker. La aplicación no trae ninguno.
+- Un servidor de base de datos al que conectarte: SQL Server, Oracle, PostgreSQL, MySQL o MariaDB. Puede estar en tu propio equipo, en la red o en un contenedor de Docker. La aplicación no trae ninguno.
 - WebView2, el componente de Microsoft con el que se muestra la ventana. Windows 11 ya lo trae y en Windows 10 casi siempre está instalado.
 
 ## Instalar y desinstalar
@@ -69,9 +71,9 @@ Las opciones que necesitan una conexión o una consulta abierta se anuncian como
 1. En la lista de conexiones, activa **Nueva conexión**.
 2. Completa el formulario:
    - **Nombre de la conexión**: el nombre con el que la verás en la lista, por ejemplo «Práctica Docker».
-   - **Motor de base de datos**: SQL Server, Oracle o PostgreSQL.
+   - **Motor de base de datos**: la lista está en orden alfabético y empieza en «Selecciona un motor». Según el que elijas aparecen los campos que ese motor necesita. MySQL y MariaDB son opciones distintas: si eliges uno y el servidor es el otro, «Probar conexión» te avisa.
    - **Servidor**: el nombre o la dirección del equipo. Para tu propio equipo o para Docker, `localhost`.
-   - **Puerto**: el formulario te dice el puerto habitual del motor (1433 en SQL Server, 1521 en Oracle, 5432 en PostgreSQL). En SQL Server puedes dejarlo vacío para usar una instancia con nombre.
+   - **Puerto**: el formulario te dice el puerto habitual del motor (1433 en SQL Server, 1521 en Oracle, 5432 en PostgreSQL, 3306 en MySQL y MariaDB). En SQL Server puedes dejarlo vacío para usar una instancia con nombre.
    - **Nombre de servicio**, solo en Oracle: en Oracle Free es `FREEPDB1`.
    - **Autenticación**, solo en SQL Server: usuario y contraseña de SQL Server, o autenticación de Windows.
    - **Usuario** y **Contraseña**.
@@ -118,7 +120,7 @@ Al guardar, la aplicación escribe primero en un archivo temporal en la misma ca
 
 ## El explorador de objetos
 
-El explorador es un árbol. Muestra el servidor, sus bases de datos (en Oracle, sus esquemas) y, dentro de cada una, carpetas con sus objetos: Tablas, Vistas, Procedimientos, Funciones, Secuencias y, en Oracle, Paquetes. Cada carpeta dice cuántos objetos tiene. Dentro de cada tabla hay carpetas con sus columnas, llaves, índices, restricciones CHECK y disparadores.
+El explorador es un árbol. Muestra el servidor, sus bases de datos (en Oracle, sus esquemas) y, dentro de cada una, carpetas con sus objetos: Tablas, Vistas, Procedimientos, Funciones, Secuencias y, en Oracle, Paquetes. MySQL no tiene secuencias; MariaDB sí. En MySQL y MariaDB, base de datos y esquema son lo mismo, así que las tablas se ven sin esquema. Cada carpeta dice cuántos objetos tiene. Dentro de cada tabla hay carpetas con sus columnas, llaves, índices, restricciones CHECK y disparadores.
 
 Teclas:
 
@@ -137,7 +139,7 @@ Las acciones que terminan en puntos suspensivos abren un cuadro de diálogo que 
 
 Algunas acciones de ejemplo:
 
-- En una base de datos: Nueva consulta, Nueva tabla, Asistente de tabla intermedia, Describir el modelo, Camino de JOIN, Buscar objeto, y en SQL Server y PostgreSQL, Nueva base de datos y Eliminar base de datos.
+- En una base de datos: Nueva consulta, Nueva tabla, Asistente de tabla intermedia, Describir el modelo, Camino de JOIN, Buscar objeto, y en todos los motores menos Oracle, Nueva base de datos y Eliminar base de datos.
 - En una tabla: Describir, Ver dependencias, Seleccionar las primeras 100 filas, Editar filas, generar scripts (CREATE, SELECT, INSERT, UPDATE, DELETE y DROP), Nueva llave foránea, Nuevo índice, Nueva restricción CHECK, Modificar tabla y Eliminar tabla.
 - En una vista, procedimiento o función: Describir, Ver dependencias, Ejecutar, Generar script CREATE y Eliminar.
 - En un disparador: Habilitar o deshabilitar. En una secuencia: Reiniciar.
@@ -196,8 +198,9 @@ Cada motor maneja de forma distinta cuándo se guardan de verdad los cambios:
 - **SQL Server**: cada ejecución se confirma sola y usa su propia conexión. Si abres una transacción con BEGIN TRANSACTION, termínala con COMMIT o ROLLBACK en la misma ejecución.
 - **Oracle**: los cambios de INSERT, UPDATE, DELETE y MERGE quedan pendientes hasta que ejecutes COMMIT; ROLLBACK los deshace.
 - **PostgreSQL**: cada sentencia se confirma sola, salvo que escribas BEGIN; desde ahí los cambios quedan pendientes hasta COMMIT o ROLLBACK.
+- **MySQL y MariaDB**: cada sentencia se confirma sola, salvo después de START TRANSACTION o de SET autocommit = 0. CREATE, ALTER, DROP y TRUNCATE confirman también lo que tengas pendiente (COMMIT implícito), y la aplicación te avisa cuando pasa.
 
-En Oracle y PostgreSQL cada pestaña tiene su propia sesión: lo que confirmas o deshaces en una pestaña no toca a las demás, y otra pestaña no ve tus cambios hasta que los confirmes. Mientras haya cambios pendientes, verás un aviso sobre los resultados, y la aplicación te preguntará qué hacer con ellos antes de cerrar la pestaña, desconectarte o salir.
+En Oracle, PostgreSQL, MySQL y MariaDB cada pestaña tiene su propia sesión: lo que confirmas o deshaces en una pestaña no toca a las demás, y otra pestaña no ve tus cambios hasta que los confirmes. Mientras haya cambios pendientes, verás un aviso sobre los resultados, y la aplicación te preguntará qué hacer con ellos antes de cerrar la pestaña, desconectarte o salir.
 
 ## Crear y modificar tablas
 
@@ -248,7 +251,7 @@ En el menú de una tabla, elige **Editar filas…**. Se abre un panel en la zona
 
 En el formulario de una fila hay un campo por columna. Las columnas opcionales tienen la casilla «Vacío (NULL)», para distinguir un texto vacío de un NULL. Las llaves foráneas son listas con los valores de la tabla destino, como «3: Libros». Las fechas se escriben como AAAA-MM-DD.
 
-Todo lo que guardas o eliminas en el panel queda en una transacción propia del panel, en los tres motores. Arriba se anuncia cuántos cambios hay sin confirmar, con los botones **Confirmar los cambios (COMMIT)** y **Deshacer los cambios (ROLLBACK)**. Si cierras el panel con cambios pendientes, te pregunta qué hacer.
+Todo lo que guardas o eliminas en el panel queda en una transacción propia del panel, en todos los motores. Arriba se anuncia cuántos cambios hay sin confirmar, con los botones **Confirmar los cambios (COMMIT)** y **Deshacer los cambios (ROLLBACK)**. Si cierras el panel con cambios pendientes, te pregunta qué hacer.
 
 Dos cosas que conviene saber:
 
@@ -290,7 +293,7 @@ Sirve también para los mensajes de error: si un error nombra una restricción, 
 
 **Ver dependencias**, en el menú de tablas, vistas, procedimientos, funciones, paquetes y disparadores, muestra dos listas: **qué usa** el objeto y **quién lo usa**. Cada elemento te lleva a él en el árbol.
 
-En PostgreSQL, las funciones normales no registran qué tablas usan. Ahí la aplicación busca el nombre en el código de la función y lo marca como «posible uso».
+En PostgreSQL, las funciones normales no registran qué tablas usan. Ahí la aplicación busca el nombre en el código de la función y lo marca como «posible uso». En MySQL y MariaDB pasa lo mismo con procedimientos, funciones y disparadores.
 
 ## La ayuda
 
@@ -326,9 +329,13 @@ Escape cierra la ayuda y te devuelve a donde estabas.
 
 **No puedo conectarme a SQL Server en Docker.** Marca «Confiar en el certificado del servidor» en la conexión, y revisa que el puerto sea el que publicaste en el contenedor.
 
+**Copié un procedimiento de MySQL de un curso y falla en el punto y coma.** Revisa que empiece con DELIMITER, como `DELIMITER $$`, y termine con `DELIMITER ;`. El editor entiende esa orden, aunque no sea SQL.
+
+**MySQL dice que no encuentra una tabla que sí existe.** En Linux, los nombres de tabla distinguen mayúsculas: `Clientes` y `clientes` son tablas distintas. Escribe el nombre como aparece en el explorador.
+
 **En Oracle no encuentro mis tablas.** Revisa el nombre de servicio (en Oracle Free, `FREEPDB1`) y busca tus tablas dentro del esquema de tu usuario, en el explorador.
 
-**Hice un cambio y otra pestaña no lo ve.** En Oracle, y en PostgreSQL después de un BEGIN, los cambios quedan pendientes hasta el COMMIT. Confírmalos en la pestaña donde los hiciste.
+**Hice un cambio y otra pestaña no lo ve.** En Oracle, en PostgreSQL después de un BEGIN, y en MySQL y MariaDB después de START TRANSACTION, los cambios quedan pendientes hasta el COMMIT. Confírmalos en la pestaña donde los hiciste.
 
 **Una consulta se quedó esperando.** Puede que otra pestaña o el panel de editar filas tengan cambios sin confirmar sobre la misma tabla. Confírmalos o deshazlos, o usa Cancelar la ejecución.
 

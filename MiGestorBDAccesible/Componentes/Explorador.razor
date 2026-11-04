@@ -440,10 +440,13 @@ else
                     </div>
                 }
                 <p class="ayuda">Si la columna admite NULL, las filas con NULL siempre pasan: un CHECK solo rechaza lo que da falso.</p>
-                <div class="campo casilla">
-                    <input id="check-comprobar" type="checkbox" checked="@_defCheck.ComprobarExistentes" @onchange="e => { _defCheck.ComprobarExistentes = (bool)e.Value!; _comprobacionesDialogo = []; }" />
-                    <label for="check-comprobar">Comprobar las filas que ya existen (@_proveedor.Capacidades.Terminos.ComprobarExistentes)</label>
-                </div>
+                @if (_proveedor.Capacidades.CheckPuedeOmitirComprobacion)
+                {
+                    <div class="campo casilla">
+                        <input id="check-comprobar" type="checkbox" checked="@_defCheck.ComprobarExistentes" @onchange="e => { _defCheck.ComprobarExistentes = (bool)e.Value!; _comprobacionesDialogo = []; }" />
+                        <label for="check-comprobar">Comprobar las filas que ya existen (@_proveedor.Capacidades.Terminos.ComprobarExistentes)</label>
+                    </div>
+                }
                 @ListaComprobaciones()
                 <p class="ayuda">Se ejecutará este SQL:</p>
                 <pre><code>@(CondicionCheck() is null ? "Completa la condición para ver el SQL." : _proveedor.ScriptCrearCheck(DefinicionCheckFinal()))</code></pre>
@@ -554,7 +557,7 @@ else
 
                 @if (salidas.Count > 0)
                 {
-                    <p>@(Conexion.Conexion.Motor == TipoMotor.PostgreSql
+                    <p>@(_proveedor.Capacidades.SalidasEnResultados
                         ? $"Los valores de salida ({NarradorTablaService.Unir(salidas.Select(s => s.Nombre))}) aparecerán en los resultados."
                         : $"Los valores de salida ({NarradorTablaService.Unir(salidas.Select(s => s.Nombre))}) aparecerán en el panel de mensajes.")</p>
                 }
@@ -1483,7 +1486,7 @@ else
 
         elementos.Add(new() { Texto = "Generar script CREATE", Accion = () => AbrirScriptObjetoAsync(nodo) });
 
-        if (objeto.Tipo == TipoObjeto.Disparador)
+        if (objeto.Tipo == TipoObjeto.Disparador && _proveedor.Capacidades.PuedeDeshabilitarDisparadores)
         {
             elementos.Add(new() { Texto = "Habilitar o deshabilitar…", Accion = () => AbrirDialogoObjetoAsync(nodo, Dialogo.HabilitarDisparador) });
         }
@@ -1599,6 +1602,14 @@ else
         _dialogo = Dialogo.Ninguno;
         _nodoDialogo = null;
         await RecargarAsync(destino);
+
+        if (destino.TipoCarpeta == TipoObjeto.Disparador && destino.Padre is { } nodoBase
+            && destino.Hijos?.All(h => h.Tipo == TipoNodo.Mensaje) == true)
+        {
+            await RecargarAsync(nodoBase);
+            destino = nodoBase;
+        }
+
         Activar(destino);
         StateHasChanged();
 

@@ -1,7 +1,5 @@
 namespace MiGestorBDAccesible.Pruebas
 {
-    // xUnit 2 no permite omitir una prueba mientras corre, así que el sistema
-    // se decide al descubrirla.
     public sealed class FactSoloWindowsAttribute : FactAttribute
     {
         public FactSoloWindowsAttribute()

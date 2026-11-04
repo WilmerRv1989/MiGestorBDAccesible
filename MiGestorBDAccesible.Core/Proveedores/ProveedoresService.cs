@@ -1,4 +1,5 @@
 using MiGestorBDAccesible.Core.Conexiones;
+using MiGestorBDAccesible.Core.Proveedores.MySql;
 using MiGestorBDAccesible.Core.Proveedores.Oracle;
 using MiGestorBDAccesible.Core.Proveedores.PostgreSql;
 using MiGestorBDAccesible.Core.Proveedores.SqlServer;
@@ -11,7 +12,9 @@ namespace MiGestorBDAccesible.Core.Proveedores
         {
             [TipoMotor.SqlServer] = new ProveedorSqlServer(),
             [TipoMotor.Oracle] = new ProveedorOracle(),
-            [TipoMotor.PostgreSql] = new ProveedorPostgreSql()
+            [TipoMotor.PostgreSql] = new ProveedorPostgreSql(),
+            [TipoMotor.MySql] = new ProveedorMySql(),
+            [TipoMotor.MariaDb] = new ProveedorMariaDb()
         };
 
         public IEnumerable<IProveedorBaseDatos> Todos => _proveedores.Values;

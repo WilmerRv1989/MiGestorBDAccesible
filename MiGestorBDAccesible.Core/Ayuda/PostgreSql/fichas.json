@@ -47,6 +47,10 @@
         {
           "motor": "Oracle",
           "texto": "NUMBER(p) para enteros, o INTEGER, que Oracle guarda como NUMBER(38, 0)."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "int, bigint, mediumint, smallint y tinyint, y UNSIGNED para solo positivos."
         }
       ],
       "relacionadas": [
@@ -92,6 +96,10 @@
         {
           "motor": "Oracle",
           "texto": "NUMBER(p, s), con precisión de hasta 38 dígitos."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "decimal(p, s)."
         }
       ],
       "relacionadas": [
@@ -138,6 +146,10 @@
         {
           "motor": "Oracle",
           "texto": "BINARY_DOUBLE y BINARY_FLOAT."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "float y double."
         }
       ],
       "relacionadas": [
@@ -181,6 +193,10 @@
         {
           "motor": "Oracle",
           "texto": "CLOB para textos largos; VARCHAR2 llega a 4000 bytes."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "text, mediumtext y longtext."
         }
       ],
       "relacionadas": [
@@ -227,6 +243,10 @@
         {
           "motor": "Oracle",
           "texto": "VARCHAR2(n), con la longitud en bytes salvo que escribas VARCHAR2(n CHAR)."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "varchar(n), hasta 16 383 caracteres con utf8mb4."
         }
       ],
       "relacionadas": [
@@ -270,6 +290,10 @@
         {
           "motor": "Oracle",
           "texto": "BOOLEAN desde 23ai; antes, NUMBER(1) o CHAR(1)."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "boolean, que es tinyint(1), con 1 o 0."
         }
       ],
       "relacionadas": [
@@ -312,6 +336,10 @@
         {
           "motor": "Oracle",
           "texto": "DATE guarda también la hora, hasta el segundo."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "date, solo la fecha."
         }
       ],
       "relacionadas": [
@@ -356,6 +384,10 @@
         {
           "motor": "Oracle",
           "texto": "No tiene tipo de solo hora; se usa DATE, TIMESTAMP o INTERVAL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "time, que admite duraciones de más de 24 horas."
         }
       ],
       "relacionadas": [
@@ -402,6 +434,10 @@
         {
           "motor": "Oracle",
           "texto": "TIMESTAMP y TIMESTAMP WITH TIME ZONE, con hasta 9 decimales."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "datetime y timestamp."
         }
       ],
       "relacionadas": [
@@ -447,6 +483,10 @@
         {
           "motor": "Oracle",
           "texto": "INTERVAL YEAR TO MONTH e INTERVAL DAY TO SECOND, separados."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No hay tipo: INTERVAL solo se usa en las operaciones con fechas."
         }
       ],
       "relacionadas": [
@@ -490,6 +530,10 @@
         {
           "motor": "Oracle",
           "texto": "RAW(16) con SYS_GUID()."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "char(36) con UUID(); MariaDB tiene además el tipo uuid."
         }
       ],
       "relacionadas": [
@@ -533,6 +577,10 @@
         {
           "motor": "Oracle",
           "texto": "RAW(n) para datos cortos y BLOB para grandes."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "blob."
         }
       ],
       "relacionadas": [
@@ -584,6 +632,10 @@
         {
           "motor": "Oracle",
           "texto": "Tipo JSON desde 21c, con JSON_VALUE y la notación de punto."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "json: binario en MySQL y texto comprobado en MariaDB."
         }
       ],
       "relacionadas": [
@@ -632,6 +684,10 @@
         {
           "motor": "Oracle",
           "texto": "Tiene colecciones (VARRAY y tablas anidadas), poco usadas en columnas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No existen: se usa json o una tabla aparte."
         }
       ],
       "relacionadas": [
@@ -684,6 +740,10 @@
         {
           "motor": "Oracle",
           "texto": "La tabla pertenece a un esquema, que es el mismo usuario dueño."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Dentro de una base, que es lo mismo que el esquema."
         }
       ],
       "relacionadas": [
@@ -733,6 +793,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual, salvo que '' se guarda como NULL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y el operador <=> compara teniendo en cuenta los NULL."
         }
       ],
       "relacionadas": [
@@ -780,6 +844,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual; tampoco tiene índices agrupados en tablas normales."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y su índice siempre se llama PRIMARY."
         }
       ],
       "relacionadas": [
@@ -836,6 +904,10 @@
         {
           "motor": "Oracle",
           "texto": "ENABLE NOVALIDATE equivale a NOT VALID."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, solo en tablas InnoDB, y crea sola el índice."
         }
       ],
       "relacionadas": [
@@ -890,6 +962,10 @@
         {
           "motor": "Oracle",
           "texto": "Solo ON DELETE, con CASCADE o SET NULL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "RESTRICT, CASCADE, SET NULL y NO ACTION, que es igual a RESTRICT."
         }
       ],
       "relacionadas": [
@@ -1034,6 +1110,10 @@
         {
           "motor": "Oracle",
           "texto": "GENERATED ALWAYS AS IDENTITY, igual que PostgreSQL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "AUTO_INCREMENT y LAST_INSERT_ID()."
         }
       ],
       "relacionadas": [
@@ -1084,6 +1164,10 @@
         {
           "motor": "Oracle",
           "texto": "Permite muchos NULL, como PostgreSQL por omisión."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, con varios NULL."
         }
       ],
       "relacionadas": [
@@ -1129,6 +1213,10 @@
         {
           "motor": "Oracle",
           "texto": "DEFAULT va antes de NOT NULL, y existe DEFAULT ON NULL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual; las expresiones van entre paréntesis."
         }
       ],
       "relacionadas": [
@@ -1173,6 +1261,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y siempre comprueba las filas existentes."
         }
       ],
       "relacionadas": [
@@ -1231,6 +1323,10 @@
         {
           "motor": "Oracle",
           "texto": "Árbol B, bitmap y sobre expresiones; sin índices agrupados en tablas normales."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "BTREE y FULLTEXT, sin columnas incluidas ni filtros."
         }
       ],
       "relacionadas": [
@@ -1282,6 +1378,10 @@
         {
           "motor": "Oracle",
           "texto": "Columnas virtuales, que nunca se guardan."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "GENERATED ALWAYS AS, VIRTUAL o STORED."
         }
       ],
       "relacionadas": [
@@ -1328,6 +1428,10 @@
         {
           "motor": "Oracle",
           "texto": "El esquema es el mismo usuario; no hay bases separadas dentro de una PDB."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Base y esquema son lo mismo."
         }
       ],
       "relacionadas": [
@@ -1387,6 +1491,10 @@
         {
           "motor": "Oracle",
           "texto": "Al revés que PostgreSQL: convierte a MAYÚSCULAS los nombres sin comillas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "En Linux los nombres de tabla distinguen mayúsculas, y los raros van entre acentos graves."
         }
       ],
       "relacionadas": [
@@ -1431,6 +1539,10 @@
         {
           "motor": "Oracle",
           "texto": "Al contrario: '' se guarda como NULL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "El texto vacío no es NULL, igual que aquí."
         }
       ],
       "relacionadas": [
@@ -1478,6 +1590,10 @@
         {
           "motor": "Oracle",
           "texto": "nombre.NEXTVAL y nombre.CURRVAL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "MariaDB tiene CREATE SEQUENCE; MySQL no, y usa AUTO_INCREMENT."
         }
       ],
       "relacionadas": [
@@ -1545,6 +1661,10 @@
         {
           "motor": "Oracle",
           "texto": "Todo queda pendiente hasta COMMIT, y cada CREATE o DROP confirma automáticamente."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Confirma solo, y el DDL hace COMMIT implícito."
         }
       ],
       "relacionadas": [
@@ -1649,6 +1769,10 @@
         {
           "motor": "Oracle",
           "texto": "Las vistas USER_, ALL_ y DBA_, como USER_TABLES."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "information_schema y SHOW."
         }
       ],
       "relacionadas": [
@@ -1703,6 +1827,10 @@
         {
           "motor": "Oracle",
           "texto": "SQL*Plus tiene DESCRIBE, SET SERVEROUTPUT ON y @archivo.sql."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "La consola mysql, con DELIMITER y SOURCE."
         }
       ],
       "relacionadas": [
@@ -1752,6 +1880,10 @@
         {
           "motor": "Oracle",
           "texto": "CREATE OR REPLACE VIEW y CREATE MATERIALIZED VIEW."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE OR REPLACE VIEW."
         }
       ],
       "relacionadas": [
@@ -2051,6 +2183,10 @@
         {
           "motor": "Oracle",
           "texto": "FETCH FIRST n ROWS ONLY, o ROWNUM en código antiguo."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "LIMIT, igual."
         }
       ],
       "relacionadas": [
@@ -2096,6 +2232,10 @@
         {
           "motor": "Oracle",
           "texto": "RETURNING … INTO solo dentro de PL/SQL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual; MariaDB tiene RETURNING, y MySQL LAST_INSERT_ID()."
         }
       ],
       "relacionadas": [
@@ -2143,6 +2283,10 @@
         {
           "motor": "Oracle",
           "texto": "MERGE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "INSERT … ON DUPLICATE KEY UPDATE."
         }
       ],
       "relacionadas": [
@@ -2285,6 +2429,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual en lo básico; IF NOT EXISTS desde 23ai."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, con ENGINE para elegir el motor."
         }
       ],
       "relacionadas": [
@@ -2336,6 +2484,10 @@
         {
           "motor": "Oracle",
           "texto": "MODIFY en lugar de ALTER COLUMN."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "MODIFY COLUMN con la definición completa."
         }
       ],
       "relacionadas": [
@@ -2386,6 +2538,10 @@
         {
           "motor": "Oracle",
           "texto": "La tabla va a la papelera de reciclaje; CASCADE CONSTRAINTS quita las llaves."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, sin papelera, y no se puede deshacer."
         }
       ],
       "relacionadas": [
@@ -2434,6 +2590,10 @@
         {
           "motor": "Oracle",
           "texto": "CAST, TO_NUMBER, TO_DATE y TO_CHAR; no tiene ::."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CAST con destinos propios, como SIGNED y CHAR."
         }
       ],
       "relacionadas": [
@@ -2487,6 +2647,10 @@
         {
           "motor": "Oracle",
           "texto": "|| para unir (ignora los NULL), LENGTH, SUBSTR, REPLACE e INSTR."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CONCAT y CHAR_LENGTH."
         }
       ],
       "relacionadas": [
@@ -2538,6 +2702,10 @@
         {
           "motor": "Oracle",
           "texto": "SYSDATE, TRUNC, ADD_MONTHS, EXTRACT, TO_CHAR y TO_DATE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "NOW, DATE_ADD y DATE_FORMAT."
         }
       ],
       "relacionadas": [
@@ -2587,6 +2755,10 @@
         {
           "motor": "Oracle",
           "texto": "CASE, COALESCE, NULLIF, NVL y DECODE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IFNULL, IF, COALESCE y CASE."
         }
       ],
       "relacionadas": [
@@ -2685,6 +2857,10 @@
         {
           "motor": "Oracle",
           "texto": "BEGIN … END; seguido de una línea con /."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No hay bloques sueltos: hay que crear un procedimiento."
         }
       ],
       "relacionadas": [
@@ -2733,6 +2909,10 @@
         {
           "motor": "Oracle",
           "texto": "q'[ … ]' cumple un papel parecido."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DELIMITER."
         }
       ],
       "relacionadas": [
@@ -2783,6 +2963,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual en PL/SQL, pero SELECT INTO sin filas lanza NO_DATA_FOUND."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DECLARE, y @nombre para las de sesión."
         }
       ],
       "relacionadas": [
@@ -2827,6 +3011,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual en PL/SQL, solo con ELSIF."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IF … END IF y CASE … END CASE."
         }
       ],
       "relacionadas": [
@@ -2876,6 +3064,10 @@
         {
           "motor": "Oracle",
           "texto": "Igual en PL/SQL, con FOR fila IN (SELECT …)."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "WHILE, REPEAT y LOOP."
         }
       ],
       "relacionadas": [
@@ -2933,6 +3125,10 @@
         {
           "motor": "Oracle",
           "texto": "DBMS_OUTPUT.PUT_LINE, RAISE_APPLICATION_ERROR y EXCEPTION WHEN."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "SIGNAL para errores; no hay un equivalente de NOTICE."
         }
       ],
       "relacionadas": [
@@ -2986,6 +3182,10 @@
         {
           "motor": "Oracle",
           "texto": "CREATE FUNCTION … RETURN tipo AS BEGIN … END; y una línea con /."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE FUNCTION."
         }
       ],
       "relacionadas": [
@@ -3030,6 +3230,10 @@
         {
           "motor": "Oracle",
           "texto": "CREATE PROCEDURE, que se llama dentro de un bloque o con CALL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE PROCEDURE y CALL."
         }
       ],
       "relacionadas": [
@@ -3085,6 +3289,10 @@
         {
           "motor": "Oracle",
           "texto": "CREATE TRIGGER con el código adentro, usando :NEW y :OLD."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE TRIGGER con el código adentro, sin función aparte."
         }
       ],
       "relacionadas": [

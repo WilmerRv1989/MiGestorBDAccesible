@@ -37,6 +37,10 @@ namespace MiGestorBDAccesible.Core.Proveedores
 
         public string ModificarColumna { get; init; } = "ALTER COLUMN";
 
+        public bool RequiereEsquema { get; init; } = true;
+
+        public bool IncrementoPorColumna { get; init; } = true;
+
         public Func<string, string, bool> TiposCompatibles { get; init; } = ReglaReferencialExtensiones.TiposCompatibles;
     }
 
@@ -45,6 +49,14 @@ namespace MiGestorBDAccesible.Core.Proveedores
         public string ContenedoresTitulo { get; init; } = "Bases de datos";
 
         public string ContenedoresSistemaTitulo { get; init; } = "Bases de datos del sistema";
+
+        public bool TieneEsquemas { get; init; } = true;
+
+        public bool PuedeDeshabilitarDisparadores { get; init; } = true;
+
+        public bool SalidasEnResultados { get; init; }
+
+        public bool CheckPuedeOmitirComprobacion { get; init; } = true;
 
         public bool PuedeCrearContenedores { get; init; } = true;
 

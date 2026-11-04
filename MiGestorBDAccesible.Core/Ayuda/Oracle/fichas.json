@@ -40,6 +40,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "numeric(p, s); numeric sin paréntesis también guarda cualquier precisión."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "decimal(p, s) e int."
         }
       ],
       "relacionadas": [
@@ -91,6 +95,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "integer, bigint y smallint son tipos reales de 4, 8 y 2 bytes."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "int, bigint, smallint y tinyint."
         }
       ],
       "relacionadas": [
@@ -137,6 +145,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "double precision y real."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "float y double."
         }
       ],
       "relacionadas": [
@@ -187,6 +199,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "varchar(n) o text, sin límite práctico. '' y NULL son distintos."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "varchar(n)."
         }
       ],
       "relacionadas": [
@@ -232,6 +248,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "No hace falta un tipo nacional: text y varchar ya guardan Unicode, con la longitud en caracteres."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "varchar con utf8mb4."
         }
       ],
       "relacionadas": [
@@ -274,6 +294,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "char(n), con el mismo relleno de espacios."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "char(n), hasta 255."
         }
       ],
       "relacionadas": [
@@ -319,6 +343,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "text, sin límite práctico."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "longtext."
         }
       ],
       "relacionadas": [
@@ -369,6 +397,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "date es solo fecha; timestamp lleva la hora."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "date, solo la fecha."
         }
       ],
       "relacionadas": [
@@ -419,6 +451,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "timestamp y timestamptz, con hasta 6 decimales."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "datetime y timestamp."
         }
       ],
       "relacionadas": [
@@ -465,6 +501,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "interval, un solo tipo que mezcla meses, días y segundos."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No hay tipo: INTERVAL solo se usa en las operaciones con fechas."
         }
       ],
       "relacionadas": [
@@ -511,6 +551,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "boolean, desde siempre."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "boolean, que es tinyint(1), con 1 o 0."
         }
       ],
       "relacionadas": [
@@ -557,6 +601,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "bytea para datos binarios, y uuid para identificadores globales."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "varbinary."
         }
       ],
       "relacionadas": [
@@ -600,6 +648,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "bytea."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "blob y longblob."
         }
       ],
       "relacionadas": [
@@ -652,6 +704,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Servidor, bases de datos y esquemas, como SQL Server; el esquema predeterminado es public."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Dentro de una base, que es lo mismo que el esquema."
         }
       ],
       "relacionadas": [
@@ -700,6 +756,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual, pero el texto vacío '' no es NULL. En lugar de NVL se usa COALESCE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y el operador <=> compara teniendo en cuenta los NULL."
         }
       ],
       "relacionadas": [
@@ -747,6 +807,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual; si no le das nombre, la llama tabla_pkey."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y su índice siempre se llama PRIMARY."
         }
       ],
       "relacionadas": [
@@ -802,6 +866,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual; NOT VALID equivale a ENABLE NOVALIDATE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, solo en tablas InnoDB, y crea sola el índice."
         }
       ],
       "relacionadas": [
@@ -850,6 +918,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "ON DELETE y ON UPDATE, cada una con NO ACTION, RESTRICT, CASCADE, SET NULL y SET DEFAULT."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "RESTRICT, CASCADE, SET NULL y NO ACTION, que es igual a RESTRICT."
         }
       ],
       "relacionadas": [
@@ -1043,6 +1115,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Permite muchos NULL por omisión; desde la versión 15, UNIQUE NULLS NOT DISTINCT solo permite uno."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, con varios NULL."
         }
       ],
       "relacionadas": [
@@ -1088,6 +1164,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual; DEFAULT y NOT NULL pueden ir en cualquier orden."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual; las expresiones van entre paréntesis."
         }
       ],
       "relacionadas": [
@@ -1132,6 +1212,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y siempre comprueba las filas existentes."
         }
       ],
       "relacionadas": [
@@ -1178,6 +1262,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "btree, gin, gist, hash y brin, además de índices sobre expresiones y parciales; sin índices agrupados permanentes."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "BTREE y FULLTEXT, sin columnas incluidas ni filtros."
         }
       ],
       "relacionadas": [
@@ -1224,6 +1312,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "GENERATED ALWAYS AS (expresión) VIRTUAL, desde la versión 18, o STORED para guardarla en disco."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "GENERATED ALWAYS AS, VIRTUAL o STORED."
         }
       ],
       "relacionadas": [
@@ -1277,6 +1369,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Usuarios y esquemas son cosas separadas, como en SQL Server; el esquema predeterminado es public y search_path decide dónde se buscan los nombres."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Base y esquema son lo mismo, y no dependen del usuario."
         }
       ],
       "relacionadas": [
@@ -1335,6 +1431,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Al revés que Oracle: convierte a minúsculas los nombres sin comillas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "En Linux los nombres de tabla distinguen mayúsculas, y los raros van entre acentos graves."
         }
       ],
       "relacionadas": [
@@ -1380,6 +1480,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "También los distingue."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "El texto vacío no es NULL."
         }
       ],
       "relacionadas": [
@@ -1421,6 +1525,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "No necesita DUAL: SELECT now(); funciona sin FROM."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Se puede hacer SELECT sin FROM, y DUAL existe por compatibilidad."
         }
       ],
       "relacionadas": [
@@ -1472,6 +1580,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "nextval('nombre') y currval('nombre')."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "MariaDB tiene CREATE SEQUENCE; MySQL no, y usa AUTO_INCREMENT."
         }
       ],
       "relacionadas": [
@@ -1530,6 +1642,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Cada sentencia se confirma sola salvo después de BEGIN, y el CREATE y el DROP también se pueden deshacer con ROLLBACK."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Confirma solo, y el DDL hace COMMIT implícito."
         }
       ],
       "relacionadas": [
@@ -1643,6 +1759,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "No tiene papelera, pero un DROP dentro de BEGIN se deshace con ROLLBACK."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No tiene papelera."
         }
       ],
       "relacionadas": [
@@ -1703,6 +1823,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "information_schema y pg_catalog, con pg_class, pg_attribute y pg_constraint."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "information_schema y SHOW."
         }
       ],
       "relacionadas": [
@@ -1759,6 +1883,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "CREATE OR REPLACE VIEW, y CREATE MATERIALIZED VIEW con REFRESH MATERIALIZED VIEW."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE OR REPLACE VIEW."
         }
       ],
       "relacionadas": [
@@ -2072,6 +2200,10 @@
         {
           "motor": "PostgreSQL, MySQL y MariaDB",
           "texto": "LIMIT 10 OFFSET 20."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "LIMIT 10."
         }
       ],
       "relacionadas": [
@@ -2117,6 +2249,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual, y RETURNING devuelve las filas insertadas sin necesidad de PL/SQL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual; MariaDB tiene RETURNING, y MySQL LAST_INSERT_ID()."
         }
       ],
       "relacionadas": [
@@ -2255,6 +2391,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "INSERT … ON CONFLICT DO UPDATE, y MERGE desde la versión 15."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "INSERT … ON DUPLICATE KEY UPDATE."
         }
       ],
       "relacionadas": [
@@ -2302,6 +2442,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual en lo básico, con nombres sin comillas que PostgreSQL guarda en minúsculas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, con ENGINE para elegir el motor."
         }
       ],
       "relacionadas": [
@@ -2352,6 +2496,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "ALTER COLUMN … TYPE en lugar de MODIFY."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "MODIFY COLUMN con la definición completa."
         }
       ],
       "relacionadas": [
@@ -2399,6 +2547,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "DROP … IF EXISTS y CASCADE; sin papelera."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, sin papelera, y no se puede deshacer."
         }
       ],
       "relacionadas": [
@@ -2443,6 +2595,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "COALESCE y NULLIF; no tiene NVL ni NVL2."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IFNULL y COALESCE."
         }
       ],
       "relacionadas": [
@@ -2498,6 +2654,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "CASE igual; no tiene DECODE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IF y CASE."
         }
       ],
       "relacionadas": [
@@ -2561,6 +2721,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "now(), CURRENT_DATE, date_trunc, extract, age y to_char."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "NOW, DATE_ADD y DATE_FORMAT."
         }
       ],
       "relacionadas": [
@@ -2628,6 +2792,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "DO $$ BEGIN … END $$; sin la barra /. El cuerpo va entre signos de dólar."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "BEGIN … END solo dentro de un programa, con DELIMITER en los scripts."
         }
       ],
       "relacionadas": [
@@ -2688,6 +2856,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual en PL/pgSQL, con %TYPE, %ROWTYPE y record; SELECT INTO sin filas deja NULL salvo con STRICT."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DECLARE, y @nombre para las de sesión."
         }
       ],
       "relacionadas": [
@@ -2743,6 +2915,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Igual en PL/pgSQL; acepta ELSIF y ELSEIF."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IF … END IF y CASE … END CASE."
         }
       ],
       "relacionadas": [
@@ -2791,6 +2967,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "LOOP, WHILE, FOR y además FOREACH para arreglos."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "WHILE, REPEAT y LOOP."
         }
       ],
       "relacionadas": [
@@ -2845,6 +3025,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "FOR fila IN SELECT … LOOP es lo habitual; también hay cursores con OPEN y FETCH."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DECLARE CURSOR, con un manejador NOT FOUND."
         }
       ],
       "relacionadas": [
@@ -2906,6 +3090,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "EXCEPTION WHEN division_by_zero, unique_violation u OTHERS, con SQLERRM y SQLSTATE; RAISE EXCEPTION para lanzar errores."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DECLARE HANDLER y SIGNAL."
         }
       ],
       "relacionadas": [
@@ -2952,6 +3140,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "RAISE NOTICE 'texto %', valor;"
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "SELECT devuelve el valor como resultado."
         }
       ],
       "relacionadas": [
@@ -3012,6 +3204,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "CREATE FUNCTION y CREATE PROCEDURE, que se llama con CALL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE PROCEDURE y CALL."
         }
       ],
       "relacionadas": [
@@ -3080,6 +3276,10 @@
         {
           "motor": "PostgreSQL",
           "texto": "Una función que devuelve trigger, y CREATE TRIGGER … EXECUTE FUNCTION; usa NEW y OLD sin dos puntos."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CREATE TRIGGER por fila."
         }
       ],
       "relacionadas": [

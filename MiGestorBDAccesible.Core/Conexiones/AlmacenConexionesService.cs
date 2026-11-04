@@ -36,6 +36,7 @@ namespace MiGestorBDAccesible.Core.Conexiones
                 ? new ProtectorDpapi()
                 : new ProtectorDataProtection(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(rutaArchivo))!, "claves"));
         }
+
         public async Task<ResultadoCargaConexiones> CargarAsync()
         {
             await _cerrojo.WaitAsync();

@@ -58,7 +58,6 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.DoesNotContain(Contrasena, ContrasenaGuardada.Disponible(Contrasena).ToString());
         }
 
-        // Si bastara con transformar el texto, se podría leer sin el anillo de claves.
         [FactSoloMacOS]
         public async Task AC2_SinElAnilloDeClavesNoSePuedeLeer()
         {
@@ -75,7 +74,6 @@ namespace MiGestorBDAccesible.Pruebas
         [SupportedOSPlatform("windows")]
         public async Task AC3_LeeContrasenasCifradasConDpapiPorLaVersion10()
         {
-            // Mismo cifrado que la versión 1.0: DPAPI del usuario actual, sin entropía.
             var cifrada = Convert.ToBase64String(ProtectedData.Protect(
                 Encoding.UTF8.GetBytes(Contrasena),
                 null,
@@ -146,7 +144,7 @@ namespace MiGestorBDAccesible.Pruebas
         }
 
         [Theory]
-        [InlineData("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")] // Bytes que no salen de este sistema.
+        [InlineData("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")]
         [InlineData("no es base64")]
         public void AC5_ContrasenaQueNoSePuedeDescifrarDaNoDescifrable(string cifrada)
         {
@@ -171,7 +169,6 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.Equal(ContrasenaGuardada.NoDescifrable, almacen.ObtenerContrasena(conexion));
         }
 
-        // Un bloque DPAPI con otra entropía falla igual que uno de otro usuario o de otro equipo.
         [FactSoloWindows]
         [SupportedOSPlatform("windows")]
         public void AC5_UnBloqueDpapiAjenoDaNoDescifrable()

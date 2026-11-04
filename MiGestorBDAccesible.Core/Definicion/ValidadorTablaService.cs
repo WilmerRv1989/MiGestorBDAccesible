@@ -129,7 +129,7 @@ namespace MiGestorBDAccesible.Core.Definicion
 
             var destino = $"{referencia.TablaDestino.NombreCorto()}.{referencia.ColumnaDestino}";
 
-            if (!terminos.TiposCompatibles(tipoColumna, referencia.TipoDestino))
+            if (referencia.TipoDestino.Length > 0 && !terminos.TiposCompatibles(tipoColumna, referencia.TipoDestino))
             {
                 problemas.Add(new($"{columna} es {tipoColumna} y {destino} es {referencia.TipoDestino}: los dos lados de una llave foránea deben tener el mismo tipo de datos."));
             }
@@ -159,7 +159,7 @@ namespace MiGestorBDAccesible.Core.Definicion
                 problemas.Add(new("Escribe el nombre de la tabla."));
             }
 
-            if (string.IsNullOrWhiteSpace(tabla.Esquema))
+            if (terminos.RequiereEsquema && string.IsNullOrWhiteSpace(tabla.Esquema))
             {
                 problemas.Add(new("Escribe el esquema de la tabla."));
             }
