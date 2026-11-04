@@ -19,6 +19,7 @@ namespace MiGestorBDAccesible.Core.Ejecucion
             var lineaInicial = 0;
             var empezada = false;
             var i = 0;
+            var finTokenCitado = 0;
 
             void Cerrar()
             {
@@ -81,7 +82,7 @@ namespace MiGestorBDAccesible.Core.Ejecucion
                     continue;
                 }
 
-                if (c == '$' && !EsParteDeNombre(texto, i) && EtiquetaDolar().Match(texto[i..]) is { Success: true } etiqueta)
+                if (c == '$' && !EsParteDeNombre(texto, i, finTokenCitado) && EtiquetaDolar().Match(texto[i..]) is { Success: true } etiqueta)
                 {
                     var cierre = texto.IndexOf(etiqueta.Value, i + etiqueta.Length, StringComparison.Ordinal);
 
@@ -95,15 +96,17 @@ namespace MiGestorBDAccesible.Core.Ejecucion
                     var fin = cierre + etiqueta.Length;
                     Agregar(texto[i..fin], true);
                     i = fin;
+                    finTokenCitado = fin;
                     continue;
                 }
 
                 if (c == '\'' || c == '"')
                 {
-                    var conEscapes = c == '\'' && i > 0 && texto[i - 1] is 'E' or 'e' && !EsParteDeNombre(texto, i - 1);
+                    var conEscapes = c == '\'' && i > 0 && texto[i - 1] is 'E' or 'e' && !EsParteDeNombre(texto, i - 1, finTokenCitado);
                     var fin = FinCadena(texto, i, conEscapes);
                     Agregar(texto[i..fin], true);
                     i = fin;
+                    finTokenCitado = fin;
                     continue;
                 }
 
@@ -151,8 +154,8 @@ namespace MiGestorBDAccesible.Core.Ejecucion
 
         private static char Siguiente(string texto, int i) => i + 1 < texto.Length ? texto[i + 1] : '\0';
 
-        private static bool EsParteDeNombre(string texto, int i) =>
-            i > 0 && (texto[i - 1] is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '$' or >= '\u0080');
+        private static bool EsParteDeNombre(string texto, int i, int finTokenCitado) =>
+            i > finTokenCitado && (texto[i - 1] is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '$' or >= '\u0080');
 
         private static int FinComentario(string texto, int i)
         {

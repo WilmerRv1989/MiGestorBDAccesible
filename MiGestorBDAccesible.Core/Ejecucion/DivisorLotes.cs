@@ -10,7 +10,7 @@ namespace MiGestorBDAccesible.Core.Ejecucion
     {
         public const int RepeticionesMaximas = 10000;
 
-        [GeneratedRegex(@"^\s*GO(?:\s+(\d+))?\s*(?:--.*)?$", RegexOptions.IgnoreCase)]
+        [GeneratedRegex(@"^\s*GO(?:\s+([0-9]+))?\s*(?:--.*)?$", RegexOptions.IgnoreCase)]
         private static partial Regex SeparadorGo();
 
         public static List<LoteModelo> Dividir(string script)

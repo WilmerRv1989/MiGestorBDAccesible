@@ -2211,7 +2211,7 @@
           "parrafos": [
             "Cada lote se ejecuta aparte. Si un lote falla, los siguientes se ejecutan igual; por eso el script de prueba muestra varios errores.",
             "Algunas instrucciones deben ir solas en su lote, como CREATE VIEW o CREATE PROCEDURE.",
-            "GO 3 repite el lote tres veces. GO debe ir solo en su línea, con un número de repeticiones opcional y un comentario de línea opcional. Dentro de cadenas, identificadores o comentarios, GO no separa lotes.",
+            "GO 3 repite el lote tres veces. GO debe ir solo en su línea, con un número de repeticiones opcional y un comentario de línea opcional. El número solo admite los dígitos del 0 al 9; si usas otros dígitos, esa línea no separa lotes. Dentro de cadenas, identificadores o comentarios, GO no separa lotes.",
             "El máximo es de 10000 repeticiones por lote. Si pides más, no se ejecuta nada del script y el error te indica la línea de GO."
           ],
           "ejemplo": "CREATE TABLE Prueba (Id int);\nGO\nINSERT INTO Prueba VALUES (1);\nGO 3\nSELECT COUNT(*) FROM Prueba;"
