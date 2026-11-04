@@ -33,6 +33,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
                     Texto = ex.Message,
                     Linea = lineaInicial + ex.Linea - 1
                 });
+                resultado.BaseDatosFinal = baseDatos;
                 resultado.Duracion = cronometro.Elapsed;
                 return resultado;
             }

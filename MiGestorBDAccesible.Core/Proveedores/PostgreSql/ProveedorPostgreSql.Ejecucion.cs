@@ -107,6 +107,8 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                     Texto = ex.Message,
                     Linea = lineaInicial + ex.Linea - 1
                 });
+                resultado.BaseDatosFinal = baseDatos;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
                 resultado.Duracion = cronometro.Elapsed;
                 return resultado;
             }
