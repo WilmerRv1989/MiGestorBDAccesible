@@ -137,5 +137,17 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.False(string.IsNullOrWhiteSpace(error.Message));
             Assert.Contains(maximo, error.Message);
         }
+
+        [Fact]
+        public void AC3_GoConUnDigitoNoAsciiNoSeparaLotes()
+        {
+            var script = "SELECT 1\nGO ٣\nSELECT 2";
+
+            var lote = Assert.Single(DivisorLotes.Dividir(script));
+
+            Assert.Equal(script + "\n", lote.Texto);
+            Assert.Equal(1, lote.LineaInicial);
+            Assert.Equal(1, lote.Repeticiones);
+        }
     }
 }

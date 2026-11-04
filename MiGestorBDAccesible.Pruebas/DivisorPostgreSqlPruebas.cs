@@ -159,5 +159,15 @@ namespace MiGestorBDAccesible.Pruebas
             Assert.Equal(3, error.Linea);
             Assert.False(string.IsNullOrWhiteSpace(error.Message));
         }
+
+        [Fact]
+        public void AC4_AdmiteCadenasDolarContiguasConDistintasEtiquetas()
+        {
+            var sentencias = DivisorPostgreSql.Dividir("SELECT $a$x$a$$b$y;$b$; SELECT 2;");
+
+            Assert.Collection(sentencias,
+                s => Assert.Equal(new SentenciaPostgreSql("SELECT $a$x$a$$b$y;$b$", 1), s),
+                s => Assert.Equal(new SentenciaPostgreSql("SELECT 2", 1), s));
+        }
     }
 }
