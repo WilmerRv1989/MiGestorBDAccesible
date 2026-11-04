@@ -93,6 +93,24 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
         {
             var resultado = new ResultadoEjecucionModelo();
             var cronometro = Stopwatch.StartNew();
+            List<SentenciaPostgreSql> sentencias;
+
+            try
+            {
+                sentencias = DivisorPostgreSql.Dividir(script);
+            }
+            catch (ScriptNoDivisibleException ex)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo
+                {
+                    Tipo = TipoMensaje.Error,
+                    Texto = ex.Message,
+                    Linea = lineaInicial + ex.Linea - 1
+                });
+                resultado.Duracion = cronometro.Elapsed;
+                return resultado;
+            }
+
             var nombreBase = string.IsNullOrWhiteSpace(baseDatos)
                 ? conexion.Conexion.BaseDatosInicial ?? BaseDatosAdministracion
                 : baseDatos;
@@ -117,7 +135,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
             try
             {
-                foreach (var sentencia in DivisorPostgreSql.Dividir(script))
+                foreach (var sentencia in sentencias)
                 {
                     var linea = lineaInicial + sentencia.LineaInicial - 1;
 

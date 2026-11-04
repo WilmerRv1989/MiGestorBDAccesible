@@ -7,7 +7,7 @@ namespace MiGestorBDAccesible.Core.Ejecucion
 
     public static partial class DivisorPostgreSql
     {
-        [GeneratedRegex(@"^\$([A-Za-z_][A-Za-z0-9_]*)?\$")]
+        [GeneratedRegex(@"^\$([A-Za-z_\u0080-\uFFFF][A-Za-z0-9_\u0080-\uFFFF]*)?\$")]
         private static partial Regex EtiquetaDolar();
 
         public static List<SentenciaPostgreSql> Dividir(string script)
@@ -84,7 +84,15 @@ namespace MiGestorBDAccesible.Core.Ejecucion
                 if (c == '$' && !EsParteDeNombre(texto, i) && EtiquetaDolar().Match(texto[i..]) is { Success: true } etiqueta)
                 {
                     var cierre = texto.IndexOf(etiqueta.Value, i + etiqueta.Length, StringComparison.Ordinal);
-                    var fin = cierre < 0 ? texto.Length : cierre + etiqueta.Length;
+
+                    if (cierre < 0)
+                    {
+                        throw new ScriptNoDivisibleException(
+                            "Hay un texto entre signos de dólar sin cerrar. Ciérralo con la misma etiqueta y vuelve a ejecutar. No se ejecutó nada.",
+                            linea);
+                    }
+
+                    var fin = cierre + etiqueta.Length;
                     Agregar(texto[i..fin], true);
                     i = fin;
                     continue;
@@ -144,7 +152,7 @@ namespace MiGestorBDAccesible.Core.Ejecucion
         private static char Siguiente(string texto, int i) => i + 1 < texto.Length ? texto[i + 1] : '\0';
 
         private static bool EsParteDeNombre(string texto, int i) =>
-            i > 0 && (char.IsLetterOrDigit(texto[i - 1]) || texto[i - 1] is '_' or '$');
+            i > 0 && (texto[i - 1] is >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '$' or >= '\u0080');
 
         private static int FinComentario(string texto, int i)
         {
