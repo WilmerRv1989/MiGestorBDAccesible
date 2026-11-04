@@ -172,6 +172,8 @@ Mientras escribes, **F1** explica la palabra de SQL que está bajo el cursor, co
 - Cada resultado tiene los botones **Copiar tabla**, que la copia separada por tabulaciones para pegarla en una hoja de cálculo, y **Exportar a CSV**.
 - En los **mensajes** aparecen las filas afectadas, el tiempo y los errores. Cada error tiene un botón **Ir a la línea** que lleva el cursor del editor a la línea del problema.
 
+Si tu script no se puede dividir en lotes o sentencias, por ejemplo porque un GO supera las 10000 repeticiones o un texto entre signos de dólar queda sin cerrar, no se ejecuta nada. El error te indica la línea del problema en el editor.
+
 ### Guardar y abrir archivos
 
 - **Control+O** abre un archivo `.sql`.
