@@ -19,6 +19,25 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
         {
             var resultado = new ResultadoEjecucionModelo();
             var cronometro = Stopwatch.StartNew();
+            List<LoteModelo> lotes;
+
+            try
+            {
+                lotes = DivisorLotes.Dividir(script);
+            }
+            catch (ScriptNoDivisibleException ex)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo
+                {
+                    Tipo = TipoMensaje.Error,
+                    Texto = ex.Message,
+                    Linea = lineaInicial + ex.Linea - 1
+                });
+                resultado.BaseDatosFinal = baseDatos;
+                resultado.Duracion = cronometro.Elapsed;
+                return resultado;
+            }
+
             LoteModelo? loteActual = null;
 
             int? LineaAbsoluta(int lineaEnLote) =>
@@ -61,7 +80,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
                     }
                 };
 
-                foreach (var lote in DivisorLotes.Dividir(script))
+                foreach (var lote in lotes)
                 {
                     loteActual = lote;
 
