@@ -7,7 +7,7 @@
 
 @if (Dependencias.Usa.Concat(Dependencias.UsadoPor).Any(d => d.Posible))
 {
-    <p class="ayuda">«Posible uso» significa que el nombre aparece en el código de una función. PostgreSQL no registra esas dependencias, así que puede haber falsos avisos, por ejemplo si el nombre está en un comentario.</p>
+    <p class="ayuda">«Posible uso» significa que el nombre aparece en el código de una función, un procedimiento o un disparador. El motor no registra esas dependencias, así que puede haber falsos avisos, por ejemplo si el nombre está en un comentario.</p>
 }
 
 <p class="ayuda">Activa un objeto para ir a él en el explorador. Pulsa F8 para volver al explorador.</p>

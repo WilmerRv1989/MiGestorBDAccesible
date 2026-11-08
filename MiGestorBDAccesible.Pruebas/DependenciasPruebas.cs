@@ -22,7 +22,7 @@ namespace MiGestorBDAccesible.Pruebas
         public void TextoDeCadaDependencia()
         {
             Assert.Equal("Vista dbo.v_ventas", DependenciasService.Describir(D(TipoResultadoBusqueda.Vista, "v_ventas")));
-            Assert.Equal("Función dbo.total (posible uso: el nombre aparece en el código de la función)", DependenciasService.Describir(D(TipoResultadoBusqueda.Funcion, "total", true)));
+            Assert.Equal("Función dbo.total (posible uso: el nombre aparece en su código)", DependenciasService.Describir(D(TipoResultadoBusqueda.Funcion, "total", true)));
             Assert.Equal("Nombra a dbo.no_existe, que no existe", DependenciasService.Describir(new DependenciaModelo { Inexistente = "dbo.no_existe" }));
             Assert.Equal("Tabla dbo.Pedidos, por la llave FK_x", DependenciasService.Describir(new DependenciaModelo { Objeto = D(TipoResultadoBusqueda.Tabla, "Pedidos").Objeto, Nota = "por la llave FK_x" }));
         }

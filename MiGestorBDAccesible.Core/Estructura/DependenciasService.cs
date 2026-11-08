@@ -96,7 +96,7 @@ namespace MiGestorBDAccesible.Core.Estructura
 
             if (dependencia.Posible)
             {
-                texto += " (posible uso: el nombre aparece en el código de la función)";
+                texto += " (posible uso: el nombre aparece en su código)";
             }
 
             return texto;
