@@ -7,10 +7,11 @@ namespace MiGestorBDAccesible.Core.Proveedores
     {
         TipoMotor Motor { get; }
 
-        bool TieneCambiosPendientes(ConexionActiva? conexion = null);
+        bool TieneCambiosPendientes(ConexionActiva? conexion = null) => false;
 
-        Task<ResultadoFinalizacionModelo> FinalizarSesionAsync(ConexionActiva? conexion, bool confirmar);
+        Task<ResultadoFinalizacionModelo> FinalizarSesionAsync(ConexionActiva? conexion, bool confirmar) =>
+            Task.FromResult(new ResultadoFinalizacionModelo());
 
-        Task DescartarSesionesAsync(ConexionActiva? conexion);
+        Task DescartarSesionesAsync(ConexionActiva? conexion) => Task.CompletedTask;
     }
 }

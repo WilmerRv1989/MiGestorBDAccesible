@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Data;
 using System.Globalization;
 
 namespace MiGestorBDAccesible.Core.Edicion
@@ -23,6 +24,8 @@ namespace MiGestorBDAccesible.Core.Edicion
     {
         int CambiosPendientes { get; }
 
+        bool Cerrada => false;
+
         Task<FilasLeidasModelo> LeerAsync(string consulta, CancellationToken cancelacion = default);
 
         Task<ResultadoCambioFilaModelo> CambiarAsync(string sentencia, CancellationToken cancelacion = default);
@@ -42,9 +45,49 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public static void Quitar(ISesionEdicion sesion) => _abiertas.TryRemove(sesion, out _);
 
-        public static Task<IReadOnlyList<string>> TerminarTodasAsync(bool confirmar) => throw new NotImplementedException();
+        public static async Task<IReadOnlyList<string>> TerminarTodasAsync(bool confirmar)
+        {
+            var errores = new List<string>();
 
-        public static Task DescartarTodasAsync() => throw new NotImplementedException();
+            foreach (var sesion in _abiertas.Keys.ToList())
+            {
+                try
+                {
+                    var error = confirmar ? await sesion.ConfirmarAsync() : await sesion.DeshacerAsync();
+
+                    if (error is not null)
+                    {
+                        errores.Add(error);
+                        continue;
+                    }
+
+                    await sesion.DisposeAsync();
+                    Quitar(sesion);
+                }
+                catch (Exception ex)
+                {
+                    errores.Add(ex.Message);
+                }
+            }
+
+            return errores;
+        }
+
+        public static async Task DescartarTodasAsync()
+        {
+            foreach (var sesion in _abiertas.Keys.ToList())
+            {
+                Quitar(sesion);
+
+                try
+                {
+                    await sesion.DisposeAsync();
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
     }
 
     public sealed class SesionEdicionAdo : ISesionEdicion
@@ -53,10 +96,13 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         private readonly Func<Exception, string> mensaje;
 
-        public SesionEdicionAdo(DbConnection conexion, Func<Exception, string> mensaje)
+        private readonly Func<DbTransaction, Task<bool>>? leerEstado;
+
+        public SesionEdicionAdo(DbConnection conexion, Func<Exception, string> mensaje, Func<DbTransaction, Task<bool>>? leerEstado = null)
         {
             this.conexion = conexion;
             this.mensaje = mensaje;
+            this.leerEstado = leerEstado;
             RegistroSesionesEdicion.Agregar(this);
         }
 
@@ -67,6 +113,8 @@ namespace MiGestorBDAccesible.Core.Edicion
         private DbTransaction? _transaccion;
 
         public int CambiosPendientes { get; private set; }
+
+        public bool Cerrada => conexion.State != ConnectionState.Open;
 
         public async Task<FilasLeidasModelo> LeerAsync(string consulta, CancellationToken cancelacion = default)
         {
@@ -176,6 +224,11 @@ namespace MiGestorBDAccesible.Core.Edicion
                     return null;
                 }
 
+                if (leerEstado is not null)
+                {
+                    _transaccion.Save("migestor_estado_cierre");
+                }
+
                 if (confirmar)
                 {
                     await _transaccion.CommitAsync();
@@ -190,9 +243,65 @@ namespace MiGestorBDAccesible.Core.Edicion
                 CambiosPendientes = 0;
                 return null;
             }
-            catch (DbException ex)
+            catch (Exception ex) when (ex is DbException or InvalidOperationException)
             {
-                return Explicar(ex);
+                var detalle = ex is DbException baseDatos ? Explicar(baseDatos) : mensaje(ex);
+                var perdida = conexion.State != ConnectionState.Open;
+                var activa = !perdida && _transaccion?.Connection is not null;
+
+                if (activa)
+                {
+                    try
+                    {
+                        if (leerEstado is not null)
+                        {
+                            activa = await leerEstado(_transaccion!);
+                        }
+                        else
+                        {
+                            // Connection puede seguir asignada aunque el controlador ya haya terminado la transacción.
+                            _transaccion!.Save("migestor_estado_cierre");
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        activa = false;
+                    }
+                    catch (DbException)
+                    {
+                        perdida = conexion.State != ConnectionState.Open;
+                        activa = !perdida;
+                    }
+                }
+
+                if (activa)
+                {
+                    return $"{detalle} Los cambios siguen pendientes; puedes volver a decidir si confirmarlos o deshacerlos.";
+                }
+
+                var transaccion = _transaccion;
+                _transaccion = null;
+                CambiosPendientes = 0;
+
+                try
+                {
+                    if (transaccion is not null)
+                    {
+                        await transaccion.DisposeAsync();
+                    }
+                }
+                catch (Exception)
+                {
+                }
+
+                if (perdida && !confirmar)
+                {
+                    return null;
+                }
+
+                return perdida
+                    ? $"{detalle} Se perdió la conexión. No se sabe si los cambios se guardaron; compruébalo antes de volver a editarlos."
+                    : $"{detalle} El servidor terminó la transacción; los cambios no se guardaron.";
             }
             finally
             {

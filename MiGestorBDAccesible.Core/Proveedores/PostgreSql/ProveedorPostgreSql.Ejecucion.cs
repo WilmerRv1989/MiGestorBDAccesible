@@ -43,45 +43,119 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
             }
         }
 
-        public async Task<string?> FinalizarSesionAsync(ConexionActiva? conexion, bool confirmar)
+        public async Task<ResultadoFinalizacionModelo> FinalizarSesionAsync(ConexionActiva? conexion, bool confirmar)
         {
             List<SesionPostgreSql> sesiones;
 
             lock (_cerrojoSesiones)
             {
-                var claves = _sesiones.Keys.Where(k => conexion is null || conexion.Incluye(k.Conexion)).ToList();
-                sesiones = claves.Select(k => _sesiones[k]).ToList();
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key.Conexion)).Select(p => p.Value)];
+            }
 
-                foreach (var clave in claves)
+            var errores = new List<string>();
+            string? mensaje = null;
+
+            foreach (var sesion in sesiones)
+            {
+                await sesion.Turno.WaitAsync();
+
+                try
+                {
+                    if (sesion.CambiosPendientes)
+                    {
+                        if (confirmar)
+                        {
+                            // En una transacción abortada, PostgreSQL acepta COMMIT pero responde ROLLBACK.
+                            await using var estado = new NpgsqlCommand("SELECT 1", sesion.Conexion);
+                            await estado.ExecuteScalarAsync();
+                        }
+
+                        await using var comando = new NpgsqlCommand(confirmar ? "COMMIT" : "ROLLBACK", sesion.Conexion);
+                        await comando.ExecuteNonQueryAsync();
+                        sesion.CambiosPendientes = false;
+                        mensaje = confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).";
+                    }
+
+                    await CerrarSesionAsync(sesion);
+                }
+                catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException or TimeoutException)
+                {
+                    var detalle = ex.Message;
+                    var perdida = sesion.Conexion.State != System.Data.ConnectionState.Open || EsErrorDeConexion(ex);
+
+                    if (!perdida)
+                    {
+                        try
+                        {
+                            await LeerEstadoAsync(sesion);
+                        }
+                        catch (Exception estado) when (estado is System.Data.Common.DbException or InvalidOperationException or TimeoutException)
+                        {
+                            perdida = sesion.Conexion.State != System.Data.ConnectionState.Open || EsErrorDeConexion(estado);
+                            detalle += $" No se pudo comprobar el estado de la transacción: {estado.Message}";
+                        }
+                    }
+
+                    if (perdida)
+                    {
+                        sesion.CambiosPendientes = false;
+                        await CerrarSesionAsync(sesion);
+
+                        if (!confirmar)
+                        {
+                            mensaje = "Cambios deshechos (ROLLBACK): se perdió la conexión y el servidor descarta la transacción.";
+                            continue;
+                        }
+                    }
+
+                    var estadoCambios = perdida
+                        ? "Se perdió la conexión. No se sabe si los cambios se guardaron; compruébalo antes de volver a ejecutarlos."
+                        : sesion.CambiosPendientes
+                            ? "Los cambios siguen pendientes; puedes volver a decidir si confirmarlos o deshacerlos."
+                            : confirmar ? "El servidor terminó la transacción; los cambios no se guardaron." : "El servidor ya no tiene cambios pendientes en esta sesión.";
+                    errores.Add($"{sesion.BaseDatos}: no se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {detalle} {estadoCambios}");
+                }
+                finally
+                {
+                    sesion.Turno.Release();
+                }
+            }
+
+            return new ResultadoFinalizacionModelo { Mensaje = mensaje, Errores = errores };
+        }
+
+        public async Task DescartarSesionesAsync(ConexionActiva? conexion)
+        {
+            List<SesionPostgreSql> sesiones;
+
+            lock (_cerrojoSesiones)
+            {
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key.Conexion)).Select(p => p.Value)];
+            }
+
+            foreach (var sesion in sesiones)
+            {
+                await CerrarSesionAsync(sesion);
+            }
+        }
+
+        private async Task CerrarSesionAsync(SesionPostgreSql sesion)
+        {
+            lock (_cerrojoSesiones)
+            {
+                foreach (var clave in _sesiones.Where(p => ReferenceEquals(p.Value, sesion)).Select(p => p.Key).ToList())
                 {
                     _sesiones.Remove(clave);
                 }
             }
 
-            string? mensaje = null;
-
-            foreach (var sesion in sesiones)
+            try
             {
-                try
-                {
-                    if (sesion.CambiosPendientes)
-                    {
-                        await using var comando = new NpgsqlCommand(confirmar ? "COMMIT" : "ROLLBACK", sesion.Conexion);
-                        await comando.ExecuteNonQueryAsync();
-                        mensaje = confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).";
-                    }
-                }
-                catch (NpgsqlException ex)
-                {
-                    mensaje = $"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {ex.Message}";
-                }
-                finally
-                {
-                    await sesion.Conexion.DisposeAsync();
-                }
+                await sesion.Conexion.DisposeAsync();
             }
-
-            return mensaje;
+            catch (Exception)
+            {
+            }
         }
 
         public async Task<ResultadoEjecucionModelo> EjecutarAsync(
@@ -108,8 +182,8 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                     Linea = lineaInicial + ex.Linea - 1
                 });
                 resultado.BaseDatosFinal = baseDatos;
-                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
                 resultado.Duracion = cronometro.Elapsed;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
                 return resultado;
             }
 
@@ -130,6 +204,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                     Texto = ex is NpgsqlException npgsql ? MensajeError(conexion.Conexion, npgsql) : ex.Message
                 });
                 resultado.Duracion = cronometro.Elapsed;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
                 return resultado;
             }
 
@@ -167,6 +242,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
             resultado.BaseDatosFinal = nombreBase;
             resultado.Duracion = cronometro.Elapsed;
+            resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
             return resultado;
         }
 
