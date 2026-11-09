@@ -3,6 +3,7 @@ using MiGestorBDAccesible.Core.Actualizaciones;
 using MiGestorBDAccesible.Core.Ayuda;
 using MiGestorBDAccesible.Core.Conexiones;
 using MiGestorBDAccesible.Core.Definicion;
+using MiGestorBDAccesible.Core.Edicion;
 using MiGestorBDAccesible.Core.Descripcion;
 using MiGestorBDAccesible.Core.Proveedores;
 using MiGestorBDAccesible.Core.Trabajo;
@@ -18,6 +19,7 @@ namespace MiGestorBDAccesible
     {
         private readonly ProveedoresService _proveedores;
         private bool _cerrando;
+        private bool _terminandoCierre;
 
         public MainWindow()
         {
@@ -62,39 +64,74 @@ namespace MiGestorBDAccesible
 
         private async void AlCerrar(object? sender, CancelEventArgs e)
         {
-            if (_cerrando || !_proveedores.Todos.Any(p => p.TieneCambiosPendientes()) && !Core.Edicion.RegistroSesionesEdicion.HayCambiosPendientes)
+            if (_cerrando)
+            {
+                return;
+            }
+
+            if (_terminandoCierre)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            if (!CierreAplicacion.HayCambiosPendientes(_proveedores.Todos))
             {
                 return;
             }
 
             e.Cancel = true;
+            _terminandoCierre = true;
 
-            var respuesta = MessageBox.Show(this,
-                "Hay cambios sin confirmar. ¿Quieres guardarlos en la base de datos antes de salir?\n\nSí: confirmar los cambios (COMMIT).\nNo: deshacer los cambios (ROLLBACK).\nCancelar: seguir en la aplicación.",
-                "Cambios sin confirmar",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Warning,
-                MessageBoxResult.Cancel);
-
-            if (respuesta == MessageBoxResult.Cancel)
+            try
             {
-                if (ActualizacionPendiente.Instalador is not null)
+                var respuesta = MessageBox.Show(this,
+                    "Hay cambios sin confirmar. ¿Quieres guardarlos en la base de datos antes de salir?\n\nSí: confirmar los cambios (COMMIT).\nNo: deshacer los cambios (ROLLBACK).\nCancelar: seguir en la aplicación.",
+                    "Cambios sin confirmar",
+                    MessageBoxButton.YesNoCancel,
+                    MessageBoxImage.Warning,
+                    MessageBoxResult.Cancel);
+
+                while (respuesta != MessageBoxResult.Cancel)
                 {
-                    ActualizacionPendiente.AvisarCierreCancelado();
+                    if (respuesta == MessageBoxResult.No || respuesta == MessageBoxResult.OK)
+                    {
+                        await CierreAplicacion.SalirSinGuardarAsync(_proveedores.Todos);
+                        break;
+                    }
+
+                    var resultado = await CierreAplicacion.TerminarAsync(_proveedores.Todos, true);
+
+                    if (resultado.Correcto)
+                    {
+                        break;
+                    }
+
+                    respuesta = MessageBox.Show(this,
+                        CierreAplicacion.TextoFallo(resultado, true),
+                        "No se pudo terminar el cierre",
+                        CierreAplicacion.OfreceReintentar(resultado, true) ? MessageBoxButton.YesNoCancel : MessageBoxButton.OKCancel,
+                        MessageBoxImage.Error,
+                        MessageBoxResult.Cancel);
                 }
 
-                return;
-            }
+                if (respuesta == MessageBoxResult.Cancel)
+                {
+                    if (ActualizacionPendiente.Instalador is not null)
+                    {
+                        ActualizacionPendiente.AvisarCierreCancelado();
+                    }
 
-            foreach (var proveedor in _proveedores.Todos)
+                    return;
+                }
+
+                _cerrando = true;
+                Close();
+            }
+            finally
             {
-                await proveedor.FinalizarSesionAsync(null, respuesta == MessageBoxResult.Yes);
+                _terminandoCierre = false;
             }
-
-            await Core.Edicion.RegistroSesionesEdicion.TerminarTodasAsync(respuesta == MessageBoxResult.Yes);
-
-            _cerrando = true;
-            Close();
         }
 
         private void ConfigurarVistaWeb(object? sender, BlazorWebViewInitializedEventArgs e)

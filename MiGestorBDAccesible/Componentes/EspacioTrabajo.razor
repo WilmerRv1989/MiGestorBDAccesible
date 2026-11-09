@@ -1,4 +1,5 @@
 @using MiGestorBDAccesible.Core.Ejecucion
+@using MiGestorBDAccesible.Core.Edicion
 @using MiGestorBDAccesible.Core.Trabajo
 @using System.IO
 @implements IAsyncDisposable
@@ -307,6 +308,7 @@
     protected override async Task OnInitializedAsync()
     {
         _pestanas = ConjuntoPestanasModelo.Recuperar(await sesiones.ObtenerAsync(Conexion.Conexion.Id));
+        CierreAplicacion.EstadoActualizado += ActualizarEstadoTrasCierre;
 
         if (_pestanas.Activa is { } activa)
         {
@@ -392,7 +394,14 @@
             return;
         }
 
-        await proveedor.FinalizarSesionAsync(Conexion, false);
+        var resultado = await proveedor.FinalizarSesionAsync(Conexion, false);
+
+        if (!resultado.Correcto)
+        {
+            await anunciador.AnunciarUrgenteAsync(string.Join(" ", resultado.Errores));
+            return;
+        }
+
         await AlDesconectar.InvokeAsync();
     }
 
@@ -404,12 +413,35 @@
 
     private async Task TerminarDesconexionAsync(bool confirmar)
     {
-        var mensaje = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(Conexion, confirmar);
+        var resultado = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(Conexion, confirmar);
+        var errores = new List<string>(resultado.Errores);
+        var mensaje = resultado.Mensaje;
 
         if (_editorFilas?.CambiosPendientes > 0)
         {
-            mensaje = await _editorFilas.TerminarSinAnunciarAsync(confirmar) ?? (confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).");
+            var error = await _editorFilas.TerminarSinAnunciarAsync(confirmar);
+
+            if (error is not null)
+            {
+                errores.Add($"Edición de filas: {error}");
+            }
+            else
+            {
+                mensaje = confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).";
+            }
         }
+
+        ActualizarPendientes();
+
+        if (errores.Count > 0)
+        {
+            SeguirConectado();
+            StateHasChanged();
+            await Task.Delay(400);
+            await anunciador.AnunciarUrgenteAsync(string.Join(" ", errores));
+            return;
+        }
+
         _preguntarDesconexion = false;
         await AlDesconectar.InvokeAsync();
 
@@ -417,6 +449,25 @@
         {
             await Task.Delay(600);
             await anunciador.AnunciarAsync($"{mensaje} Desconectado de {Conexion.Conexion.Nombre}.");
+        }
+    }
+
+    private void ActualizarEstadoTrasCierre()
+    {
+        InvokeAsync(() =>
+        {
+            ActualizarPendientes();
+            StateHasChanged();
+        });
+    }
+
+    private void ActualizarPendientes()
+    {
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+
+        foreach (var pestana in _pestanas.Pestanas)
+        {
+            pestana.CambiosPendientes = pestana.Sesion is not null && proveedor.TieneCambiosPendientes(pestana.Sesion);
         }
     }
 
@@ -656,7 +707,19 @@
 
         if (pestana.Sesion is not null)
         {
-            mensaje = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(pestana.Sesion, confirmar ?? false);
+            var resultado = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(pestana.Sesion, confirmar ?? false);
+            ActualizarPendientes();
+
+            if (!resultado.Correcto)
+            {
+                _enfocarEditor = true;
+                StateHasChanged();
+                await Task.Delay(400);
+                await anunciador.AnunciarUrgenteAsync(string.Join(" ", resultado.Errores));
+                return;
+            }
+
+            mensaje = resultado.Mensaje;
         }
 
         var activa = _pestanas.Cerrar(pestana);
@@ -1376,6 +1439,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        CierreAplicacion.EstadoActualizado -= ActualizarEstadoTrasCierre;
+
         foreach (var pestana in _pestanas.Pestanas)
         {
             pestana.Cancelacion?.Cancel();

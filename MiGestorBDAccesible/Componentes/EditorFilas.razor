@@ -303,6 +303,21 @@
     private Dictionary<string, string?> Valores(string?[] fila) =>
         _columnas.Select((c, i) => (c.Nombre, fila[i])).ToDictionary(x => x.Nombre, x => x.Item2);
 
+    private async Task<ISesionEdicion> ObtenerSesionAsync()
+    {
+        if (_sesion is null || _sesion.Cerrada)
+        {
+            if (_sesion is not null)
+            {
+                await _sesion.DisposeAsync();
+            }
+
+            _sesion = await Proveedor.AbrirSesionEdicionAsync(Conexion, BaseDatos);
+        }
+
+        return _sesion;
+    }
+
     private async Task CargarOpcionesAsync()
     {
         foreach (var columna in _columnas.Where(c => c.Llave is not null && !c.SoloLectura))
@@ -312,7 +327,7 @@
                 var llave = columna.Llave!;
                 var destino = await Proveedor.ObtenerDetalleTablaAsync(Conexion, BaseDatos, llave.TablaDestino);
                 var texto = destino.Columnas.FirstOrDefault(c => c.Nombre != llave.ColumnasDestino[0] && EdicionFilasService.Clasificar(c.TipoDatos) == ClaseValor.Texto)?.Nombre;
-                var filas = await _sesion!.LeerAsync(EdicionFilasService.ConsultaOpciones(Proveedor.Dialecto, llave, texto, null));
+                var filas = await (await ObtenerSesionAsync()).LeerAsync(EdicionFilasService.ConsultaOpciones(Proveedor.Dialecto, llave, texto, null));
 
                 _opciones[columna.Nombre] = filas.Filas.Count > EdicionFilasService.MaximoOpciones
                     ? null
@@ -328,10 +343,10 @@
     private async Task CargarPaginaAsync()
     {
         var d = Proveedor.Dialecto;
-        var conteo = await _sesion!.LeerAsync(EdicionFilasService.ConsultaConteo(d, _detalle!, _condicion));
+        var conteo = await (await ObtenerSesionAsync()).LeerAsync(EdicionFilasService.ConsultaConteo(d, _detalle!, _condicion));
         _total = long.Parse(conteo.Filas[0][0] ?? "0", System.Globalization.CultureInfo.InvariantCulture);
         _desde = Math.Max(0, Math.Min(_desde, (int)Math.Max(0, (_total - 1) / EdicionFilasService.TamanoPagina * EdicionFilasService.TamanoPagina)));
-        _filas = (await _sesion.LeerAsync(EdicionFilasService.ConsultaPagina(d, _detalle!, _columnas, _clave!, _condicion, _desde))).Filas;
+        _filas = (await (await ObtenerSesionAsync()).LeerAsync(EdicionFilasService.ConsultaPagina(d, _detalle!, _columnas, _clave!, _condicion, _desde))).Filas;
     }
 
     private async Task BuscarConIntroAsync(KeyboardEventArgs e)
@@ -472,7 +487,7 @@
         }
 
         _trabajando = true;
-        var resultado = await _sesion!.CambiarAsync(sql);
+        var resultado = await (await ObtenerSesionAsync()).CambiarAsync(sql);
         _trabajando = false;
 
         if (!resultado.Correcto)
@@ -529,7 +544,7 @@
     private async Task EliminarAsync(int indice)
     {
         _trabajando = true;
-        var resultado = await _sesion!.CambiarAsync(EdicionFilasService.Eliminar(Proveedor.Dialecto, _detalle!, _columnas, _clave!, Valores(_filas[indice])));
+        var resultado = await (await ObtenerSesionAsync()).CambiarAsync(EdicionFilasService.Eliminar(Proveedor.Dialecto, _detalle!, _columnas, _clave!, Valores(_filas[indice])));
         _trabajando = false;
 
         if (!resultado.Correcto)
