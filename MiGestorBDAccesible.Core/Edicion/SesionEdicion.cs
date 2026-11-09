@@ -42,18 +42,9 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public static void Quitar(ISesionEdicion sesion) => _abiertas.TryRemove(sesion, out _);
 
-        public static async Task TerminarTodasAsync(bool confirmar)
-        {
-            foreach (var sesion in _abiertas.Keys.ToList())
-            {
-                if (confirmar)
-                {
-                    await sesion.ConfirmarAsync();
-                }
+        public static Task<IReadOnlyList<string>> TerminarTodasAsync(bool confirmar) => throw new NotImplementedException();
 
-                await sesion.DisposeAsync();
-            }
-        }
+        public static Task DescartarTodasAsync() => throw new NotImplementedException();
     }
 
     public sealed class SesionEdicionAdo : ISesionEdicion
