@@ -42,7 +42,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
             $"ALTER TABLE {NombreCompleto(tabla)} DROP CONSTRAINT {Delimitar(nombre)};";
 
         public async Task<Edicion.ISesionEdicion> AbrirSesionEdicionAsync(Conexiones.ConexionActiva conexion, string baseDatos, CancellationToken cancelacion = default) =>
-            new Edicion.SesionEdicionAdo(await AbrirAsync(conexion, baseDatos, cancelacion), ex => ex.Message);
+            new Edicion.SesionEdicionAdo(await AbrirAsync(conexion, baseDatos, cancelacion), ex => ex.Message, contexto: Contexto);
 
         private static string Nombre(string nombre, string porDefecto) => string.IsNullOrWhiteSpace(nombre) ? porDefecto : nombre.Trim();
     }

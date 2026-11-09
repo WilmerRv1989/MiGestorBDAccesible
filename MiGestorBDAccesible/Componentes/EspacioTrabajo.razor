@@ -86,7 +86,9 @@
                                     AlCancelar="CancelarEjecucion" />
                     @if (activa.CambiosPendientes)
                     {
-                        <p class="aviso-transaccion">Hay cambios sin confirmar en esta pestaña. COMMIT los guarda en la base de datos y ROLLBACK los deshace.</p>
+                        <p class="aviso-transaccion">@(proveedores.Obtener(Conexion.Conexion.Motor).PuedeConfirmar(activa.Sesion)
+                            ? "Hay cambios sin confirmar en esta pestaña. COMMIT los guarda en la base de datos y ROLLBACK los deshace."
+                            : "La transacción está abortada. Sus cambios no se pueden guardar; solo puedes deshacerlos con ROLLBACK.")</p>
                     }
                     <PanelResultados @key="@($"r{activa.Id}")" Resultado="activa.Resultado" />
                     <PanelMensajes @key="@($"m{activa.Id}")" Resultado="activa.Resultado" />
@@ -180,9 +182,16 @@
     <DialogoAccion Titulo="Hay cambios sin confirmar" EsAlerta="true" AlCancelar="SeguirConectado">
         <p>Hiciste cambios con INSERT, UPDATE, DELETE o MERGE que todavía no se guardaron en la base de datos@(PestanasConPendientes().Select(p => p.Nombre).Concat(_editorFilas?.CambiosPendientes > 0 ? ["el panel de edición de filas"] : []).ToList() is { Count: > 0 } conPendientes ? $", en {NarradorTablaService.Unir(conPendientes)}" : ""). ¿Qué hago con ellos antes de desconectar?</p>
         <div class="acciones">
-            <button class="principal" disabled="@_terminandoCambios" @onclick="() => TerminarDesconexionAsync(true)">Confirmar los cambios (COMMIT)</button>
-            <button class="peligro" disabled="@_terminandoCambios" @onclick="() => TerminarDesconexionAsync(false)">Deshacer los cambios (ROLLBACK)</button>
-            <button data-foco-inicial disabled="@_terminandoCambios" @onclick="SeguirConectado">Seguir conectado</button>
+            @if (PuedeConfirmarConexion())
+            {
+                <button class="principal" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarDesconexionAsync(true)">Confirmar los cambios (COMMIT)</button>
+            }
+            else
+            {
+                <p>La transacción está abortada. Solo puedes deshacer los cambios con ROLLBACK.</p>
+            }
+            <button class="peligro" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarDesconexionAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="SeguirConectado">Seguir conectado</button>
         </div>
     </DialogoAccion>
 }
@@ -248,9 +257,16 @@
     <DialogoAccion Titulo="@($"{_pestanaPorCerrar.Nombre} tiene cambios sin confirmar")" EsAlerta="true" AlCancelar="NoCerrarPestana">
         <p>En esta pestaña hiciste cambios que todavía no se guardaron en la base de datos. ¿Qué hago con ellos antes de cerrarla?</p>
         <div class="acciones">
-            <button class="principal" disabled="@_terminandoCambios" @onclick="() => TerminarCierreAsync(true)">Confirmar los cambios (COMMIT)</button>
-            <button class="peligro" disabled="@_terminandoCambios" @onclick="() => TerminarCierreAsync(false)">Deshacer los cambios (ROLLBACK)</button>
-            <button data-foco-inicial disabled="@_terminandoCambios" @onclick="NoCerrarPestana">No cerrar la pestaña</button>
+            @if (proveedores.Obtener(Conexion.Conexion.Motor).PuedeConfirmar(_pestanaPorCerrar.Sesion))
+            {
+                <button class="principal" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarCierreAsync(true)">Confirmar los cambios (COMMIT)</button>
+            }
+            else
+            {
+                <p>La transacción está abortada. Solo puedes deshacer los cambios con ROLLBACK.</p>
+            }
+            <button class="peligro" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarCierreAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="NoCerrarPestana">No cerrar la pestaña</button>
         </div>
     </DialogoAccion>
 }
@@ -398,6 +414,13 @@
         await TerminarDesconexionAsync(false);
     }
 
+    private bool PuedeConfirmarConexion()
+    {
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+        return proveedor.TieneCambiosPendientes(Conexion) && proveedor.PuedeConfirmar(Conexion)
+            || _editorFilas is { CambiosPendientes: > 0, PuedeConfirmar: true };
+    }
+
     private void SeguirConectado()
     {
         if (_terminandoCambios) return;
@@ -407,7 +430,11 @@
 
     private async Task TerminarDesconexionAsync(bool confirmar)
     {
-        if (_terminandoCambios) return;
+        if (_terminandoCambios)
+        {
+            await anunciador.AnunciarAsync("Espera a que termine la decisión de cierre antes de repetir la acción.");
+            return;
+        }
         _terminandoCambios = true;
 
         try
@@ -708,7 +735,11 @@
 
     private async Task QuitarPestanaAsync(PestanaModelo pestana, bool? confirmar)
     {
-        if (_terminandoCambios) return;
+        if (_terminandoCambios)
+        {
+            await anunciador.AnunciarAsync("Espera a que termine la decisión de cierre antes de repetir la acción.");
+            return;
+        }
         _terminandoCambios = true;
 
         try

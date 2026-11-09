@@ -27,6 +27,8 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         bool Cerrada => false;
 
+        bool PuedeConfirmar => true;
+
         Task<FilasLeidasModelo> LeerAsync(string consulta, CancellationToken cancelacion = default);
 
         Task<ResultadoCambioFilaModelo> CambiarAsync(string sentencia, CancellationToken cancelacion = default);
@@ -38,19 +40,22 @@ namespace MiGestorBDAccesible.Core.Edicion
 
     public static class RegistroSesionesEdicion
     {
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<ISesionEdicion, byte> _abiertas = new();
+        private static System.Collections.Concurrent.ConcurrentDictionary<ISesionEdicion, byte> Abiertas => ContextoCierre.Actual.Sesiones;
 
-        public static bool HayCambiosPendientes => _abiertas.Keys.Any(s => s.CambiosPendientes > 0);
+        public static bool HayCambiosPendientes => Abiertas.Keys.Any(s => s.CambiosPendientes > 0);
 
-        public static void Agregar(ISesionEdicion sesion) => _abiertas.TryAdd(sesion, 0);
+        public static void Agregar(ISesionEdicion sesion) => RegistroDe(sesion).TryAdd(sesion, 0);
 
-        public static void Quitar(ISesionEdicion sesion) => _abiertas.TryRemove(sesion, out _);
+        public static void Quitar(ISesionEdicion sesion) => RegistroDe(sesion).TryRemove(sesion, out _);
+
+        private static System.Collections.Concurrent.ConcurrentDictionary<ISesionEdicion, byte> RegistroDe(ISesionEdicion sesion) =>
+            sesion is SesionEdicionAdo ado ? ado.Contexto.Sesiones : Abiertas;
 
         public static async Task<IReadOnlyList<string>> TerminarTodasAsync(bool confirmar)
         {
             var errores = new List<string>();
 
-            foreach (var sesion in _abiertas.Keys.ToList())
+            foreach (var sesion in Abiertas.Keys.ToList())
             {
                 try
                 {
@@ -76,7 +81,7 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public static async Task DescartarTodasAsync()
         {
-            foreach (var sesion in _abiertas.Keys.ToList())
+            foreach (var sesion in Abiertas.Keys.ToList())
             {
                 Quitar(sesion);
 
@@ -93,6 +98,14 @@ namespace MiGestorBDAccesible.Core.Edicion
 
     public sealed class SesionEdicionAdo : ISesionEdicion
     {
+        public ContextoCierre Contexto { get; }
+
+        private readonly Func<DbException, bool>? abortaLectura;
+
+        private bool _soloDeshacer;
+
+        public bool PuedeConfirmar => !_soloDeshacer;
+
         private readonly DbConnection conexion;
 
         private readonly Func<Exception, string> mensaje;
@@ -100,11 +113,18 @@ namespace MiGestorBDAccesible.Core.Edicion
         private readonly Func<DbTransaction, Task<bool>>? leerEstado;
 
         public SesionEdicionAdo(DbConnection conexion, Func<Exception, string> mensaje, Func<DbTransaction, Task<bool>>? leerEstado = null)
+            : this(conexion, mensaje, ContextoCierre.Actual, leerEstado)
         {
+        }
+
+        public SesionEdicionAdo(DbConnection conexion, Func<Exception, string> mensaje, ContextoCierre contexto, Func<DbTransaction, Task<bool>>? leerEstado = null, Func<DbException, bool>? abortaLectura = null)
+        {
+            Contexto = contexto;
+            this.abortaLectura = abortaLectura;
             this.conexion = conexion;
             this.mensaje = mensaje;
             this.leerEstado = leerEstado;
-            RegistroSesionesEdicion.Agregar(this);
+            Contexto.Sesiones.TryAdd(this, 0);
         }
 
         private const int SegundosEspera = 15;
@@ -121,7 +141,7 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public async Task<FilasLeidasModelo> LeerAsync(string consulta, CancellationToken cancelacion = default)
         {
-            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion)
+            using var operacion = Contexto.Operaciones.Iniciar(cancelacion)
                 ?? throw new InvalidOperationException(OperacionesBaseDatos.MensajeCierre);
             cancelacion = operacion.Cancelacion;
             await _turno.WaitAsync(cancelacion);
@@ -155,6 +175,7 @@ namespace MiGestorBDAccesible.Core.Edicion
             }
             catch (DbException ex)
             {
+                if (ex.SqlState == "25P02" || abortaLectura?.Invoke(ex) == true) _soloDeshacer = true;
                 throw new InvalidOperationException(Explicar(ex), ex);
             }
             finally
@@ -166,7 +187,7 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public async Task<ResultadoCambioFilaModelo> CambiarAsync(string sentencia, CancellationToken cancelacion = default)
         {
-            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion)
+            using var operacion = Contexto.Operaciones.Iniciar(cancelacion)
                 ?? throw new InvalidOperationException(OperacionesBaseDatos.MensajeCierre);
             cancelacion = operacion.Cancelacion;
             await _turno.WaitAsync(cancelacion);
@@ -208,7 +229,7 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public async ValueTask DisposeAsync()
         {
-            RegistroSesionesEdicion.Quitar(this);
+            Contexto.Sesiones.TryRemove(this, out _);
             await _control.DescartarAsync(LiberarRecursosAsync);
         }
 
@@ -236,9 +257,10 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         private async Task<string?> TerminarAsync(bool confirmar)
         {
-            if (!await _control.TomarParaFinalizarAsync())
+            using var bloqueo = Contexto.BloquearOperaciones();
+            if (Contexto.HayOperacionesEnCurso || !await _control.TomarParaFinalizarAsync())
             {
-                return "La edición sigue trabajando y se está cancelando. Vuelve a decidir cuando termine.";
+                return "Hay una ejecución en curso. Espera a que termine o cancélala antes de terminar los cambios.";
             }
 
             try
@@ -246,6 +268,11 @@ namespace MiGestorBDAccesible.Core.Edicion
                 if (_transaccion is null)
                 {
                     return null;
+                }
+
+                if (confirmar && _soloDeshacer)
+                {
+                    return "La transacción está abortada. Sus cambios no se pueden guardar; solo puedes deshacerlos con ROLLBACK.";
                 }
 
                 if (confirmar || leerEstado is not null)
@@ -263,14 +290,19 @@ namespace MiGestorBDAccesible.Core.Edicion
                     await _transaccion.RollbackAsync();
                 }
 
-                await _transaccion.DisposeAsync();
-                _transaccion = null;
-                CambiosPendientes = 0;
+                await OlvidarTransaccionAsync();
+                _soloDeshacer = false;
                 return null;
             }
             catch (Exception ex) when (ex is DbException or InvalidOperationException)
             {
                 var detalle = ex is DbException baseDatos ? Explicar(baseDatos) : mensaje(ex);
+                if (ex is DbException { SqlState: "25P02" })
+                {
+                    _soloDeshacer = true;
+                    if (conexion.State != ConnectionState.Open) await OlvidarTransaccionAsync();
+                    return $"{detalle} La transacción está abortada. Sus cambios no se pueden guardar; solo puedes deshacerlos con ROLLBACK.";
+                }
                 var perdida = conexion.State != ConnectionState.Open;
                 var activa = !perdida && _transaccion?.Connection is not null;
 
@@ -304,20 +336,7 @@ namespace MiGestorBDAccesible.Core.Edicion
                     return $"{detalle} Los cambios siguen pendientes; puedes volver a decidir si confirmarlos o deshacerlos.";
                 }
 
-                var transaccion = _transaccion;
-                _transaccion = null;
-                CambiosPendientes = 0;
-
-                try
-                {
-                    if (transaccion is not null)
-                    {
-                        await transaccion.DisposeAsync();
-                    }
-                }
-                catch (Exception)
-                {
-                }
+                await OlvidarTransaccionAsync();
 
                 if (perdida && !confirmar)
                 {
@@ -331,6 +350,20 @@ namespace MiGestorBDAccesible.Core.Edicion
             finally
             {
                 _turno.Release();
+            }
+        }
+
+        private async Task OlvidarTransaccionAsync()
+        {
+            var transaccion = _transaccion;
+            _transaccion = null;
+            CambiosPendientes = 0;
+            try
+            {
+                if (transaccion is not null) await transaccion.DisposeAsync();
+            }
+            catch (Exception)
+            {
             }
         }
 

@@ -11,14 +11,14 @@ namespace MiGestorBDAccesible.Core.Ejecucion
 
         public Task<bool> TomarParaFinalizarAsync()
         {
-            Ejecucion?.Cancelar();
-            return Turno.WaitAsync(OperacionesBaseDatos.EsperaCierre);
+            return Task.FromResult(Turno.Wait(0));
         }
 
         public async Task DescartarAsync(Func<Task> cerrar)
         {
             Cerrada = true;
-            if (await TomarParaFinalizarAsync())
+            Ejecucion?.Cancelar();
+            if (await Turno.WaitAsync(OperacionesBaseDatos.EsperaCierre))
             {
                 try { await cerrar(); }
                 finally { Turno.Release(); }

@@ -210,9 +210,11 @@ En Oracle, PostgreSQL, MySQL y MariaDB cada pestaña tiene su propia sesión: lo
 
 Al salir de la aplicación con cambios sin confirmar, eliges **Sí** para guardarlos (COMMIT), **No** para deshacerlos (ROLLBACK) o **Cancelar** para seguir trabajando. Esto incluye la edición de filas en los cinco motores.
 
-Mientras decides cómo salir, no puedes iniciar nuevas consultas ni ediciones. Las operaciones en curso reciben la orden de cancelarse; si todavía no terminan, la aplicación permanece abierta y te avisa. No se confirma nada automáticamente al volver a intentar salir.
+Mientras decides cómo salir, no puedes iniciar nuevas consultas ni ediciones. Mostrar la pregunta y elegir **Cancelar** no cancela las operaciones en curso ni altera sus transacciones. Si eliges confirmar mientras hay una ejecución en curso, no se confirma nada: se te pide esperar a que termine o cancelarla tú. Esto también se aplica al desconectar y cerrar una pestaña. Solo **salir sin guardar** cancela las operaciones en curso.
 
-Si falla un COMMIT, la aplicación permanece abierta y muestra un aviso con el motor y el error. Si la transacción sigue abierta, sus cambios siguen pendientes: **Sí** vuelve a intentar confirmarlos, **No** sale sin guardar y **Cancelar** te deja seguir trabajando. Ningún COMMIT se reintenta automáticamente. Las sesiones que se confirmaron correctamente no se vuelven a confirmar.
+Si falla un COMMIT, la aplicación permanece abierta y muestra un aviso con el motor y el error. Si la transacción sigue abierta y todavía se puede confirmar, sus cambios siguen pendientes: **Sí** vuelve a intentar confirmarlos, **No** sale sin guardar y **Cancelar** te deja seguir trabajando. Ningún COMMIT se reintenta automáticamente. Las sesiones que se confirmaron correctamente no se vuelven a confirmar.
+
+Si PostgreSQL abortó la transacción por un error, sus cambios no se pueden guardar: solo puedes deshacerlos con ROLLBACK. El aviso no ofrece reintentar COMMIT ni lo describe como una conexión perdida. Un COMMIT escrito en el editor sobre esa transacción también muestra el error y no se anuncia como confirmado.
 
 Si el servidor deshizo la transacción, el aviso dice que esos cambios no se guardaron y no ofrece reintentarlos. Si se perdió la conexión durante COMMIT, no se sabe si llegaron a guardarse: compruébalo en la base antes de repetirlos. Sin cambios pendientes, el aviso ofrece **Aceptar** para salir y **Cancelar** para seguir. El lector de pantalla lee el aviso al abrirse.
 

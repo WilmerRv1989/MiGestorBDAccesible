@@ -21,9 +21,12 @@
         @if (_sesion?.CambiosPendientes > 0)
         {
             <div class="aviso-transaccion" role="group" aria-labelledby="aviso-cambios-filas">
-                <p id="aviso-cambios-filas">Cambios sin confirmar: @_sesion.CambiosPendientes. Se guardan en la base de datos al confirmarlos.@(Proveedor.Capacidades.LectoresEsperanCambios ? $" Mientras tanto, las consultas de otras pestañas sobre {Tabla.NombreCorto()} esperan." : "")</p>
+                <p id="aviso-cambios-filas">Cambios sin confirmar: @_sesion.CambiosPendientes. @(PuedeConfirmar ? "Se guardan en la base de datos al confirmarlos." : "La transacción está abortada: sus cambios no se pueden guardar; solo puedes deshacerlos con ROLLBACK.")@(Proveedor.Capacidades.LectoresEsperanCambios ? $" Mientras tanto, las consultas de otras pestañas sobre {Tabla.NombreCorto()} esperan." : "")</p>
                 <div class="acciones">
-                    <button id="boton-confirmar-filas" class="principal" disabled="@_trabajando" @onclick="() => TerminarAsync(true)">Confirmar los cambios (COMMIT)</button>
+                    @if (PuedeConfirmar)
+                    {
+                        <button id="boton-confirmar-filas" class="principal" disabled="@_trabajando" @onclick="() => TerminarAsync(true)">Confirmar los cambios (COMMIT)</button>
+                    }
                     <button disabled="@_trabajando" @onclick="() => TerminarAsync(false)">Deshacer los cambios (ROLLBACK)</button>
                 </div>
             </div>
@@ -199,7 +202,14 @@
     <DialogoAccion Titulo="Hay cambios sin confirmar" EsAlerta="true" AlCancelar="SeguirEditando">
         <p>En este panel hay @(_sesion!.CambiosPendientes == 1 ? "1 cambio que todavía no se guardó" : $"{_sesion.CambiosPendientes} cambios que todavía no se guardaron") en la base de datos. ¿Qué hago con ellos antes de cerrar?</p>
         <div class="acciones">
-            <button class="principal" @onclick="() => CerrarConAsync(true)">Confirmar los cambios (COMMIT)</button>
+            @if (PuedeConfirmar)
+            {
+                <button class="principal" @onclick="() => CerrarConAsync(true)">Confirmar los cambios (COMMIT)</button>
+            }
+            else
+            {
+                <p>La transacción está abortada. Solo puedes deshacer los cambios con ROLLBACK.</p>
+            }
             <button class="peligro" @onclick="() => CerrarConAsync(false)">Deshacer los cambios (ROLLBACK)</button>
             <button data-foco-inicial @onclick="SeguirEditando">Seguir editando</button>
         </div>
@@ -237,6 +247,8 @@
     private IProveedorBaseDatos Proveedor => proveedores.Obtener(Conexion.Conexion.Motor);
 
     public int CambiosPendientes => _sesion?.CambiosPendientes ?? 0;
+
+    public bool PuedeConfirmar => _sesion?.PuedeConfirmar ?? true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -359,7 +371,11 @@
 
     private async Task<bool> TrabajarAsync(Func<Task> trabajo, string accion)
     {
-        if (_trabajando) return false;
+        if (_trabajando)
+        {
+            await anunciador.AnunciarAsync("El panel sigue trabajando. Espera a que termine antes de repetir la acción.");
+            return false;
+        }
         string? error = null;
         _trabajando = true;
 

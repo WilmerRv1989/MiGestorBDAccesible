@@ -1,5 +1,6 @@
 using MiGestorBDAccesible.Core.Conexiones;
 using MiGestorBDAccesible.Core.Ejecucion;
+using MiGestorBDAccesible.Core.Edicion;
 using Oracle.ManagedDataAccess.Client;
 using Oracle.ManagedDataAccess.Types;
 using System.Data;
@@ -12,6 +13,8 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 {
     public partial class ProveedorOracle
     {
+        public ContextoCierre Contexto { get; } = ContextoCierre.Actual;
+
         private const int FilasMostradasMaximas = 1000;
 
         private const int CaracteresTextoMaximos = 2000;
@@ -66,6 +69,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
         public async Task<ResultadoFinalizacionModelo> FinalizarSesionAsync(ConexionActiva? conexion, bool confirmar)
         {
+            using var bloqueo = Contexto.BloquearOperaciones();
+            if (Contexto.HayOperacionesEnCurso)
+            {
+                return new ResultadoFinalizacionModelo { Errores = ["Hay una ejecución en curso. Espera a que termine o cancélala antes de terminar los cambios."] };
+            }
+
             List<SesionOracle> sesiones;
 
             lock (_cerrojoSesiones)
@@ -80,7 +89,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
             {
                 if (!await sesion.Control.TomarParaFinalizarAsync())
                 {
-                    errores.Add("La sesión sigue ejecutando una consulta que se está cancelando. Vuelve a decidir cuando termine.");
+                    errores.Add("Hay una ejecución en curso. Espera a que termine o cancélala antes de terminar los cambios.");
                     continue;
                 }
 
@@ -190,7 +199,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
             CancellationToken cancelacion = default)
         {
             var resultado = new ResultadoEjecucionModelo();
-            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion);
+            using var operacion = Contexto.Operaciones.Iniciar(cancelacion);
             if (operacion is null)
             {
                 resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = OperacionesBaseDatos.MensajeCierre });

@@ -49,7 +49,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
             $"ALTER TABLE {NombreTabla(tabla)} DROP CONSTRAINT {Identificador(nombre)};";
 
         public async Task<Edicion.ISesionEdicion> AbrirSesionEdicionAsync(Conexiones.ConexionActiva conexion, string baseDatos, CancellationToken cancelacion = default) =>
-            new Edicion.SesionEdicionAdo(await AbrirAsync(conexion, baseDatos, cancelacion), ex => ex is Npgsql.PostgresException postgres ? TextoError(postgres) : ex.Message);
+            new Edicion.SesionEdicionAdo(await AbrirAsync(conexion, baseDatos, cancelacion), ex => ex is Npgsql.PostgresException postgres ? TextoError(postgres) : ex.Message, contexto: Contexto, abortaLectura: ex => ex is Npgsql.PostgresException);
 
         private string NombreNuevo(string nombre, string porDefecto) => string.IsNullOrWhiteSpace(nombre) ? porDefecto : NombreGuardado(nombre);
     }
