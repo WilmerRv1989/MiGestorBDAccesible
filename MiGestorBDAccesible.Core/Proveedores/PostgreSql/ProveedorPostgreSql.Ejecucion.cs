@@ -26,7 +26,9 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
             public bool CambiosPendientes { get; set; }
 
-            public SemaphoreSlim Turno { get; } = new(1, 1);
+            public ControlSesionEjecucion Control { get; } = new();
+
+            public SemaphoreSlim Turno => Control.Turno;
 
             public List<MensajeEjecucionModelo> Avisos { get; } = [];
         }
@@ -49,7 +51,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
             lock (_cerrojoSesiones)
             {
-                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key.Conexion)).Select(p => p.Value)];
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key.Conexion)).Select(p => p.Value).Distinct()];
             }
 
             var errores = new List<string>();
@@ -57,10 +59,20 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
             foreach (var sesion in sesiones)
             {
-                await sesion.Turno.WaitAsync();
+                if (!await sesion.Control.TomarParaFinalizarAsync())
+                {
+                    errores.Add("La sesión sigue ejecutando una consulta que se está cancelando. Vuelve a decidir cuando termine.");
+                    continue;
+                }
 
                 try
                 {
+                    if (sesion.Control.Cerrada)
+                    {
+                        await CerrarSesionAsync(sesion);
+                        continue;
+                    }
+
                     if (sesion.CambiosPendientes)
                     {
                         if (confirmar)
@@ -130,16 +142,17 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
             lock (_cerrojoSesiones)
             {
-                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key.Conexion)).Select(p => p.Value)];
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key.Conexion)).Select(p => p.Value).Distinct()];
             }
 
             foreach (var sesion in sesiones)
             {
-                await CerrarSesionAsync(sesion);
+                RetirarSesion(sesion);
+                await sesion.Control.DescartarAsync(() => CerrarSesionAsync(sesion));
             }
         }
 
-        private async Task CerrarSesionAsync(SesionPostgreSql sesion)
+        private void RetirarSesion(SesionPostgreSql sesion)
         {
             lock (_cerrojoSesiones)
             {
@@ -148,14 +161,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                     _sesiones.Remove(clave);
                 }
             }
+        }
 
-            try
-            {
-                await sesion.Conexion.DisposeAsync();
-            }
-            catch (Exception)
-            {
-            }
+        private async Task CerrarSesionAsync(SesionPostgreSql sesion)
+        {
+            RetirarSesion(sesion);
+            await sesion.Control.CerrarConexionAsync(sesion.Conexion);
         }
 
         public async Task<ResultadoEjecucionModelo> EjecutarAsync(
@@ -166,6 +177,14 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
             CancellationToken cancelacion = default)
         {
             var resultado = new ResultadoEjecucionModelo();
+            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion);
+            if (operacion is null)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = OperacionesBaseDatos.MensajeCierre });
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
+            cancelacion = operacion.Cancelacion;
             var cronometro = Stopwatch.StartNew();
             List<SentenciaPostgreSql> sentencias;
 
@@ -196,6 +215,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
             {
                 sesion = await ObtenerSesionAsync(conexion, nombreBase, cancelacion);
             }
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
             catch (Exception ex) when (ex is ConexionPerdidaException or NpgsqlException)
             {
                 resultado.Mensajes.Add(new MensajeEjecucionModelo
@@ -208,10 +233,26 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                 return resultado;
             }
 
-            await sesion.Turno.WaitAsync(cancelacion);
+            try
+            {
+                await sesion.Turno.WaitAsync(cancelacion);
+            }
+            catch (OperationCanceledException)
+            {
+                resultado.Cancelado = true;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
 
             try
             {
+                sesion.Control.Ejecucion = operacion;
+                if (sesion.Control.Cerrada)
+                {
+                    resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = "La sesión se cerró. Vuelve a ejecutar cuando termine el cierre." });
+                    resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                    return resultado;
+                }
                 foreach (var sentencia in sentencias)
                 {
                     var linea = lineaInicial + sentencia.LineaInicial - 1;
@@ -225,7 +266,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                 await LeerEstadoAsync(sesion);
                 resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
             }
-            catch (Exception ex) when (EsErrorDeConexion(ex))
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Informacion, Texto = "La ejecución se canceló." });
+            }
+            catch (Exception ex) when (sesion.Conexion.State != System.Data.ConnectionState.Open || EsErrorDeConexion(ex))
             {
                 await DescartarSesionAsync(conexion, sesion);
                 resultado.Cancelado = true;
@@ -235,8 +281,13 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
                     Texto = $"Se perdió la conexión con PostgreSQL durante la ejecución; si había una transacción abierta, se deshizo. Comprueba que el servidor siga encendido y vuelve a ejecutar. Detalle: {ex.Message}"
                 });
             }
+            catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = ex.Message });
+            }
             finally
             {
+                sesion.Control.Ejecucion = null;
                 sesion.Turno.Release();
             }
 
@@ -250,7 +301,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
         {
             lock (_cerrojoSesiones)
             {
-                if (_sesiones.TryGetValue((conexion, baseDatos), out var existente) && existente.Conexion.FullState == System.Data.ConnectionState.Open)
+                if (_sesiones.TryGetValue((conexion, baseDatos), out var existente) && !existente.Control.Cerrada && existente.Conexion.FullState == System.Data.ConnectionState.Open)
                 {
                     return existente;
                 }
@@ -287,13 +338,9 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
         private async Task DescartarSesionAsync(ConexionActiva conexion, SesionPostgreSql sesion)
         {
-            lock (_cerrojoSesiones)
-            {
-                _sesiones.Remove((conexion, sesion.BaseDatos));
-            }
-
-            NpgsqlConnection.ClearPool(sesion.Conexion);
-            await sesion.Conexion.DisposeAsync();
+            try { NpgsqlConnection.ClearPool(sesion.Conexion); }
+            catch (Exception) { }
+            await CerrarSesionAsync(sesion);
         }
 
         private static async Task<bool> EjecutarSentenciaAsync(

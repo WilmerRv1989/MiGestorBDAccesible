@@ -1,5 +1,6 @@
 using MiGestorBDAccesible.Core.Proveedores;
 using MiGestorBDAccesible.Core.Conexiones;
+using MiGestorBDAccesible.Core.Ejecucion;
 
 namespace MiGestorBDAccesible.Core.Edicion
 {
@@ -7,13 +8,24 @@ namespace MiGestorBDAccesible.Core.Edicion
     {
         public static event Action? EstadoActualizado;
 
+        public static bool HayOperacionesEnCurso => OperacionesBaseDatos.HayOperaciones;
+
+        public static IDisposable BloquearOperaciones() => OperacionesBaseDatos.Bloquear();
+
         public static bool HayCambiosPendientes(IEnumerable<IFinalizadorSesiones> proveedores) =>
             RegistroSesionesEdicion.HayCambiosPendientes || proveedores.Any(p => p.TieneCambiosPendientes());
 
         public static async Task<ResultadoCierreModelo> TerminarAsync(IEnumerable<IFinalizadorSesiones> proveedores, bool confirmar)
         {
+            using var bloqueo = BloquearOperaciones();
             var todos = proveedores.ToList();
             var errores = new List<string>();
+
+            if (!await OperacionesBaseDatos.EsperarAsync())
+            {
+                errores.Add("Hay operaciones que todavía se están cancelando. La aplicación sigue abierta; vuelve a decidir cuando terminen.");
+                return new ResultadoCierreModelo { Errores = errores, QuedanCambios = HayCambiosPendientes(todos) };
+            }
 
             foreach (var proveedor in todos)
             {
@@ -30,11 +42,21 @@ namespace MiGestorBDAccesible.Core.Edicion
 
             errores.AddRange((await RegistroSesionesEdicion.TerminarTodasAsync(confirmar)).Select(error => $"Edición de filas: {error}"));
             EstadoActualizado?.Invoke();
-            return new ResultadoCierreModelo { Errores = errores, QuedanCambios = HayCambiosPendientes(todos) };
+            var quedanCambios = HayCambiosPendientes(todos);
+            if (quedanCambios && errores.Count == 0)
+            {
+                errores.Add("Siguen quedando cambios pendientes. Vuelve a decidir si quieres confirmarlos o salir sin guardar.");
+            }
+            return new ResultadoCierreModelo { Errores = errores, QuedanCambios = quedanCambios };
         }
 
         public static async Task SalirSinGuardarAsync(IEnumerable<IFinalizadorSesiones> proveedores)
         {
+            using var bloqueo = BloquearOperaciones();
+            await RegistroSesionesEdicion.TerminarTodasAsync(false);
+            await RegistroSesionesEdicion.DescartarTodasAsync();
+            await OperacionesBaseDatos.EsperarAsync();
+
             foreach (var proveedor in proveedores)
             {
                 try
@@ -55,9 +77,6 @@ namespace MiGestorBDAccesible.Core.Edicion
                     }
                 }
             }
-
-            await RegistroSesionesEdicion.TerminarTodasAsync(false);
-            await RegistroSesionesEdicion.DescartarTodasAsync();
         }
 
         public static bool OfreceReintentar(ResultadoCierreModelo resultado, bool confirmar) => confirmar && resultado.QuedanCambios;
@@ -75,6 +94,6 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         public bool QuedanCambios { get; init; }
 
-        public bool Correcto => Errores.Count == 0;
+        public bool Correcto => Errores.Count == 0 && !QuedanCambios;
     }
 }

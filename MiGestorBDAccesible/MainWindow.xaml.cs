@@ -75,18 +75,20 @@ namespace MiGestorBDAccesible
                 return;
             }
 
-            if (!CierreAplicacion.HayCambiosPendientes(_proveedores.Todos))
+            if (!CierreAplicacion.HayCambiosPendientes(_proveedores.Todos) && !CierreAplicacion.HayOperacionesEnCurso)
             {
                 return;
             }
 
             e.Cancel = true;
             _terminandoCierre = true;
+            using var bloqueo = CierreAplicacion.BloquearOperaciones();
+            vistaBlazor.IsEnabled = false;
 
             try
             {
                 var respuesta = MessageBox.Show(this,
-                    "Hay cambios sin confirmar. ¿Quieres guardarlos en la base de datos antes de salir?\n\nSí: confirmar los cambios (COMMIT).\nNo: deshacer los cambios (ROLLBACK).\nCancelar: seguir en la aplicación.",
+                    "Hay cambios sin confirmar u operaciones en curso. ¿Quieres guardarlos en la base de datos antes de salir?\n\nSí: confirmar los cambios (COMMIT).\nNo: deshacer los cambios (ROLLBACK).\nCancelar: seguir en la aplicación.",
                     "Cambios sin confirmar",
                     MessageBoxButton.YesNoCancel,
                     MessageBoxImage.Warning,
@@ -102,7 +104,7 @@ namespace MiGestorBDAccesible
 
                     var resultado = await CierreAplicacion.TerminarAsync(_proveedores.Todos, true);
 
-                    if (resultado.Correcto)
+                    if (resultado.Correcto && !resultado.QuedanCambios)
                     {
                         break;
                     }
@@ -131,6 +133,7 @@ namespace MiGestorBDAccesible
             finally
             {
                 _terminandoCierre = false;
+                vistaBlazor.IsEnabled = true;
             }
         }
 

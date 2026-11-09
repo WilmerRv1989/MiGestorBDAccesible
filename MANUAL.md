@@ -210,11 +210,13 @@ En Oracle, PostgreSQL, MySQL y MariaDB cada pestaña tiene su propia sesión: lo
 
 Al salir de la aplicación con cambios sin confirmar, eliges **Sí** para guardarlos (COMMIT), **No** para deshacerlos (ROLLBACK) o **Cancelar** para seguir trabajando. Esto incluye la edición de filas en los cinco motores.
 
+Mientras decides cómo salir, no puedes iniciar nuevas consultas ni ediciones. Las operaciones en curso reciben la orden de cancelarse; si todavía no terminan, la aplicación permanece abierta y te avisa. No se confirma nada automáticamente al volver a intentar salir.
+
 Si falla un COMMIT, la aplicación permanece abierta y muestra un aviso con el motor y el error. Si la transacción sigue abierta, sus cambios siguen pendientes: **Sí** vuelve a intentar confirmarlos, **No** sale sin guardar y **Cancelar** te deja seguir trabajando. Ningún COMMIT se reintenta automáticamente. Las sesiones que se confirmaron correctamente no se vuelven a confirmar.
 
 Si el servidor deshizo la transacción, el aviso dice que esos cambios no se guardaron y no ofrece reintentarlos. Si se perdió la conexión durante COMMIT, no se sabe si llegaron a guardarse: compruébalo en la base antes de repetirlos. Sin cambios pendientes, el aviso ofrece **Aceptar** para salir y **Cancelar** para seguir. El lector de pantalla lee el aviso al abrirse.
 
-Al elegir salir sin guardar, se intenta ROLLBACK y se cierran las sesiones aunque falle ese intento. Al cancelar el cierre, también se cancela la salida para instalar una actualización pendiente.
+Al elegir salir sin guardar, se cancelan las ejecuciones en curso y se deshace primero la edición de filas, para liberar sus bloqueos. Se intenta ROLLBACK y se descartan las sesiones aunque falle ese intento. Si una operación tarda en cancelarse, su conexión se libera al terminar de usarla; la salida no queda esperando indefinidamente. Al cancelar el cierre, también se cancela la salida para instalar una actualización pendiente.
 
 ## Crear y modificar tablas
 
@@ -265,7 +267,7 @@ En el menú de una tabla, elige **Editar filas…**. Se abre un panel en la zona
 
 En el formulario de una fila hay un campo por columna. Las columnas opcionales tienen la casilla «Vacío (NULL)», para distinguir un texto vacío de un NULL. Las llaves foráneas son listas con los valores de la tabla destino, como «3: Libros». Las fechas se escriben como AAAA-MM-DD.
 
-Todo lo que guardas o eliminas en el panel queda en una transacción propia del panel, en todos los motores. Arriba se anuncia cuántos cambios hay sin confirmar, con los botones **Confirmar los cambios (COMMIT)** y **Deshacer los cambios (ROLLBACK)**. Si cierras el panel con cambios pendientes, te pregunta qué hacer.
+Todo lo que guardas o eliminas en el panel queda en una transacción propia del panel, en todos los motores. Arriba se anuncia cuántos cambios hay sin confirmar, con los botones **Confirmar los cambios (COMMIT)** y **Deshacer los cambios (ROLLBACK)**. Si cierras el panel con cambios pendientes, te pregunta qué hacer. Si no se pueden confirmar o deshacer, el panel sigue abierto, se anuncia el error y el foco vuelve a **Cerrar el panel** para que puedas volver a decidir. Si falla reabrir la sesión después de una desconexión, se anuncia el error y puedes volver a usar los controles. Una lectura que deje la transacción abortada impide anunciar sus cambios como confirmados; deshazlos con ROLLBACK antes de continuar.
 
 Dos cosas que conviene saber:
 

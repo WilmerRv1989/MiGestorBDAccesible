@@ -47,7 +47,9 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
             public bool CambiosPendientes { get; set; }
 
-            public SemaphoreSlim Turno { get; } = new(1, 1);
+            public ControlSesionEjecucion Control { get; } = new();
+
+            public SemaphoreSlim Turno => Control.Turno;
         }
 
         private readonly Dictionary<ConexionActiva, SesionOracle> _sesiones = new(ReferenceEqualityComparer.Instance);
@@ -68,7 +70,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
             lock (_cerrojoSesiones)
             {
-                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value)];
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value).Distinct()];
             }
 
             var errores = new List<string>();
@@ -76,10 +78,20 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
             foreach (var sesion in sesiones)
             {
-                await sesion.Turno.WaitAsync();
+                if (!await sesion.Control.TomarParaFinalizarAsync())
+                {
+                    errores.Add("La sesión sigue ejecutando una consulta que se está cancelando. Vuelve a decidir cuando termine.");
+                    continue;
+                }
 
                 try
                 {
+                    if (sesion.Control.Cerrada)
+                    {
+                        await CerrarSesionAsync(sesion);
+                        continue;
+                    }
+
                     if (sesion.CambiosPendientes)
                     {
                         await using var comando = sesion.Conexion.CreateCommand();
@@ -143,16 +155,17 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
             lock (_cerrojoSesiones)
             {
-                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value)];
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value).Distinct()];
             }
 
             foreach (var sesion in sesiones)
             {
-                await CerrarSesionAsync(sesion);
+                RetirarSesion(sesion);
+                await sesion.Control.DescartarAsync(() => CerrarSesionAsync(sesion));
             }
         }
 
-        private async Task CerrarSesionAsync(SesionOracle sesion)
+        private void RetirarSesion(SesionOracle sesion)
         {
             lock (_cerrojoSesiones)
             {
@@ -161,14 +174,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
                     _sesiones.Remove(clave);
                 }
             }
+        }
 
-            try
-            {
-                await sesion.Conexion.DisposeAsync();
-            }
-            catch (Exception)
-            {
-            }
+        private async Task CerrarSesionAsync(SesionOracle sesion)
+        {
+            RetirarSesion(sesion);
+            await sesion.Control.CerrarConexionAsync(sesion.Conexion);
         }
 
         public async Task<ResultadoEjecucionModelo> EjecutarAsync(
@@ -179,12 +190,26 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
             CancellationToken cancelacion = default)
         {
             var resultado = new ResultadoEjecucionModelo();
+            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion);
+            if (operacion is null)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = OperacionesBaseDatos.MensajeCierre });
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
+            cancelacion = operacion.Cancelacion;
             var cronometro = Stopwatch.StartNew();
             SesionOracle sesion;
 
             try
             {
                 sesion = await ObtenerSesionAsync(conexion, cancelacion);
+            }
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
             }
             catch (Exception ex) when (ex is ConexionPerdidaException or OracleException)
             {
@@ -199,10 +224,26 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
                 return resultado;
             }
 
-            await sesion.Turno.WaitAsync(cancelacion);
+            try
+            {
+                await sesion.Turno.WaitAsync(cancelacion);
+            }
+            catch (OperationCanceledException)
+            {
+                resultado.Cancelado = true;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
 
             try
             {
+                sesion.Control.Ejecucion = operacion;
+                if (sesion.Control.Cerrada)
+                {
+                    resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = "La sesión se cerró. Vuelve a ejecutar cuando termine el cierre." });
+                    resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                    return resultado;
+                }
                 if (!string.IsNullOrEmpty(baseDatos) && !string.Equals(baseDatos, sesion.Esquema, StringComparison.Ordinal))
                 {
                     await EjecutarSinResultadoAsync(sesion, $"ALTER SESSION SET CURRENT_SCHEMA = {Delimitar(baseDatos)}", cancelacion);
@@ -221,7 +262,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
                 await LeerEstadoAsync(sesion, resultado);
             }
-            catch (OracleException ex) when (_erroresConexion.Contains(ex.Number))
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Informacion, Texto = "La ejecución se canceló." });
+            }
+            catch (Exception ex) when (sesion.Conexion.State != ConnectionState.Open || ex is OracleException oracle && _erroresConexion.Contains(oracle.Number))
             {
                 await DescartarSesionAsync(conexion, sesion);
                 resultado.Cancelado = true;
@@ -235,8 +281,13 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
             {
                 resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = LimpiarMensaje(ex.Message), Numero = ex.Number });
             }
+            catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = ex.Message });
+            }
             finally
             {
+                sesion.Control.Ejecucion = null;
                 sesion.Turno.Release();
             }
 
@@ -249,7 +300,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
         {
             lock (_cerrojoSesiones)
             {
-                if (_sesiones.TryGetValue(conexion, out var existente) && existente.Conexion.State == ConnectionState.Open)
+                if (_sesiones.TryGetValue(conexion, out var existente) && !existente.Control.Cerrada && existente.Conexion.State == ConnectionState.Open)
                 {
                     return existente;
                 }
@@ -270,13 +321,9 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
 
         private async Task DescartarSesionAsync(ConexionActiva conexion, SesionOracle sesion)
         {
-            lock (_cerrojoSesiones)
-            {
-                _sesiones.Remove(conexion);
-            }
-
-            OracleConnection.ClearPool(sesion.Conexion);
-            await sesion.Conexion.DisposeAsync();
+            try { OracleConnection.ClearPool(sesion.Conexion); }
+            catch (Exception) { }
+            await CerrarSesionAsync(sesion);
         }
 
         private static async Task<bool> EjecutarSentenciaAsync(

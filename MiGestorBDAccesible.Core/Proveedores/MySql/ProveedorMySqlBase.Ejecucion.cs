@@ -32,7 +32,9 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
 
             public string? BaseActual { get; set; }
 
-            public SemaphoreSlim Turno { get; } = new(1, 1);
+            public ControlSesionEjecucion Control { get; } = new();
+
+            public SemaphoreSlim Turno => Control.Turno;
 
             public List<(string Nivel, int Numero, string Texto)> Avisos { get; } = [];
 
@@ -57,7 +59,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
 
             lock (_cerrojoSesiones)
             {
-                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value)];
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value).Distinct()];
             }
 
             var errores = new List<string>();
@@ -65,10 +67,20 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
 
             foreach (var sesion in sesiones)
             {
-                await sesion.Turno.WaitAsync();
+                if (!await sesion.Control.TomarParaFinalizarAsync())
+                {
+                    errores.Add("La sesión sigue ejecutando una consulta que se está cancelando. Vuelve a decidir cuando termine.");
+                    continue;
+                }
 
                 try
                 {
+                    if (sesion.Control.Cerrada)
+                    {
+                        await CerrarSesionAsync(sesion);
+                        continue;
+                    }
+
                     if (sesion.CambiosPendientes)
                     {
                         await using var guardar = new MySqlCommand("SAVEPOINT migestor_estado_cierre", sesion.Conexion);
@@ -133,16 +145,17 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
 
             lock (_cerrojoSesiones)
             {
-                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value)];
+                sesiones = [.. _sesiones.Where(p => conexion is null || conexion.Incluye(p.Key)).Select(p => p.Value).Distinct()];
             }
 
             foreach (var sesion in sesiones)
             {
-                await CerrarSesionAsync(sesion);
+                RetirarSesion(sesion);
+                await sesion.Control.DescartarAsync(() => CerrarSesionAsync(sesion));
             }
         }
 
-        private async Task CerrarSesionAsync(SesionMySql sesion)
+        private void RetirarSesion(SesionMySql sesion)
         {
             lock (_cerrojoSesiones)
             {
@@ -151,14 +164,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
                     _sesiones.Remove(clave);
                 }
             }
+        }
 
-            try
-            {
-                await sesion.Conexion.DisposeAsync();
-            }
-            catch (Exception)
-            {
-            }
+        private async Task CerrarSesionAsync(SesionMySql sesion)
+        {
+            RetirarSesion(sesion);
+            await sesion.Control.CerrarConexionAsync(sesion.Conexion);
         }
 
         public async Task<ResultadoEjecucionModelo> EjecutarAsync(
@@ -169,12 +180,26 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
             CancellationToken cancelacion = default)
         {
             var resultado = new ResultadoEjecucionModelo();
+            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion);
+            if (operacion is null)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = OperacionesBaseDatos.MensajeCierre });
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
+            cancelacion = operacion.Cancelacion;
             var cronometro = Stopwatch.StartNew();
             SesionMySql sesion;
 
             try
             {
                 sesion = await ObtenerSesionAsync(conexion, cancelacion);
+            }
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
             }
             catch (Exception ex) when (ex is ConexionPerdidaException or MySqlException)
             {
@@ -188,10 +213,26 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
                 return resultado;
             }
 
-            await sesion.Turno.WaitAsync(cancelacion);
+            try
+            {
+                await sesion.Turno.WaitAsync(cancelacion);
+            }
+            catch (OperationCanceledException)
+            {
+                resultado.Cancelado = true;
+                resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                return resultado;
+            }
 
             try
             {
+                sesion.Control.Ejecucion = operacion;
+                if (sesion.Control.Cerrada)
+                {
+                    resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = "La sesión se cerró. Vuelve a ejecutar cuando termine el cierre." });
+                    resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
+                    return resultado;
+                }
                 if (!string.IsNullOrWhiteSpace(baseDatos) && !string.Equals(baseDatos, sesion.BaseActual, StringComparison.Ordinal))
                 {
                     try
@@ -223,7 +264,12 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
                 sesion.BaseActual = await actual.ExecuteScalarAsync(cancelacion) as string;
                 resultado.CambiosPendientes = TieneCambiosPendientes(conexion);
             }
-            catch (Exception ex) when (EsErrorDeConexion(ex) || ex is MySqlException { ErrorCode: MySqlErrorCode.QueryInterrupted } && !cancelacion.IsCancellationRequested)
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Informacion, Texto = "La ejecución se canceló." });
+            }
+            catch (Exception ex) when (sesion.Conexion.State != System.Data.ConnectionState.Open || EsErrorDeConexion(ex) || ex is MySqlException { ErrorCode: MySqlErrorCode.QueryInterrupted } && !cancelacion.IsCancellationRequested)
             {
                 await DescartarSesionAsync(conexion, sesion);
                 resultado.Cancelado = true;
@@ -233,8 +279,13 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
                     Texto = $"Se perdió la conexión con {Motor.Nombre()} durante la ejecución; si había una transacción abierta, se deshizo. Comprueba que el servidor siga encendido y vuelve a ejecutar. Detalle: {ex.Message}"
                 });
             }
+            catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = ex.Message });
+            }
             finally
             {
+                sesion.Control.Ejecucion = null;
                 sesion.Turno.Release();
             }
 
@@ -270,7 +321,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
         {
             lock (_cerrojoSesiones)
             {
-                if (_sesiones.TryGetValue(conexion, out var existente) && existente.Conexion.State == System.Data.ConnectionState.Open)
+                if (_sesiones.TryGetValue(conexion, out var existente) && !existente.Control.Cerrada && existente.Conexion.State == System.Data.ConnectionState.Open)
                 {
                     return existente;
                 }
@@ -303,13 +354,9 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
 
         private async Task DescartarSesionAsync(ConexionActiva conexion, SesionMySql sesion)
         {
-            lock (_cerrojoSesiones)
-            {
-                _sesiones.Remove(conexion);
-            }
-
-            MySqlConnection.ClearPool(sesion.Conexion);
-            await sesion.Conexion.DisposeAsync();
+            try { MySqlConnection.ClearPool(sesion.Conexion); }
+            catch (Exception) { }
+            await CerrarSesionAsync(sesion);
         }
 
         private async Task<bool> EjecutarSentenciaAsync(

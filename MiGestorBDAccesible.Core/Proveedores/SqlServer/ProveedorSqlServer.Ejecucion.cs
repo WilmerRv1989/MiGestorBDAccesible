@@ -18,6 +18,13 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
             CancellationToken cancelacion = default)
         {
             var resultado = new ResultadoEjecucionModelo();
+            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion);
+            if (operacion is null)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = OperacionesBaseDatos.MensajeCierre });
+                return resultado;
+            }
+            cancelacion = operacion.Cancelacion;
             var cronometro = Stopwatch.StartNew();
             List<LoteModelo> lotes;
 
@@ -50,6 +57,11 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
             try
             {
                 conexionSql = await AbrirAsync(conexion, baseDatos, cancelacion);
+            }
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                return resultado;
             }
             catch (ConexionPerdidaException ex)
             {

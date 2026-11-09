@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Data;
 using System.Globalization;
+using MiGestorBDAccesible.Core.Ejecucion;
 
 namespace MiGestorBDAccesible.Core.Edicion
 {
@@ -108,20 +109,27 @@ namespace MiGestorBDAccesible.Core.Edicion
 
         private const int SegundosEspera = 15;
 
-        private readonly SemaphoreSlim _turno = new(1, 1);
+        private readonly ControlSesionEjecucion _control = new();
+
+        private SemaphoreSlim _turno => _control.Turno;
 
         private DbTransaction? _transaccion;
 
         public int CambiosPendientes { get; private set; }
 
-        public bool Cerrada => conexion.State != ConnectionState.Open;
+        public bool Cerrada => _control.Cerrada || conexion.State != ConnectionState.Open;
 
         public async Task<FilasLeidasModelo> LeerAsync(string consulta, CancellationToken cancelacion = default)
         {
+            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion)
+                ?? throw new InvalidOperationException(OperacionesBaseDatos.MensajeCierre);
+            cancelacion = operacion.Cancelacion;
             await _turno.WaitAsync(cancelacion);
 
             try
             {
+                _control.Ejecucion = operacion;
+                if (Cerrada) throw new InvalidOperationException("La sesión de edición está cerrada; vuelve a abrir el panel.");
                 await using var comando = await ComandoAsync(consulta, cancelacion);
                 await using var lector = await comando.ExecuteReaderAsync(cancelacion);
                 var resultado = new FilasLeidasModelo();
@@ -151,16 +159,22 @@ namespace MiGestorBDAccesible.Core.Edicion
             }
             finally
             {
+                _control.Ejecucion = null;
                 _turno.Release();
             }
         }
 
         public async Task<ResultadoCambioFilaModelo> CambiarAsync(string sentencia, CancellationToken cancelacion = default)
         {
+            using var operacion = OperacionesBaseDatos.Iniciar(cancelacion)
+                ?? throw new InvalidOperationException(OperacionesBaseDatos.MensajeCierre);
+            cancelacion = operacion.Cancelacion;
             await _turno.WaitAsync(cancelacion);
 
             try
             {
+                _control.Ejecucion = operacion;
+                if (Cerrada) throw new InvalidOperationException("La sesión de edición está cerrada; vuelve a abrir el panel.");
                 await using var comando = await ComandoAsync(sentencia, cancelacion);
                 _transaccion!.Save("fila");
 
@@ -175,14 +189,15 @@ namespace MiGestorBDAccesible.Core.Edicion
 
                     return new ResultadoCambioFilaModelo { FilasAfectadas = filas };
                 }
-                catch (DbException ex)
+                catch (Exception ex) when (ex is DbException or OperationCanceledException)
                 {
                     await _transaccion.RollbackAsync("fila", CancellationToken.None);
-                    return new ResultadoCambioFilaModelo { Error = Explicar(ex) };
+                    return new ResultadoCambioFilaModelo { Error = ex is DbException baseDatos ? Explicar(baseDatos) : "La edición se canceló; no se aplicó este cambio." };
                 }
             }
             finally
             {
+                _control.Ejecucion = null;
                 _turno.Release();
             }
         }
@@ -194,28 +209,37 @@ namespace MiGestorBDAccesible.Core.Edicion
         public async ValueTask DisposeAsync()
         {
             RegistroSesionesEdicion.Quitar(this);
+            await _control.DescartarAsync(LiberarRecursosAsync);
+        }
 
-            if (_transaccion is not null)
-            {
-                try
-                {
-                    await _transaccion.RollbackAsync();
-                }
-                catch (Exception)
-                {
-                }
-
-                await _transaccion.DisposeAsync();
-                _transaccion = null;
-            }
-
+        private async Task LiberarRecursosAsync()
+        {
+            var transaccion = _transaccion;
+            _transaccion = null;
             CambiosPendientes = 0;
-            await conexion.DisposeAsync();
+
+            try
+            {
+                if (transaccion is not null)
+                {
+                    try { await transaccion.RollbackAsync(); }
+                    catch (Exception) { }
+                    try { await transaccion.DisposeAsync(); }
+                    catch (Exception) { }
+                }
+            }
+            finally
+            {
+                await _control.CerrarConexionAsync(conexion);
+            }
         }
 
         private async Task<string?> TerminarAsync(bool confirmar)
         {
-            await _turno.WaitAsync();
+            if (!await _control.TomarParaFinalizarAsync())
+            {
+                return "La edición sigue trabajando y se está cancelando. Vuelve a decidir cuando termine.";
+            }
 
             try
             {
@@ -224,8 +248,9 @@ namespace MiGestorBDAccesible.Core.Edicion
                     return null;
                 }
 
-                if (leerEstado is not null)
+                if (confirmar || leerEstado is not null)
                 {
+                    // Impide que COMMIT se acepte como ROLLBACK si una lectura abortó la transacción.
                     _transaccion.Save("migestor_estado_cierre");
                 }
 

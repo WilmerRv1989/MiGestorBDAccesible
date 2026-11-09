@@ -357,25 +357,48 @@
         }
     }
 
-    private async Task BuscarAsync(bool anunciar)
+    private async Task<bool> TrabajarAsync(Func<Task> trabajo, string accion)
     {
+        if (_trabajando) return false;
+        string? error = null;
         _trabajando = true;
-        _error = null;
 
         try
+        {
+            await trabajo();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudo completar la acción de {accion}. {ex.Message}";
+            _error = error;
+        }
+        finally
+        {
+            _trabajando = false;
+        }
+
+        if (error is not null)
+        {
+            await AnunciarTrasFocoAsync(_eliminar is not null || _preguntarCierre
+                ? "titulo-dialogo-accion" : "titulo-editar-filas", error, true);
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task BuscarAsync(bool anunciar)
+    {
+        _error = null;
+        if (!await TrabajarAsync(async () =>
         {
             _condicion = EdicionFilasService.Condicion(Proveedor.Dialecto, _columnas, _buscar, _filtro);
             _desde = 0;
             await CargarPaginaAsync();
-        }
-        catch (Exception ex)
+        }, "buscar filas"))
         {
-            _trabajando = false;
-            await anunciador.AnunciarUrgenteAsync($"No se pudo buscar. {ex.Message}");
             return;
         }
-
-        _trabajando = false;
 
         if (anunciar)
         {
@@ -385,9 +408,14 @@
 
     private async Task CambiarPaginaAsync(int direccion)
     {
-        _desde += direccion * EdicionFilasService.TamanoPagina;
-        await CargarPaginaAsync();
-        await AnunciarTrasFocoAsync(_filas.Count > 0 ? "fila-0" : "titulo-lista-filas", $"{TituloLista()}.");
+        if (await TrabajarAsync(async () =>
+        {
+            _desde += direccion * EdicionFilasService.TamanoPagina;
+            await CargarPaginaAsync();
+        }, "cambiar de página"))
+        {
+            await AnunciarTrasFocoAsync(_filas.Count > 0 ? "fila-0" : "titulo-lista-filas", $"{TituloLista()}.");
+        }
     }
 
     private void NuevaFila()
@@ -486,32 +514,37 @@
             return;
         }
 
-        _trabajando = true;
-        var resultado = await (await ObtenerSesionAsync()).CambiarAsync(sql);
-        _trabajando = false;
-
-        if (!resultado.Correcto)
+        string? aviso = null;
+        string? foco = null;
+        await TrabajarAsync(async () =>
         {
-            _error = $"{Conexion.Conexion.Motor.Nombre()} no aceptó la fila. {resultado.Error}";
-            await anunciador.AnunciarUrgenteAsync(_error);
-            return;
-        }
+            var resultado = await (await ObtenerSesionAsync()).CambiarAsync(sql);
 
-        if (resultado.FilasAfectadas == 0)
-        {
-            _error = "La fila ya no existe o alguien cambió su clave: no se modificó nada. Busca de nuevo para ver los datos actuales.";
-            await anunciador.AnunciarUrgenteAsync(_error);
-            return;
-        }
+            if (!resultado.Correcto)
+            {
+                _error = $"{Conexion.Conexion.Motor.Nombre()} no aceptó la fila. {resultado.Error}";
+                await anunciador.AnunciarUrgenteAsync(_error);
+                return;
+            }
 
-        var nueva = _original is null;
-        var indice = _indiceEditado;
-        _valores = null;
-        _original = null;
-        await CargarPaginaAsync();
+            if (resultado.FilasAfectadas == 0)
+            {
+                _error = "La fila ya no existe o alguien cambió su clave: no se modificó nada. Busca de nuevo para ver los datos actuales.";
+                await anunciador.AnunciarUrgenteAsync(_error);
+                return;
+            }
 
-        var destino = nueva ? "boton-nueva-fila" : indice is int i && i < _filas.Count ? $"fila-{i}" : "titulo-lista-filas";
-        await AnunciarTrasFocoAsync(destino, $"{(nueva ? "Fila agregada" : "Fila guardada")}. Cambios sin confirmar: {_sesion.CambiosPendientes}.");
+            var nueva = _original is null;
+            var indice = _indiceEditado;
+            _valores = null;
+            _original = null;
+            await CargarPaginaAsync();
+
+            foco = nueva ? "boton-nueva-fila" : indice is int i && i < _filas.Count ? $"fila-{i}" : "titulo-lista-filas";
+            aviso = $"{(nueva ? "Fila agregada" : "Fila guardada")}. Cambios sin confirmar: {_sesion!.CambiosPendientes}.";
+        }, "guardar la fila");
+
+        if (aviso is not null) await AnunciarTrasFocoAsync(foco!, aviso);
     }
 
     private async Task CancelarFila()
@@ -543,46 +576,68 @@
 
     private async Task EliminarAsync(int indice)
     {
-        _trabajando = true;
-        var resultado = await (await ObtenerSesionAsync()).CambiarAsync(EdicionFilasService.Eliminar(Proveedor.Dialecto, _detalle!, _columnas, _clave!, Valores(_filas[indice])));
-        _trabajando = false;
-
-        if (!resultado.Correcto)
+        string? aviso = null;
+        string? foco = null;
+        await TrabajarAsync(async () =>
         {
-            _error = $"{Conexion.Conexion.Motor.Nombre()} no dejó eliminarla. {resultado.Error}";
-            await anunciador.AnunciarUrgenteAsync(_error);
-            return;
-        }
+            var resultado = await (await ObtenerSesionAsync()).CambiarAsync(EdicionFilasService.Eliminar(Proveedor.Dialecto, _detalle!, _columnas, _clave!, Valores(_filas[indice])));
 
-        _eliminar = null;
-        await CargarPaginaAsync();
-        var destino = _filas.Count == 0 ? "titulo-lista-filas" : $"fila-{Math.Min(indice, _filas.Count - 1)}";
-        await AnunciarTrasFocoAsync(destino, resultado.FilasAfectadas == 0
-            ? "La fila ya no existía."
-            : $"Fila eliminada. Cambios sin confirmar: {_sesion.CambiosPendientes}.");
+            if (!resultado.Correcto)
+            {
+                _error = $"{Conexion.Conexion.Motor.Nombre()} no dejó eliminarla. {resultado.Error}";
+                await anunciador.AnunciarUrgenteAsync(_error);
+                return;
+            }
+
+            _eliminar = null;
+            await CargarPaginaAsync();
+            foco = _filas.Count == 0 ? "titulo-lista-filas" : $"fila-{Math.Min(indice, _filas.Count - 1)}";
+            aviso = resultado.FilasAfectadas == 0
+                ? "La fila ya no existía."
+                : $"Fila eliminada. Cambios sin confirmar: {_sesion!.CambiosPendientes}.";
+        }, "eliminar la fila");
+
+        if (aviso is not null) await AnunciarTrasFocoAsync(foco!, aviso);
     }
 
-    public async Task<string?> TerminarSinAnunciarAsync(bool confirmar) =>
-        _sesion is null ? null : confirmar ? await _sesion.ConfirmarAsync() : await _sesion.DeshacerAsync();
+    public async Task<string?> TerminarSinAnunciarAsync(bool confirmar)
+    {
+        try
+        {
+            return _sesion is null ? null : confirmar ? await _sesion.ConfirmarAsync() : await _sesion.DeshacerAsync();
+        }
+        catch (Exception ex)
+        {
+            return $"{Conexion.Conexion.Motor.Nombre()}: {ex.Message}";
+        }
+    }
 
     private async Task TerminarAsync(bool confirmar)
     {
-        _trabajando = true;
-        var error = await TerminarSinAnunciarAsync(confirmar);
-        _trabajando = false;
-
-        if (error is not null)
+        string? aviso = null;
+        string foco = "titulo-lista-filas";
+        var urgente = false;
+        await TrabajarAsync(async () =>
         {
-            await anunciador.AnunciarUrgenteAsync($"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {error}");
-            return;
-        }
+            var error = await TerminarSinAnunciarAsync(confirmar);
 
-        _valores = null;
-        _original = null;
-        await CargarPaginaAsync();
-        await AnunciarTrasFocoAsync("titulo-lista-filas", confirmar
-            ? $"Cambios confirmados (COMMIT). {TituloLista()}."
-            : $"Cambios deshechos (ROLLBACK). {TituloLista()}.");
+            if (error is not null)
+            {
+                foco = "boton-cerrar-filas";
+                urgente = true;
+                aviso = $"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {error}";
+                return;
+            }
+
+            _valores = null;
+            _original = null;
+            await CargarPaginaAsync();
+            aviso = confirmar
+                ? $"Cambios confirmados (COMMIT). {TituloLista()}."
+                : $"Cambios deshechos (ROLLBACK). {TituloLista()}.";
+        }, "terminar los cambios");
+
+        if (aviso is not null) await AnunciarTrasFocoAsync(foco, aviso, urgente);
     }
 
     private async Task CerrarAsync()
@@ -605,11 +660,11 @@
     private async Task CerrarConAsync(bool confirmar)
     {
         var error = await TerminarSinAnunciarAsync(confirmar);
-        _preguntarCierre = false;
+        SeguirEditando();
 
         if (error is not null)
         {
-            await anunciador.AnunciarUrgenteAsync($"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {error}");
+            await AnunciarTrasFocoAsync("boton-cerrar-filas", $"No se pudieron {(confirmar ? "confirmar" : "deshacer")} los cambios. {error}", true);
             return;
         }
 
