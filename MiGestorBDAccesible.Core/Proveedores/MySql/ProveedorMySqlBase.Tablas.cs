@@ -224,7 +224,8 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
             await using var usar = new MySqlCommand($"USE {Delimitar(baseDatos)}", conexionMy);
             await usar.ExecuteNonQueryAsync(cancelacion);
 
-            return new SesionEdicionAdo(conexionMy, ex => ex is MySqlException mysql ? TextoError(mysql) : ex.Message);
+            return new SesionEdicionAdo(conexionMy, ex => ex is MySqlException mysql ? TextoError(mysql) : ex.Message, Contexto,
+                transaccion => LeerCambiosPendientesAsync(conexionMy, (MySqlTransaction)transaccion));
         }
     }
 }

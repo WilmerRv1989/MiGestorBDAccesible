@@ -24,7 +24,7 @@ namespace MiGestorBDAccesible.Core.Proveedores.Oracle
             $"ALTER TABLE {Identificador(tabla.Esquema)}.{Identificador(tabla.Nombre)} DROP CONSTRAINT {Identificador(nombre)};";
 
         public async Task<Edicion.ISesionEdicion> AbrirSesionEdicionAsync(Conexiones.ConexionActiva conexion, string baseDatos, CancellationToken cancelacion = default) =>
-            new Edicion.SesionEdicionAdo(await AbrirAsync(conexion, cancelacion), ex => LimpiarMensaje(ex.Message));
+            new Edicion.SesionEdicionAdo(await AbrirAsync(conexion, cancelacion), ex => LimpiarMensaje(ex.Message), contexto: Contexto);
 
         private string NombreNuevo(string nombre, string porDefecto) => string.IsNullOrWhiteSpace(nombre) ? porDefecto : NombreGuardado(nombre);
     }

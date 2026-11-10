@@ -5,10 +5,8 @@ using MiGestorBDAccesible.Core.Estructura;
 
 namespace MiGestorBDAccesible.Core.Proveedores
 {
-    public interface IProveedorBaseDatos
+    public interface IProveedorBaseDatos : IFinalizadorSesiones
     {
-        TipoMotor Motor { get; }
-
         CapacidadesMotorModelo Capacidades { get; }
 
         string EsquemaPredeterminado(ConexionActiva conexion);
@@ -152,8 +150,5 @@ namespace MiGestorBDAccesible.Core.Proveedores
 
         string? AvisoNombre(string nombre) => null;
 
-        bool TieneCambiosPendientes(ConexionActiva? conexion = null) => false;
-
-        Task<string?> FinalizarSesionAsync(ConexionActiva? conexion, bool confirmar) => Task.FromResult<string?>(null);
     }
 }

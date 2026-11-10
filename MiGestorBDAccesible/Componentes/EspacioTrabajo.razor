@@ -1,4 +1,5 @@
 @using MiGestorBDAccesible.Core.Ejecucion
+@using MiGestorBDAccesible.Core.Edicion
 @using MiGestorBDAccesible.Core.Trabajo
 @using System.IO
 @implements IAsyncDisposable
@@ -12,7 +13,7 @@
 @inject SesionEditorService sesiones
 @inject IJSRuntime js
 
-<div class="espacio" inert="@(_historialAbierto || _preguntarDesconexion || _pestanaPorCerrar is not null || _joinAbierto)">
+<div class="espacio" inert="@(_historialAbierto || _terminandoCambios || _preguntarDesconexion || _pestanaPorCerrar is not null || _joinAbierto)">
     <header class="cabecera">
         <h1>@Conexion.Conexion.Nombre</h1>
         <p class="detalle">@Conexion.Servidor.Producto, @Conexion.Servidor.Edicion, versión @Conexion.Servidor.Version.</p>
@@ -85,7 +86,9 @@
                                     AlCancelar="CancelarEjecucion" />
                     @if (activa.CambiosPendientes)
                     {
-                        <p class="aviso-transaccion">Hay cambios sin confirmar en esta pestaña. COMMIT los guarda en la base de datos y ROLLBACK los deshace.</p>
+                        <p class="aviso-transaccion">@(proveedores.Obtener(Conexion.Conexion.Motor).PuedeConfirmar(activa.Sesion)
+                            ? "Hay cambios sin confirmar en esta pestaña. COMMIT los guarda en la base de datos y ROLLBACK los deshace."
+                            : "La transacción está abortada. Sus cambios no se pueden guardar; solo puedes deshacerlos con ROLLBACK.")</p>
                     }
                     <PanelResultados @key="@($"r{activa.Id}")" Resultado="activa.Resultado" />
                     <PanelMensajes @key="@($"m{activa.Id}")" Resultado="activa.Resultado" />
@@ -179,9 +182,16 @@
     <DialogoAccion Titulo="Hay cambios sin confirmar" EsAlerta="true" AlCancelar="SeguirConectado">
         <p>Hiciste cambios con INSERT, UPDATE, DELETE o MERGE que todavía no se guardaron en la base de datos@(PestanasConPendientes().Select(p => p.Nombre).Concat(_editorFilas?.CambiosPendientes > 0 ? ["el panel de edición de filas"] : []).ToList() is { Count: > 0 } conPendientes ? $", en {NarradorTablaService.Unir(conPendientes)}" : ""). ¿Qué hago con ellos antes de desconectar?</p>
         <div class="acciones">
-            <button class="principal" @onclick="() => TerminarDesconexionAsync(true)">Confirmar los cambios (COMMIT)</button>
-            <button class="peligro" @onclick="() => TerminarDesconexionAsync(false)">Deshacer los cambios (ROLLBACK)</button>
-            <button data-foco-inicial @onclick="SeguirConectado">Seguir conectado</button>
+            @if (PuedeConfirmarConexion())
+            {
+                <button class="principal" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarDesconexionAsync(true)">Confirmar los cambios (COMMIT)</button>
+            }
+            else
+            {
+                <p>La transacción está abortada. Solo puedes deshacer los cambios con ROLLBACK.</p>
+            }
+            <button class="peligro" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarDesconexionAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="SeguirConectado">Seguir conectado</button>
         </div>
     </DialogoAccion>
 }
@@ -247,9 +257,16 @@
     <DialogoAccion Titulo="@($"{_pestanaPorCerrar.Nombre} tiene cambios sin confirmar")" EsAlerta="true" AlCancelar="NoCerrarPestana">
         <p>En esta pestaña hiciste cambios que todavía no se guardaron en la base de datos. ¿Qué hago con ellos antes de cerrarla?</p>
         <div class="acciones">
-            <button class="principal" @onclick="() => TerminarCierreAsync(true)">Confirmar los cambios (COMMIT)</button>
-            <button class="peligro" @onclick="() => TerminarCierreAsync(false)">Deshacer los cambios (ROLLBACK)</button>
-            <button data-foco-inicial @onclick="NoCerrarPestana">No cerrar la pestaña</button>
+            @if (proveedores.Obtener(Conexion.Conexion.Motor).PuedeConfirmar(_pestanaPorCerrar.Sesion))
+            {
+                <button class="principal" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarCierreAsync(true)">Confirmar los cambios (COMMIT)</button>
+            }
+            else
+            {
+                <p>La transacción está abortada. Solo puedes deshacer los cambios con ROLLBACK.</p>
+            }
+            <button class="peligro" aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="() => TerminarCierreAsync(false)">Deshacer los cambios (ROLLBACK)</button>
+            <button data-foco-inicial aria-disabled="@(_terminandoCambios ? "true" : null)" @onclick="NoCerrarPestana">No cerrar la pestaña</button>
         </div>
     </DialogoAccion>
 }
@@ -282,6 +299,7 @@
     private bool _historialAbierto;
     private List<EntradaHistorialModelo>? _entradasHistorial;
     private bool _preguntarDesconexion;
+    private bool _terminandoCambios;
     private bool _enfocarDesconectar;
     private EditorConsulta? _editorConsulta;
     private DependenciasModelo? _dependencias;
@@ -307,6 +325,7 @@
     protected override async Task OnInitializedAsync()
     {
         _pestanas = ConjuntoPestanasModelo.Recuperar(await sesiones.ObtenerAsync(Conexion.Conexion.Id));
+        CierreAplicacion.EstadoActualizado += ActualizarEstadoTrasCierre;
 
         if (_pestanas.Activa is { } activa)
         {
@@ -392,31 +411,95 @@
             return;
         }
 
-        await proveedor.FinalizarSesionAsync(Conexion, false);
-        await AlDesconectar.InvokeAsync();
+        await TerminarDesconexionAsync(false);
+    }
+
+    private bool PuedeConfirmarConexion()
+    {
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+        return proveedor.TieneCambiosPendientes(Conexion) && proveedor.PuedeConfirmar(Conexion)
+            || _editorFilas is { CambiosPendientes: > 0, PuedeConfirmar: true };
     }
 
     private void SeguirConectado()
     {
+        if (_terminandoCambios) return;
         _preguntarDesconexion = false;
         _enfocarDesconectar = true;
     }
 
     private async Task TerminarDesconexionAsync(bool confirmar)
     {
-        var mensaje = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(Conexion, confirmar);
-
-        if (_editorFilas?.CambiosPendientes > 0)
+        if (_terminandoCambios)
         {
-            mensaje = await _editorFilas.TerminarSinAnunciarAsync(confirmar) ?? (confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).");
+            await anunciador.AnunciarAsync("Espera a que termine la decisión de cierre antes de repetir la acción.");
+            return;
         }
-        _preguntarDesconexion = false;
-        await AlDesconectar.InvokeAsync();
+        _terminandoCambios = true;
 
-        if (mensaje is not null)
+        try
         {
-            await Task.Delay(600);
-            await anunciador.AnunciarAsync($"{mensaje} Desconectado de {Conexion.Conexion.Nombre}.");
+            var resultado = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(Conexion, confirmar);
+            var errores = new List<string>(resultado.Errores);
+            var mensaje = resultado.Mensaje;
+
+            if (_editorFilas?.CambiosPendientes > 0)
+            {
+                var error = await _editorFilas.TerminarSinAnunciarAsync(confirmar);
+
+                if (error is not null)
+                {
+                    errores.Add($"Edición de filas: {error}");
+                }
+                else
+                {
+                    mensaje = confirmar ? "Cambios confirmados (COMMIT)." : "Cambios deshechos (ROLLBACK).";
+                }
+            }
+
+            ActualizarPendientes();
+
+            if (errores.Count > 0)
+            {
+                _terminandoCambios = false;
+                SeguirConectado();
+                StateHasChanged();
+                await Task.Delay(400);
+                await anunciador.AnunciarUrgenteAsync(string.Join(" ", errores));
+                return;
+            }
+
+            _preguntarDesconexion = false;
+            await AlDesconectar.InvokeAsync();
+
+            if (mensaje is not null)
+            {
+                await Task.Delay(600);
+                await anunciador.AnunciarAsync($"{mensaje} Desconectado de {Conexion.Conexion.Nombre}.");
+            }
+        }
+        finally
+        {
+            _terminandoCambios = false;
+        }
+    }
+
+    private void ActualizarEstadoTrasCierre()
+    {
+        InvokeAsync(() =>
+        {
+            ActualizarPendientes();
+            StateHasChanged();
+        });
+    }
+
+    private void ActualizarPendientes()
+    {
+        var proveedor = proveedores.Obtener(Conexion.Conexion.Motor);
+
+        foreach (var pestana in _pestanas.Pestanas)
+        {
+            pestana.CambiosPendientes = pestana.Sesion is not null && proveedor.TieneCambiosPendientes(pestana.Sesion);
         }
     }
 
@@ -639,6 +722,7 @@
 
     private void NoCerrarPestana()
     {
+        if (_terminandoCambios) return;
         _pestanaPorCerrar = null;
         _enfocarEditor = true;
     }
@@ -646,41 +730,70 @@
     private async Task TerminarCierreAsync(bool confirmar)
     {
         var pestana = _pestanaPorCerrar!;
-        _pestanaPorCerrar = null;
         await QuitarPestanaAsync(pestana, confirmar);
     }
 
     private async Task QuitarPestanaAsync(PestanaModelo pestana, bool? confirmar)
     {
-        string? mensaje = null;
-
-        if (pestana.Sesion is not null)
+        if (_terminandoCambios)
         {
-            mensaje = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(pestana.Sesion, confirmar ?? false);
-        }
-
-        var activa = _pestanas.Cerrar(pestana);
-        StateHasChanged();
-        await GuardarSesionAsync();
-
-        var prefijo = confirmar is null || mensaje is null ? "" : $"{mensaje} ";
-
-        if (activa is null)
-        {
-            if (_explorador is not null)
-            {
-                await _explorador.EnfocarAsync();
-            }
-
-            await Task.Delay(400);
-            await anunciador.AnunciarAsync($"{prefijo}Pestaña {pestana.Nombre} cerrada. No quedan consultas abiertas.");
+            await anunciador.AnunciarAsync("Espera a que termine la decisión de cierre antes de repetir la acción.");
             return;
         }
+        _terminandoCambios = true;
 
-        _enfocarEditor = true;
-        StateHasChanged();
-        await Task.Delay(400);
-        await anunciador.AnunciarAsync($"{prefijo}Pestaña {pestana.Nombre} cerrada. Ahora estás en {activa.Etiqueta}, {Posicion(activa)}.");
+        try
+        {
+            string? mensaje = null;
+
+            if (pestana.Sesion is not null)
+            {
+                var resultado = await proveedores.Obtener(Conexion.Conexion.Motor).FinalizarSesionAsync(pestana.Sesion, confirmar ?? false);
+                ActualizarPendientes();
+
+                if (!resultado.Correcto)
+                {
+                    _pestanaPorCerrar = null;
+                    _terminandoCambios = false;
+                    _enfocarEditor = true;
+                    StateHasChanged();
+                    await Task.Delay(400);
+                    await anunciador.AnunciarUrgenteAsync(string.Join(" ", resultado.Errores));
+                    return;
+                }
+
+                mensaje = resultado.Mensaje;
+            }
+
+            _pestanaPorCerrar = null;
+            _terminandoCambios = false;
+            var activa = _pestanas.Cerrar(pestana);
+            StateHasChanged();
+            await GuardarSesionAsync();
+
+            var prefijo = confirmar is null || mensaje is null ? "" : $"{mensaje} ";
+
+            if (activa is null)
+            {
+                if (_explorador is not null)
+                {
+                    await _explorador.EnfocarAsync();
+                }
+
+                await Task.Delay(400);
+                await anunciador.AnunciarAsync($"{prefijo}Pestaña {pestana.Nombre} cerrada. No quedan consultas abiertas.");
+                return;
+            }
+
+            _enfocarEditor = true;
+            StateHasChanged();
+            await Task.Delay(400);
+            await anunciador.AnunciarAsync($"{prefijo}Pestaña {pestana.Nombre} cerrada. Ahora estás en {activa.Etiqueta}, {Posicion(activa)}.");
+        }
+        finally
+        {
+            _terminandoCambios = false;
+        }
     }
 
     [JSInvokable]
@@ -920,6 +1033,12 @@
 
     private async Task EjecutarScriptAsync(PestanaModelo pestana, string texto, int inicio, int fin, bool enfocarResultados)
     {
+        if (_terminandoCambios)
+        {
+            await anunciador.AnunciarAsync("Espera a que termine la decisión de cierre antes de ejecutar.");
+            return;
+        }
+
         if (pestana.Ejecutando)
         {
             await anunciador.AnunciarAsync($"{pestana.Nombre} todavía está ejecutando.");
@@ -1376,6 +1495,8 @@
 
     public async ValueTask DisposeAsync()
     {
+        CierreAplicacion.EstadoActualizado -= ActualizarEstadoTrasCierre;
+
         foreach (var pestana in _pestanas.Pestanas)
         {
             pestana.Cancelacion?.Cancel();

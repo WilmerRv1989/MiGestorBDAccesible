@@ -1,5 +1,6 @@
 using MiGestorBDAccesible.Core.Conexiones;
 using MiGestorBDAccesible.Core.Ejecucion;
+using MiGestorBDAccesible.Core.Edicion;
 using Microsoft.Data.SqlClient;
 using System.Diagnostics;
 using System.Globalization;
@@ -8,6 +9,8 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
 {
     public partial class ProveedorSqlServer
     {
+        public ContextoCierre Contexto { get; } = ContextoCierre.Actual;
+
         private const int FilasMostradasMaximas = 1000;
 
         public async Task<ResultadoEjecucionModelo> EjecutarAsync(
@@ -18,6 +21,13 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
             CancellationToken cancelacion = default)
         {
             var resultado = new ResultadoEjecucionModelo();
+            using var operacion = Contexto.Operaciones.Iniciar(cancelacion);
+            if (operacion is null)
+            {
+                resultado.Mensajes.Add(new MensajeEjecucionModelo { Tipo = TipoMensaje.Error, Texto = OperacionesBaseDatos.MensajeCierre });
+                return resultado;
+            }
+            cancelacion = operacion.Cancelacion;
             var cronometro = Stopwatch.StartNew();
             List<LoteModelo> lotes;
 
@@ -50,6 +60,11 @@ namespace MiGestorBDAccesible.Core.Proveedores.SqlServer
             try
             {
                 conexionSql = await AbrirAsync(conexion, baseDatos, cancelacion);
+            }
+            catch (OperationCanceledException) when (cancelacion.IsCancellationRequested)
+            {
+                resultado.Cancelado = true;
+                return resultado;
             }
             catch (ConexionPerdidaException ex)
             {

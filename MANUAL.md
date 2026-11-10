@@ -104,6 +104,8 @@ Al conectarte, la aplicación anuncia el servidor y su versión, y recupera las 
 
 Usa el botón **Desconectar**, arriba en la ventana, o **Archivo, Desconectar**. Si tienes cambios sin confirmar en alguna pestaña o en el panel de editar filas, la aplicación te pregunta antes si quieres confirmarlos (COMMIT) o deshacerlos (ROLLBACK).
 
+Si COMMIT o ROLLBACK falla, sigues conectado y se anuncia el error. Puedes volver a decidir. Si el servidor ya terminó la transacción, la siguiente orden de desconectar no vuelve a preguntar por esos cambios.
+
 ### Si no se pueden leer las conexiones guardadas
 
 Tus conexiones se guardan en `%APPDATA%\MiGestorBDAccesible\conexiones.json`. Si el archivo está vacío, dañado o no contiene una lista válida, la aplicación lo conserva en la misma carpeta con el nombre `conexiones.json.danado-AAAAMMDD-HHMMSS`, con la fecha y hora local. Si ya existe una copia con ese nombre, añade un sufijo como `-2` para no sobrescribirla. La lista se abre vacía y puedes guardar conexiones nuevas.
@@ -155,7 +157,7 @@ Ponte sobre una base de datos en el explorador y pulsa **Control+N**: se abre un
 Puedes tener varias consultas abiertas, cada una en su pestaña:
 
 - **Control+T** abre otra pestaña.
-- **Control+W** cierra la pestaña activa. Si tiene cambios sin confirmar o texto sin guardar, pregunta antes.
+- **Control+W** cierra la pestaña activa. Si tiene cambios sin confirmar o texto sin guardar, pregunta antes. Si COMMIT o ROLLBACK falla, la pestaña sigue abierta y se anuncia el error; puedes volver a decidir. Si ya no quedan cambios pendientes en el servidor, la siguiente orden de cerrar no pregunta por ellos.
 - **Control+Tab** y **Control+Mayúsculas+Tab** cambian de pestaña. En la lista de pestañas, las flechas izquierda y derecha pasan de una a otra.
 
 Las pestañas se guardan solas: al volver a conectarte las encuentras como las dejaste.
@@ -203,6 +205,20 @@ Cada motor maneja de forma distinta cuándo se guardan de verdad los cambios:
 - **MySQL y MariaDB**: cada sentencia se confirma sola, salvo después de START TRANSACTION o de SET autocommit = 0. CREATE, ALTER, DROP y TRUNCATE confirman también lo que tengas pendiente (COMMIT implícito), y la aplicación te avisa cuando pasa.
 
 En Oracle, PostgreSQL, MySQL y MariaDB cada pestaña tiene su propia sesión: lo que confirmas o deshaces en una pestaña no toca a las demás, y otra pestaña no ve tus cambios hasta que los confirmes. Mientras haya cambios pendientes, verás un aviso sobre los resultados, y la aplicación te preguntará qué hacer con ellos antes de cerrar la pestaña, desconectarte o salir.
+
+### Salir con cambios pendientes
+
+Al salir de la aplicación con cambios sin confirmar, eliges **Sí** para guardarlos (COMMIT), **No** para deshacerlos (ROLLBACK) o **Cancelar** para seguir trabajando. Esto incluye la edición de filas en los cinco motores.
+
+Mientras decides cómo salir, no puedes iniciar nuevas consultas ni ediciones. Mostrar la pregunta y elegir **Cancelar** no cancela las operaciones en curso ni altera sus transacciones. Si eliges confirmar mientras hay una ejecución en curso, no se confirma nada: se te pide esperar a que termine o cancelarla tú. Esto también se aplica al desconectar y cerrar una pestaña. Solo **salir sin guardar** cancela las operaciones en curso.
+
+Si falla un COMMIT, la aplicación permanece abierta y muestra un aviso con el motor y el error. Si la transacción sigue abierta y todavía se puede confirmar, sus cambios siguen pendientes: **Sí** vuelve a intentar confirmarlos, **No** sale sin guardar y **Cancelar** te deja seguir trabajando. Ningún COMMIT se reintenta automáticamente. Las sesiones que se confirmaron correctamente no se vuelven a confirmar.
+
+Si PostgreSQL abortó la transacción por un error, sus cambios no se pueden guardar: solo puedes deshacerlos con ROLLBACK. El aviso no ofrece reintentar COMMIT ni lo describe como una conexión perdida. Un COMMIT escrito en el editor sobre esa transacción también muestra el error y no se anuncia como confirmado.
+
+Si el servidor deshizo la transacción, el aviso dice que esos cambios no se guardaron y no ofrece reintentarlos. Si se perdió la conexión durante COMMIT, no se sabe si llegaron a guardarse: compruébalo en la base antes de repetirlos. Sin cambios pendientes, el aviso ofrece **Aceptar** para salir y **Cancelar** para seguir. El lector de pantalla lee el aviso al abrirse.
+
+Al elegir salir sin guardar, se cancelan las ejecuciones en curso y se deshace primero la edición de filas, para liberar sus bloqueos. Se intenta ROLLBACK y se descartan las sesiones aunque falle ese intento. Si una operación tarda en cancelarse, su conexión se libera al terminar de usarla; la salida no queda esperando indefinidamente. Al cancelar el cierre, también se cancela la salida para instalar una actualización pendiente.
 
 ## Crear y modificar tablas
 
@@ -253,7 +269,7 @@ En el menú de una tabla, elige **Editar filas…**. Se abre un panel en la zona
 
 En el formulario de una fila hay un campo por columna. Las columnas opcionales tienen la casilla «Vacío (NULL)», para distinguir un texto vacío de un NULL. Las llaves foráneas son listas con los valores de la tabla destino, como «3: Libros». Las fechas se escriben como AAAA-MM-DD.
 
-Todo lo que guardas o eliminas en el panel queda en una transacción propia del panel, en todos los motores. Arriba se anuncia cuántos cambios hay sin confirmar, con los botones **Confirmar los cambios (COMMIT)** y **Deshacer los cambios (ROLLBACK)**. Si cierras el panel con cambios pendientes, te pregunta qué hacer.
+Todo lo que guardas o eliminas en el panel queda en una transacción propia del panel, en todos los motores. Arriba se anuncia cuántos cambios hay sin confirmar, con los botones **Confirmar los cambios (COMMIT)** y **Deshacer los cambios (ROLLBACK)**. Si cierras el panel con cambios pendientes, te pregunta qué hacer. Si no se pueden confirmar o deshacer, el panel sigue abierto, se anuncia el error y el foco vuelve a **Cerrar el panel** para que puedas volver a decidir. Si falla reabrir la sesión después de una desconexión, se anuncia el error y puedes volver a usar los controles. Una lectura que deje la transacción abortada impide anunciar sus cambios como confirmados; deshazlos con ROLLBACK antes de continuar.
 
 Dos cosas que conviene saber:
 
