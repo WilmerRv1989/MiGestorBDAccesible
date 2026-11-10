@@ -25,7 +25,6 @@ namespace MiGestorBDAccesible.Core.Ejecucion
             }
             else
             {
-                // La salida no espera indefinidamente; la conexión se libera cuando termine su uso exclusivo.
                 _ = CerrarAlTerminarAsync(cerrar);
             }
         }

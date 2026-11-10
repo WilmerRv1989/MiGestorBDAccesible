@@ -104,7 +104,6 @@ namespace MiGestorBDAccesible.Core.Proveedores.PostgreSql
 
                         if (confirmar)
                         {
-                            // En una transacción abortada, PostgreSQL acepta COMMIT pero responde ROLLBACK.
                             await using var estado = new NpgsqlCommand("SELECT 1", sesion.Conexion);
                             await estado.ExecuteScalarAsync();
                         }

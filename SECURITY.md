@@ -18,7 +18,7 @@ No abras un reporte público en GitHub ni lo cuentes en otro sitio público.
 Para entenderlo y corregirlo antes, cuéntame:
 
 - qué versión usas (en la ventana Acerca de, menú Ayuda, «Copiar la información de la versión» la copia completa);
-- con qué motor de base de datos pasa: SQL Server, Oracle o PostgreSQL;
+- con qué motor de base de datos pasa: SQL Server, Oracle, PostgreSQL, MySQL o MariaDB;
 - qué puede hacer alguien que aproveche el fallo y qué necesita para hacerlo;
 - los pasos para reproducirlo.
 

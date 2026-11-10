@@ -312,7 +312,6 @@ namespace MiGestorBDAccesible.Core.Proveedores.MySql
 
         private static async Task<bool> LeerCambiosPendientesAsync(MySqlConnection conexion, MySqlTransaction? transaccion = null)
         {
-            // El punto se creó antes de finalizar: RELEASE comprueba si sobrevivió sin abrir otra transacción.
             await using var liberar = new MySqlCommand("RELEASE SAVEPOINT migestor_estado_cierre", conexion, transaccion);
 
             try

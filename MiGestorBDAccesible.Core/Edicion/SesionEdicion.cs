@@ -277,7 +277,6 @@ namespace MiGestorBDAccesible.Core.Edicion
 
                 if (confirmar || leerEstado is not null)
                 {
-                    // Impide que COMMIT se acepte como ROLLBACK si una lectura abortó la transacción.
                     _transaccion.Save("migestor_estado_cierre");
                 }
 
@@ -316,7 +315,6 @@ namespace MiGestorBDAccesible.Core.Edicion
                         }
                         else
                         {
-                            // Connection puede seguir asignada aunque el controlador ya haya terminado la transacción.
                             _transaccion!.Save("migestor_estado_cierre");
                         }
                     }
