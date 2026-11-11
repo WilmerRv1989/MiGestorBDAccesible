@@ -1,5 +1,6 @@
 using MiGestorBDAccesible.Core;
 using MiGestorBDAccesible.Core.Actualizaciones;
+using MiGestorBDAccesible.Core.Autocompletado;
 using MiGestorBDAccesible.Core.Ayuda;
 using MiGestorBDAccesible.Core.Conexiones;
 using MiGestorBDAccesible.Core.Definicion;
@@ -36,6 +37,7 @@ namespace MiGestorBDAccesible
             servicios.AddSingleton<NarradorModeloService>();
             servicios.AddSingleton<ComprobadorModificacionService>();
             servicios.AddSingleton<AyudaService>();
+            servicios.AddSingleton<AutocompletadoService>();
             servicios.AddSingleton<ValidadorTablaService>();
             servicios.AddSingleton<AnunciadorService>();
             servicios.AddSingleton<ArchivosService>();

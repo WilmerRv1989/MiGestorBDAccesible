@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject AnunciadorService anunciador
+@inject MiGestorBDAccesible.Core.Actualizaciones.PreferenciasService preferencias
 @inject IJSRuntime js
 
 <div class="barra-menus" inert="@Inerte">
@@ -22,7 +23,8 @@
                             var posicion = j;
                             var disponible = Disponible(opcion);
                             <li role="none">
-                                <button role="menuitem" id="@($"barra-{indice}-{posicion}")" tabindex="-1"
+                                <button role="@(opcion.Marcable ? "menuitemcheckbox" : "menuitem")" id="@($"barra-{indice}-{posicion}")" tabindex="-1"
+                                        aria-checked="@(opcion.Marcable ? (Marcada(opcion) ? "true" : "false") : null)"
                                         aria-disabled="@(disponible ? null : "true")"
                                         aria-label="@(opcion.Atajo is null ? opcion.Texto : $"{opcion.Texto}, {opcion.Atajo}")"
                                         @onclick="() => ElegirAsync(opcion)">
@@ -46,7 +48,7 @@
 
     private enum Requiere { Nada, Conexion, Pestana, Ejecucion }
 
-    private record Opcion(string Texto, string? Atajo, string Accion, Requiere Requiere);
+    private record Opcion(string Texto, string? Atajo, string Accion, Requiere Requiere, bool Marcable = false);
 
     private record Menu(string Titulo, Opcion[] Opciones);
 
@@ -70,7 +72,8 @@
             new("Buscar y reemplazar…", "Control+F", "buscar", Requiere.Pestana),
             new("Buscar siguiente", "F3", "buscarSiguiente", Requiere.Pestana),
             new("Buscar objeto…", "Control+B", "buscarObjeto", Requiere.Conexion),
-            new("Historial de consultas…", "Control+H", "historial", Requiere.Conexion)
+            new("Historial de consultas…", "Control+H", "historial", Requiere.Conexion),
+            new("Sugerir mientras escribo", null, AccionSugerir, Requiere.Nada, true)
         ]),
         new("Consulta",
         [
@@ -87,7 +90,10 @@
         ])
     ];
 
+    private const string AccionSugerir = "sugerirAlEscribir";
+
     private DotNetObjectReference<BarraMenus>? _referencia;
+    private bool _sugerirAlEscribir = true;
     private ElementReference _barra;
     private EstadoMenu _estado = new(false, false, false);
     private int _menu;
@@ -102,6 +108,8 @@
         {
             _referencia = DotNetObjectReference.Create(this);
             await js.InvokeVoidAsync("miGestor.registrarBarra", _referencia, _barra);
+            _sugerirAlEscribir = (await preferencias.LeerAsync()).SugerirAlEscribir;
+            await js.InvokeVoidAsync("miGestor.configurarSugerencias", _sugerirAlEscribir);
         }
 
         if (_enfocar is { } id)
@@ -146,6 +154,8 @@
     {
         _estado = await js.InvokeAsync<EstadoMenu>("miGestor.estadoMenu");
     }
+
+    private bool Marcada(Opcion opcion) => opcion.Accion == AccionSugerir && _sugerirAlEscribir;
 
     private bool Disponible(Opcion opcion) => opcion.Requiere switch
     {
@@ -277,6 +287,19 @@
             };
 
             await anunciador.AnunciarAsync($"{opcion.Texto.TrimEnd('…')}: no disponible, {motivo}.");
+            return;
+        }
+
+        if (opcion.Accion == AccionSugerir)
+        {
+            _sugerirAlEscribir = !_sugerirAlEscribir;
+            var valor = _sugerirAlEscribir;
+            await preferencias.CambiarAsync(p => p.SugerirAlEscribir = valor);
+            await js.InvokeVoidAsync("miGestor.configurarSugerencias", valor);
+            await SalirAsync(true);
+            await anunciador.AnunciarAsync(valor
+                ? "Sugerir mientras escribo: activado."
+                : "Sugerir mientras escribo: desactivado. Control+Espacio sigue mostrando sugerencias.");
             return;
         }
 

@@ -97,11 +97,13 @@ namespace MiGestorBDAccesible.Pruebas
             var servicio = new PreferenciasService(ruta);
 
             Assert.True((await servicio.LeerAsync()).BuscarAlIniciar);
+            Assert.True((await servicio.LeerAsync()).SugerirAlEscribir);
 
-            await servicio.CambiarAsync(p => { p.BuscarAlIniciar = false; p.VersionOmitida = "v1.2"; });
+            await servicio.CambiarAsync(p => { p.BuscarAlIniciar = false; p.VersionOmitida = "v1.2"; p.SugerirAlEscribir = false; });
             var leidas = await new PreferenciasService(ruta).LeerAsync();
             Assert.False(leidas.BuscarAlIniciar);
             Assert.Equal("v1.2", leidas.VersionOmitida);
+            Assert.False(leidas.SugerirAlEscribir);
 
             await File.WriteAllTextAsync(ruta, "dañado");
             Assert.True((await servicio.LeerAsync()).BuscarAlIniciar);

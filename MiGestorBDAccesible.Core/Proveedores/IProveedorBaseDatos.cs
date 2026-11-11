@@ -146,6 +146,8 @@ namespace MiGestorBDAccesible.Core.Proveedores
             PlanModificacionModelo plan,
             CancellationToken cancelacion = default);
 
+        Task<Autocompletado.CatalogoModelo> ObtenerCatalogoAsync(ConexionActiva conexion, string? baseDatos, CancellationToken cancelacion = default);
+
         string NombreGuardado(string nombre) => nombre;
 
         string? AvisoNombre(string nombre) => null;

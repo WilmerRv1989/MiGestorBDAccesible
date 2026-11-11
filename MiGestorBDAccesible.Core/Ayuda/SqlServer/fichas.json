@@ -1,5 +1,6 @@
 {
   "motor": "SQL Server",
+  "tituloProgramacion": "T-SQL",
   "fichas": [
     {
       "id": "tipo:enteros",
@@ -30,7 +31,7 @@
             "Usa int por defecto. Cambia a bigint solo si esperas pasar de 2 mil millones. Si el número tiene decimales, como un precio, no uses enteros: usa decimal.",
             "Si intentas guardar un valor fuera del rango, SQL Server da un error de desbordamiento aritmético."
           ],
-          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Edad tinyint NULL\n);"
+          "ejemplo": "CREATE TABLE FichaAlumnos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Edad tinyint NULL\n);\n\nINSERT INTO FichaAlumnos (Edad) VALUES (17);\nSELECT Id, Edad FROM FichaAlumnos;\n\nDROP TABLE FichaAlumnos;"
         }
       ],
       "otrosMotores": [
@@ -82,7 +83,7 @@
           "parrafos": [
             "float guarda aproximaciones: 0,1 + 0,2 puede dar 0,30000000000000004. decimal guarda el valor exacto, así que las sumas de precios cuadran."
           ],
-          "ejemplo": "CREATE TABLE Productos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Precio decimal(10, 2) NOT NULL CHECK (Precio >= 0)\n);"
+          "ejemplo": "CREATE TABLE FichaPrecios (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Precio decimal(10, 2) NOT NULL CHECK (Precio >= 0)\n);\n\nINSERT INTO FichaPrecios (Precio) VALUES (0.10), (0.20);\nSELECT SUM(Precio) AS Total FROM FichaPrecios;\n\nDROP TABLE FichaPrecios;"
         }
       ],
       "otrosMotores": [
@@ -259,7 +260,7 @@
             "nvarchar(max) admite textos enormes, hasta unos 2 GB. Úsalo solo para textos largos de verdad, como una descripción o un comentario.",
             "Los textos Unicode se escriben con N delante: N'Sofía'. Sin la N, los caracteres especiales podrían perderse."
           ],
-          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO Clientes (Nombre) VALUES (N'Sofía Rojas');"
+          "ejemplo": "CREATE TABLE FichaContactos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO FichaContactos (Nombre) VALUES (N'Sofía Rojas');\nSELECT Nombre, LEN(Nombre) AS Caracteres FROM FichaContactos;\n\nDROP TABLE FichaContactos;"
         },
         {
           "titulo": "nvarchar o varchar",
@@ -354,7 +355,7 @@
             "Admite desde el año 1 hasta el 9999. Escribe las fechas en formato año-mes-día, '2026-10-27', que SQL Server entiende sin importar la configuración regional.",
             "GETDATE() devuelve la fecha y hora actuales; CAST(GETDATE() AS date) o CONVERT(date, GETDATE()) se queda solo con la fecha de hoy."
           ],
-          "ejemplo": "CREATE TABLE Pedidos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Fecha date NOT NULL DEFAULT CAST(GETDATE() AS date)\n);"
+          "ejemplo": "CREATE TABLE FichaEntregas (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Fecha date NOT NULL DEFAULT CAST(GETDATE() AS date)\n);\n\nINSERT INTO FichaEntregas DEFAULT VALUES;\nINSERT INTO FichaEntregas (Fecha) VALUES ('2026-10-27');\nSELECT Id, Fecha FROM FichaEntregas;\n\nDROP TABLE FichaEntregas;"
         }
       ],
       "otrosMotores": [
@@ -526,7 +527,9 @@
       "alias": [
         "uniqueidentifier",
         "guid",
-        "uuid"
+        "uuid",
+        "newid",
+        "newsequentialid"
       ],
       "resumen": "Guarda un identificador de 16 bytes que es prácticamente imposible de repetir, aunque se genere en equipos distintos.",
       "secciones": [
@@ -626,7 +629,7 @@
             "Cada columna tiene un tipo de datos que limita qué puede guardar, y reglas como NOT NULL, UNIQUE o CHECK que evitan datos incorrectos.",
             "Una buena tabla habla de una sola cosa. Si un dato se repite en muchas filas, como el nombre de una categoría, suele ser mejor moverlo a su propia tabla y relacionarla con una llave foránea."
           ],
-          "ejemplo": "CREATE TABLE Categorias (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(60) NOT NULL UNIQUE\n);"
+          "ejemplo": "CREATE TABLE FichaCategorias (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(60) NOT NULL UNIQUE\n);\n\nINSERT INTO FichaCategorias (Nombre) VALUES (N'Libros'), (N'Audio');\nSELECT Id, Nombre FROM FichaCategorias;\n\nDROP TABLE FichaCategorias;"
         },
         {
           "titulo": "Esquemas",
@@ -680,7 +683,7 @@
             "NULL no es cero ni texto vacío: es la ausencia de valor. Un cliente sin teléfono tiene el teléfono en NULL.",
             "Al crear una columna decides si admite NULL (opcional) o NOT NULL (obligatoria). Si intentas insertar una fila sin un dato obligatorio, SQL Server da el error «Cannot insert the value NULL into column»."
           ],
-          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL,\n    Telefono nvarchar(20) NULL\n);"
+          "ejemplo": "CREATE TABLE FichaContactos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL,\n    Telefono nvarchar(20) NULL\n);\n\nINSERT INTO FichaContactos (Nombre) VALUES (N'Ana Mora');\nSELECT Nombre, Telefono FROM FichaContactos;\n\nDROP TABLE FichaContactos;"
         },
         {
           "titulo": "Cómo se compara",
@@ -688,7 +691,7 @@
             "NULL no es igual a nada, ni siquiera a otro NULL. Por eso Telefono = NULL nunca encuentra filas. Se escribe Telefono IS NULL o Telefono IS NOT NULL.",
             "Las claves principales nunca admiten NULL."
           ],
-          "ejemplo": "SELECT Nombre FROM Clientes WHERE Telefono IS NULL;"
+          "ejemplo": "CREATE TABLE FichaContactos (\n    Nombre nvarchar(100) NOT NULL,\n    Telefono nvarchar(20) NULL\n);\nINSERT INTO FichaContactos VALUES (N'Ana Mora', NULL), (N'Luis Vargas', N'8888-0000');\n\nSELECT Nombre FROM FichaContactos WHERE Telefono IS NULL;\nSELECT Nombre FROM FichaContactos WHERE Telefono = NULL;\n\nDROP TABLE FichaContactos;"
         }
       ],
       "otrosMotores": [
@@ -737,14 +740,14 @@
             "Lo más común es una columna Id de tipo int con IDENTITY, que se numera sola.",
             "SQL Server crea automáticamente un índice para la clave principal; si no dices otra cosa, es un índice agrupado (CLUSTERED)."
           ],
-          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);"
+          "ejemplo": "CREATE TABLE FichaClientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO FichaClientes (Nombre) VALUES (N'Ana Mora'), (N'Luis Vargas');\nSELECT Id, Nombre FROM FichaClientes;\n\nDROP TABLE FichaClientes;"
         },
         {
           "titulo": "Clave compuesta",
           "parrafos": [
             "A veces la clave está formada por dos o más columnas juntas. En PedidoProductos, la clave es PedidoId más ProductoId: un mismo producto no puede aparecer dos veces en el mismo pedido, pero sí en pedidos distintos."
           ],
-          "ejemplo": "CREATE TABLE PedidoProductos (\n    PedidoId int NOT NULL,\n    ProductoId int NOT NULL,\n    Cantidad int NOT NULL,\n    CONSTRAINT PK_PedidoProductos PRIMARY KEY (PedidoId, ProductoId)\n);"
+          "ejemplo": "CREATE TABLE FichaPedidoProductos (\n    PedidoId int NOT NULL,\n    ProductoId int NOT NULL,\n    Cantidad int NOT NULL,\n    CONSTRAINT PK_FichaPedidoProductos PRIMARY KEY (PedidoId, ProductoId)\n);\n\nINSERT INTO FichaPedidoProductos VALUES (1, 1, 2), (1, 3, 1), (2, 1, 1);\nSELECT PedidoId, ProductoId, Cantidad FROM FichaPedidoProductos;\n\nDROP TABLE FichaPedidoProductos;"
         }
       ],
       "otrosMotores": [
@@ -796,7 +799,7 @@
             "La columna apuntada debe ser la clave principal o tener una restricción UNIQUE. Los dos lados deben tener el mismo tipo de datos.",
             "Si la llave foránea admite NULL, la relación es opcional: puede haber filas que no apunten a nada."
           ],
-          "ejemplo": "CREATE TABLE Pedidos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    ClienteId int NOT NULL,\n    CONSTRAINT FK_Pedidos_Clientes\n        FOREIGN KEY (ClienteId) REFERENCES Clientes(Id)\n);"
+          "ejemplo": "CREATE TABLE FichaPedidos (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    ClienteId int NOT NULL,\n    CONSTRAINT FK_FichaPedidos_Clientes\n        FOREIGN KEY (ClienteId) REFERENCES Clientes(Id)\n);\n\nINSERT INTO FichaPedidos (ClienteId) VALUES (1);\nSELECT p.Id, c.Nombre FROM FichaPedidos p JOIN Clientes c ON c.Id = p.ClienteId;\n\nDROP TABLE FichaPedidos;"
         },
         {
           "titulo": "Qué pasa al borrar",
@@ -856,7 +859,7 @@
             "SET NULL: deja en NULL la llave de las filas relacionadas. Solo funciona si esa columna admite NULL.",
             "SET DEFAULT: pone el valor predeterminado en la llave de las filas relacionadas."
           ],
-          "ejemplo": "ALTER TABLE PedidoProductos\n    ADD CONSTRAINT FK_PedidoProductos_Pedidos\n    FOREIGN KEY (PedidoId) REFERENCES Pedidos(Id)\n    ON DELETE CASCADE;"
+          "ejemplo": "CREATE TABLE FichaPedidos (Id int PRIMARY KEY);\nCREATE TABLE FichaPedidoProductos (PedidoId int NOT NULL, ProductoId int NOT NULL);\n\nALTER TABLE FichaPedidoProductos\n    ADD CONSTRAINT FK_FichaPedidoProductos_Pedidos\n    FOREIGN KEY (PedidoId) REFERENCES FichaPedidos(Id)\n    ON DELETE CASCADE;\n\nINSERT INTO FichaPedidos VALUES (1);\nINSERT INTO FichaPedidoProductos VALUES (1, 1), (1, 3);\nDELETE FROM FichaPedidos WHERE Id = 1;\nSELECT COUNT(*) AS LineasQueQuedan FROM FichaPedidoProductos;\n\nDROP TABLE FichaPedidoProductos;\nDROP TABLE FichaPedidos;"
         }
       ],
       "otrosMotores": [
@@ -955,7 +958,7 @@
             "La solución es la tabla intermedia PedidoProductos: cada fila dice «este producto está en este pedido». Tiene dos llaves foráneas, una hacia cada tabla, y su clave principal es la combinación de ambas.",
             "La tabla intermedia puede guardar datos propios de la pareja, como la cantidad o el precio en ese pedido."
           ],
-          "ejemplo": "CREATE TABLE PedidoProductos (\n    PedidoId int NOT NULL REFERENCES Pedidos(Id),\n    ProductoId int NOT NULL REFERENCES Productos(Id),\n    Cantidad int NOT NULL CHECK (Cantidad > 0),\n    PRIMARY KEY (PedidoId, ProductoId)\n);"
+          "ejemplo": "CREATE TABLE FichaPedidoProductos (\n    PedidoId int NOT NULL REFERENCES Pedidos(Id),\n    ProductoId int NOT NULL REFERENCES Productos(Id),\n    Cantidad int NOT NULL CHECK (Cantidad > 0),\n    PRIMARY KEY (PedidoId, ProductoId)\n);\n\nINSERT INTO FichaPedidoProductos VALUES (1, 1, 1), (1, 3, 2), (2, 1, 1);\nSELECT pe.Id AS Pedido, pr.Nombre AS Producto, x.Cantidad\nFROM FichaPedidoProductos x\nJOIN Pedidos pe ON pe.Id = x.PedidoId\nJOIN Productos pr ON pr.Id = x.ProductoId;\n\nDROP TABLE FichaPedidoProductos;"
         },
         {
           "titulo": "Cómo se consulta",
@@ -1000,7 +1003,9 @@
         "identidad",
         "autoincremento",
         "auto increment",
-        "autonumérico"
+        "autonumérico",
+        "scope_identity",
+        "@@identity"
       ],
       "resumen": "Hace que una columna se numere sola: 1, 2, 3… No hace falta escribir su valor al insertar.",
       "secciones": [
@@ -1009,9 +1014,10 @@
           "parrafos": [
             "IDENTITY(1, 1) significa: empezar en 1 y sumar 1 cada vez. El primer número se llama inicialización o semilla, y el segundo, incremento.",
             "Solo puede haber una columna IDENTITY por tabla, y no admite NULL ni valor predeterminado.",
-            "Los números no se reutilizan: si borras la fila 3, la siguiente será la 5 aunque falte la 3. Tampoco se garantiza que no haya saltos."
+            "Los números no se reutilizan: si borras la fila 3, la siguiente será la 5 aunque falte la 3. Tampoco se garantiza que no haya saltos.",
+            "SCOPE_IDENTITY() devuelve el último número que generaste en tu ejecución, como en el ejemplo. Úsalo en lugar de @@IDENTITY, que puede devolver un número generado por un disparador."
           ],
-          "ejemplo": "CREATE TABLE Clientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO Clientes (Nombre) VALUES (N'Ana Mora');\nSELECT SCOPE_IDENTITY() AS IdNuevo;"
+          "ejemplo": "CREATE TABLE FichaClientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL\n);\n\nINSERT INTO FichaClientes (Nombre) VALUES (N'Ana Mora');\nSELECT SCOPE_IDENTITY() AS IdNuevo;\n\nDROP TABLE FichaClientes;"
         }
       ],
       "otrosMotores": [
@@ -1104,7 +1110,7 @@
             "Solo se usa si la columna no aparece en el INSERT. Si escribes NULL a propósito, se guarda NULL, no el valor predeterminado.",
             "Puede ser un valor fijo, como 0, o una función, como GETDATE(). La expresión CONVERT([date],getdate()) significa «la fecha de hoy, sin hora»: SQL Server la guarda así aunque la escribieras de otra forma."
           ],
-          "ejemplo": "ALTER TABLE Clientes\n    ADD CONSTRAINT DF_Clientes_FechaRegistro\n    DEFAULT CAST(GETDATE() AS date) FOR FechaRegistro;"
+          "ejemplo": "CREATE TABLE FichaClientes (\n    Id int IDENTITY(1, 1) PRIMARY KEY,\n    Nombre nvarchar(100) NOT NULL,\n    FechaRegistro date NULL\n);\n\nALTER TABLE FichaClientes\n    ADD CONSTRAINT DF_FichaClientes_FechaRegistro\n    DEFAULT CAST(GETDATE() AS date) FOR FechaRegistro;\n\nINSERT INTO FichaClientes (Nombre) VALUES (N'Ana Mora');\nINSERT INTO FichaClientes (Nombre, FechaRegistro) VALUES (N'Luis Vargas', NULL);\nSELECT Nombre, FechaRegistro FROM FichaClientes;\n\nDROP TABLE FichaClientes;"
         }
       ],
       "otrosMotores": [
@@ -1190,7 +1196,11 @@
         "nonclustered",
         "agrupado",
         "no agrupado",
-        "include"
+        "include",
+        "create index",
+        "create nonclustered index",
+        "create clustered index",
+        "drop index"
       ],
       "resumen": "Un índice ayuda a SQL Server a encontrar filas rápido, como el índice de un libro. A cambio, ocupa espacio y hace un poco más lentas las escrituras.",
       "secciones": [
@@ -1345,7 +1355,9 @@
         "create procedure",
         "exec",
         "execute",
-        "output"
+        "output",
+        "create or alter",
+        "create or alter procedure"
       ],
       "resumen": "Un procedimiento guarda instrucciones de T-SQL con nombre, para ejecutarlas con EXEC pasándole parámetros. Puede devolver filas y valores en parámetros de salida.",
       "secciones": [
@@ -1734,7 +1746,9 @@
         "sum",
         "avg",
         "min",
-        "max"
+        "max",
+        "string_agg",
+        "within group"
       ],
       "resumen": "GROUP BY junta las filas que comparten un valor para calcular totales por grupo: cuántos pedidos tiene cada cliente, cuánto vendió cada categoría.",
       "secciones": [
@@ -1751,6 +1765,14 @@
             "WHERE filtra filas antes de agrupar; HAVING filtra grupos después de calcular. Por ejemplo, solo los clientes con más de un pedido."
           ],
           "ejemplo": "SELECT c.Nombre, COUNT(p.Id) AS Pedidos\nFROM Clientes c\nJOIN Pedidos p ON p.ClienteId = c.Id\nGROUP BY c.Nombre\nHAVING COUNT(p.Id) > 1;"
+        },
+        {
+          "titulo": "STRING_AGG: unir los textos de un grupo",
+          "parrafos": [
+            "STRING_AGG(columna, separador) une en un solo texto los valores de cada grupo, como los productos de cada categoría.",
+            "WITHIN GROUP (ORDER BY …) elige en qué orden se unen."
+          ],
+          "ejemplo": "SELECT cat.Nombre AS Categoria,\n    STRING_AGG(p.Nombre, N', ') WITHIN GROUP (ORDER BY p.Nombre) AS Productos\nFROM Categorias cat\nJOIN Productos p ON p.CategoriaId = cat.Id\nGROUP BY cat.Nombre;"
         }
       ],
       "otrosMotores": [
@@ -1769,7 +1791,8 @@
       ],
       "relacionadas": [
         "palabra:select",
-        "palabra:join"
+        "palabra:join",
+        "palabra:funciones-texto"
       ],
       "fuentes": [
         {
@@ -1836,7 +1859,11 @@
         "top",
         "offset",
         "fetch",
-        "limit"
+        "limit",
+        "fetch next",
+        "rows only",
+        "offset fetch",
+        "paginar"
       ],
       "resumen": "TOP devuelve solo las primeras filas. Con OFFSET y FETCH puedes saltar filas, por ejemplo para paginar.",
       "secciones": [
@@ -1870,6 +1897,390 @@
         {
           "titulo": "TOP (Transact-SQL) (Microsoft Learn)",
           "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/top-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:subconsultas",
+      "categoria": "palabra",
+      "titulo": "Subconsultas y EXISTS: una consulta dentro de otra",
+      "alias": [
+        "subconsulta",
+        "subconsultas",
+        "exists",
+        "not exists",
+        "subquery",
+        "consulta anidada"
+      ],
+      "resumen": "Una subconsulta es un SELECT entre paréntesis dentro de otra sentencia. EXISTS pregunta si una subconsulta encuentra al menos una fila.",
+      "secciones": [
+        {
+          "titulo": "Dónde se usan",
+          "parrafos": [
+            "Una subconsulta que devuelve un solo valor sirve donde iría un número o un texto: WHERE Precio > (SELECT AVG(Precio) FROM Productos).",
+            "Con IN, la subconsulta devuelve una lista de valores: WHERE Id IN (SELECT ClienteId FROM Pedidos).",
+            "Si una subconsulta de un solo valor devuelve varias filas, SQL Server da el error 512."
+          ],
+          "ejemplo": "SELECT Nombre, Precio\nFROM Productos\nWHERE Precio > (SELECT AVG(Precio) FROM Productos)\nORDER BY Precio DESC;"
+        },
+        {
+          "titulo": "EXISTS y NOT EXISTS",
+          "parrafos": [
+            "EXISTS es verdadero si la subconsulta encuentra al menos una fila. No importa qué columnas devuelva, por eso se suele escribir SELECT 1.",
+            "La subconsulta puede usar columnas de la consulta de fuera, como c.Id en el ejemplo. Se llama subconsulta correlacionada.",
+            "NOT EXISTS encuentra lo que no tiene pareja, como los clientes sin pedidos. Es más seguro que NOT IN: si la lista de NOT IN trae un NULL, la consulta no devuelve ninguna fila."
+          ],
+          "ejemplo": "SELECT c.Nombre\nFROM Clientes c\nWHERE NOT EXISTS (\n    SELECT 1 FROM Pedidos p WHERE p.ClienteId = c.Id\n);"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "Igual, y además permite comparar varias columnas a la vez: WHERE (a, b) IN (SELECT …), algo que SQL Server no admite."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y también compara varias columnas a la vez: WHERE (a, b) IN (SELECT …)."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual, y también compara varias columnas a la vez: WHERE (a, b) IN (SELECT …)."
+        }
+      ],
+      "relacionadas": [
+        "palabra:where",
+        "palabra:join",
+        "palabra:with"
+      ],
+      "fuentes": [
+        {
+          "titulo": "EXISTS (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/exists-transact-sql"
+        },
+        {
+          "titulo": "Subconsultas (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/relational-databases/performance/subqueries"
+        }
+      ]
+    },
+    {
+      "id": "palabra:union",
+      "categoria": "palabra",
+      "titulo": "UNION, INTERSECT y EXCEPT: combinar resultados",
+      "alias": [
+        "union",
+        "union all",
+        "intersect",
+        "except",
+        "operadores de conjuntos",
+        "minus"
+      ],
+      "resumen": "Juntan los resultados de dos SELECT en uno: UNION los suma, INTERSECT deja lo que está en los dos y EXCEPT lo que está en el primero pero no en el segundo.",
+      "secciones": [
+        {
+          "titulo": "UNION y UNION ALL",
+          "parrafos": [
+            "Los dos SELECT deben devolver la misma cantidad de columnas, con tipos compatibles. Los nombres de las columnas salen del primero.",
+            "UNION quita las filas repetidas; UNION ALL las deja todas y es más rápido. Si sabes que no hay repetidas, usa UNION ALL.",
+            "ORDER BY va una sola vez, al final, y ordena el resultado completo."
+          ],
+          "ejemplo": "SELECT Nombre, N'Cliente' AS Tipo FROM Clientes\nUNION ALL\nSELECT Nombre, N'Categoría' FROM Categorias\nORDER BY Nombre;"
+        },
+        {
+          "titulo": "INTERSECT y EXCEPT",
+          "parrafos": [
+            "INTERSECT devuelve las filas que aparecen en los dos resultados. EXCEPT devuelve las del primero que no aparecen en el segundo.",
+            "Los dos quitan las filas repetidas, igual que UNION. En el ejemplo, EXCEPT da los clientes que todavía no tienen pedidos."
+          ],
+          "ejemplo": "SELECT Id FROM Clientes\nEXCEPT\nSELECT ClienteId FROM Pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "UNION, UNION ALL e INTERSECT igual. EXCEPT se llama MINUS, aunque desde la versión 21c acepta también EXCEPT."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y además INTERSECT ALL y EXCEPT ALL, que conservan las filas repetidas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "UNION igual. INTERSECT y EXCEPT existen desde MySQL 8.0.31 y MariaDB 10.3."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:order-by",
+        "palabra:subconsultas"
+      ],
+      "fuentes": [
+        {
+          "titulo": "UNION (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/set-operators-union-transact-sql"
+        },
+        {
+          "titulo": "EXCEPT e INTERSECT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/set-operators-except-and-intersect-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:with",
+      "categoria": "palabra",
+      "titulo": "WITH: consultas con nombre (CTE)",
+      "alias": [
+        "with",
+        "cte",
+        "expresión de tabla común",
+        "common table expression",
+        "consulta recursiva",
+        "maxrecursion"
+      ],
+      "resumen": "WITH le pone nombre a una consulta para usarla después como si fuera una tabla, dentro de la misma sentencia. Ordena las consultas largas y permite recorrer jerarquías.",
+      "secciones": [
+        {
+          "titulo": "Cómo se escribe",
+          "parrafos": [
+            "WITH Nombre AS (SELECT …) y, justo después, la consulta que lo usa. El nombre solo existe durante esa sentencia.",
+            "Puedes definir varias, separadas por comas, y cada una puede usar las anteriores.",
+            "Si la sentencia anterior no termina en punto y coma, SQL Server da un error de sintaxis cerca de WITH. Por eso a veces se ve escrito ;WITH."
+          ],
+          "ejemplo": "WITH Totales AS (\n    SELECT PedidoId, SUM(Cantidad * PrecioUnitario) AS Total\n    FROM PedidoProductos\n    GROUP BY PedidoId\n)\nSELECT c.Nombre, t.Total\nFROM Totales t\nJOIN Pedidos p ON p.Id = t.PedidoId\nJOIN Clientes c ON c.Id = p.ClienteId\nORDER BY t.Total DESC;"
+        },
+        {
+          "titulo": "Consultas recursivas",
+          "parrafos": [
+            "Una CTE que se nombra a sí misma repite su segunda parte hasta que ya no devuelve filas nuevas. Sirve para jerarquías, como empleados y jefes, o para generar series.",
+            "La primera parte es el punto de partida; después va UNION ALL y la parte que se repite.",
+            "Para evitar bucles infinitos, SQL Server se detiene a las 100 vueltas con el error 530. OPTION (MAXRECURSION 1000), al final de la consulta, cambia el límite."
+          ],
+          "ejemplo": "WITH Numeros AS (\n    SELECT 1 AS N\n    UNION ALL\n    SELECT N + 1 FROM Numeros WHERE N < 5\n)\nSELECT N FROM Numeros;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "WITH igual. Las recursivas no llevan RECURSIVE pero exigen la lista de columnas, como WITH Numeros (N) AS …; también existe CONNECT BY."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "WITH igual; las recursivas se escriben WITH RECURSIVE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "WITH desde MySQL 8.0 y MariaDB 10.2; las recursivas se escriben WITH RECURSIVE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:subconsultas",
+        "concepto:vistas",
+        "palabra:ventana"
+      ],
+      "fuentes": [
+        {
+          "titulo": "WITH common_table_expression (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/with-common-table-expression-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:apply",
+      "categoria": "palabra",
+      "titulo": "CROSS APPLY y OUTER APPLY: una consulta por cada fila",
+      "alias": [
+        "apply",
+        "cross apply",
+        "outer apply",
+        "lateral"
+      ],
+      "resumen": "APPLY ejecuta una consulta o una función de tabla por cada fila de la tabla de la izquierda, y esa consulta puede usar las columnas de esa fila.",
+      "secciones": [
+        {
+          "titulo": "CROSS y OUTER",
+          "parrafos": [
+            "CROSS APPLY se parece a un INNER JOIN: si la consulta de la derecha no devuelve filas, la fila de la izquierda no aparece.",
+            "OUTER APPLY se parece a un LEFT JOIN: la fila de la izquierda aparece igual, con NULL en las columnas de la derecha.",
+            "Es útil para traer las primeras filas de cada grupo, como el pedido más reciente de cada cliente, algo que un JOIN normal no puede hacer."
+          ],
+          "ejemplo": "SELECT c.Nombre, u.Fecha AS UltimoPedido\nFROM Clientes c\nOUTER APPLY (\n    SELECT TOP 1 p.Fecha\n    FROM Pedidos p\n    WHERE p.ClienteId = c.Id\n    ORDER BY p.Fecha DESC\n) u;"
+        },
+        {
+          "titulo": "Con funciones",
+          "parrafos": [
+            "También sirve para llamar, fila por fila, a una función que devuelve una tabla, pasándole una columna. En el ejemplo, STRING_SPLIT separa en palabras el nombre de cada producto."
+          ],
+          "ejemplo": "SELECT p.Nombre, palabra.value AS Palabra\nFROM Productos p\nCROSS APPLY STRING_SPLIT(p.Nombre, N' ') palabra\nWHERE p.CategoriaId = 1;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "CROSS APPLY y OUTER APPLY igual desde la versión 12c, y también LATERAL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Se escribe JOIN LATERAL (…) ON true, o LEFT JOIN LATERAL para lo que hace OUTER APPLY."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "MySQL tiene LATERAL desde la versión 8.0.14. MariaDB no lo tiene: se usa una subconsulta."
+        }
+      ],
+      "relacionadas": [
+        "palabra:join",
+        "palabra:subconsultas",
+        "palabra:funciones-texto"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Cláusula FROM con JOIN, APPLY y PIVOT (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/from-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:case",
+      "categoria": "palabra",
+      "titulo": "CASE e IIF: elegir un valor según condiciones",
+      "alias": [
+        "case",
+        "when",
+        "then",
+        "else",
+        "end",
+        "case when",
+        "iif",
+        "condicional"
+      ],
+      "resumen": "CASE devuelve un valor distinto según la condición que se cumpla, como un «si… entonces» dentro de la consulta. IIF es la forma corta para dos casos.",
+      "secciones": [
+        {
+          "titulo": "CASE",
+          "parrafos": [
+            "CASE WHEN condición THEN valor … ELSE valor END. Revisa las condiciones en orden y usa la primera que se cumpla.",
+            "Sin ELSE, si ninguna se cumple, devuelve NULL.",
+            "La forma corta compara una sola columna: CASE CategoriaId WHEN 1 THEN N'Libros' WHEN 2 THEN N'Audio' END.",
+            "Se puede usar en SELECT, WHERE y ORDER BY, y dentro de funciones como SUM.",
+            "END también cierra los bloques BEGIN … END de los scripts y procedimientos; eso está en la ficha de control del flujo."
+          ],
+          "ejemplo": "SELECT Nombre, Precio,\n    CASE\n        WHEN Precio < 30 THEN N'Económico'\n        WHEN Precio < 100 THEN N'Medio'\n        ELSE N'Caro'\n    END AS Rango\nFROM Productos;"
+        },
+        {
+          "titulo": "IIF",
+          "parrafos": [
+            "IIF(condición, valor si se cumple, valor si no). Es lo mismo que un CASE con un WHEN y un ELSE."
+          ],
+          "ejemplo": "SELECT Nombre, IIF(Precio >= 50, N'Sí', N'No') AS EnvioGratis\nFROM Productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "CASE igual, y también DECODE. No tiene IIF."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CASE igual. No tiene IIF."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CASE igual, e IF(condición, sí, no) en lugar de IIF."
+        }
+      ],
+      "relacionadas": [
+        "palabra:funciones-nulos",
+        "tsql:control",
+        "palabra:select"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CASE (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/case-transact-sql"
+        },
+        {
+          "titulo": "IIF (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/logical-functions-iif-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:ventana",
+      "categoria": "palabra",
+      "titulo": "Funciones de ventana: OVER, ROW_NUMBER, RANK y LAG",
+      "alias": [
+        "over",
+        "partition by",
+        "ventana",
+        "funciones de ventana",
+        "window",
+        "row_number",
+        "rank",
+        "dense_rank",
+        "ntile",
+        "lag",
+        "lead",
+        "ranking"
+      ],
+      "resumen": "Una función de ventana calcula algo sobre un grupo de filas, como un número de orden o un total, sin juntar las filas como hace GROUP BY: cada fila sigue apareciendo.",
+      "secciones": [
+        {
+          "titulo": "OVER y PARTITION BY",
+          "parrafos": [
+            "OVER (…) convierte la función en función de ventana. Dentro, ORDER BY dice el orden y PARTITION BY divide las filas en grupos que se calculan por separado.",
+            "También sirve con SUM, COUNT y AVG: SUM(Precio) OVER (PARTITION BY CategoriaId) pone en cada fila el total de su categoría."
+          ],
+          "ejemplo": "SELECT Nombre, CategoriaId, Precio,\n    SUM(Precio) OVER (PARTITION BY CategoriaId) AS TotalCategoria\nFROM Productos;"
+        },
+        {
+          "titulo": "Numerar filas",
+          "parrafos": [
+            "ROW_NUMBER numera 1, 2, 3… sin repetir. RANK repite el número en los empates y deja huecos: 1, 1, 3. DENSE_RANK repite sin dejar huecos: 1, 1, 2.",
+            "NTILE(4) reparte las filas en 4 grupos de tamaño parecido.",
+            "El resultado de una función de ventana no se puede usar en el WHERE de la misma consulta. Para quedarte con el primero de cada grupo, numera dentro de un WITH y filtra después, como en el ejemplo: el producto más caro de cada categoría."
+          ],
+          "ejemplo": "WITH Orden AS (\n    SELECT Nombre, CategoriaId, Precio,\n        ROW_NUMBER() OVER (PARTITION BY CategoriaId ORDER BY Precio DESC) AS Puesto\n    FROM Productos\n)\nSELECT Nombre, CategoriaId, Precio\nFROM Orden\nWHERE Puesto = 1;"
+        },
+        {
+          "titulo": "LAG y LEAD",
+          "parrafos": [
+            "LAG trae un valor de la fila anterior y LEAD de la siguiente, según el ORDER BY de OVER. Sirven para comparar con el pedido anterior o calcular diferencias.",
+            "Si no hay fila anterior, LAG devuelve NULL, o el valor que le pases como tercer argumento."
+          ],
+          "ejemplo": "SELECT ClienteId, Fecha,\n    LAG(Fecha) OVER (PARTITION BY ClienteId ORDER BY Fecha) AS PedidoAnterior\nFROM Pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "Igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y además FILTER (WHERE …) para que una función de agregado cuente solo algunas filas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual desde MySQL 8.0 y MariaDB 10.2."
+        }
+      ],
+      "relacionadas": [
+        "palabra:group-by",
+        "palabra:with",
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Cláusula OVER (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/select-over-clause-transact-sql"
+        },
+        {
+          "titulo": "Funciones de categoría (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/ranking-functions-transact-sql"
+        },
+        {
+          "titulo": "LAG (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/lag-transact-sql"
         }
       ]
     },
@@ -1972,7 +2383,8 @@
       "alias": [
         "delete",
         "truncate",
-        "truncate table"
+        "truncate table",
+        "delete from"
       ],
       "resumen": "DELETE borra las filas que cumplen una condición. TRUNCATE TABLE vacía la tabla completa de golpe.",
       "secciones": [
@@ -2012,6 +2424,70 @@
         {
           "titulo": "TRUNCATE TABLE (Microsoft Learn)",
           "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/truncate-table-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:merge",
+      "categoria": "palabra",
+      "titulo": "MERGE y OUTPUT: insertar o actualizar en una sola sentencia",
+      "alias": [
+        "merge",
+        "merge into",
+        "using",
+        "when matched",
+        "when not matched",
+        "when not matched by source",
+        "upsert",
+        "$action"
+      ],
+      "resumen": "MERGE compara una tabla con un origen de datos y, según encuentre o no cada fila, la actualiza, la inserta o la borra, todo en una sola sentencia.",
+      "secciones": [
+        {
+          "titulo": "Cómo se escribe",
+          "parrafos": [
+            "MERGE INTO destino USING origen ON condición dice qué tabla cambiar, con qué datos compararla y cómo emparejar las filas.",
+            "WHEN MATCHED THEN UPDATE cambia las filas que ya existen. WHEN NOT MATCHED THEN INSERT agrega las que faltan. WHEN NOT MATCHED BY SOURCE THEN DELETE borra las del destino que no están en el origen.",
+            "MERGE tiene que terminar en punto y coma; si no, SQL Server da el error 10713.",
+            "El ejemplo trabaja sobre una copia en una tabla temporal, que empieza con #, para no cambiar tus productos."
+          ],
+          "ejemplo": "CREATE TABLE #Lista (Id int PRIMARY KEY, Nombre nvarchar(100), Precio decimal(10, 2));\nINSERT INTO #Lista SELECT Id, Nombre, Precio FROM Productos WHERE CategoriaId = 1;\n\nMERGE INTO #Lista AS d\nUSING (VALUES (1, 27.00), (7, 15.00)) AS o (Id, Precio)\n    ON d.Id = o.Id\nWHEN MATCHED THEN\n    UPDATE SET Precio = o.Precio\nWHEN NOT MATCHED THEN\n    INSERT (Id, Nombre, Precio) VALUES (o.Id, N'Producto nuevo', o.Precio)\nOUTPUT $action AS Accion, inserted.Id, inserted.Precio;"
+        },
+        {
+          "titulo": "OUTPUT",
+          "parrafos": [
+            "OUTPUT devuelve las filas que cambiaron. En un MERGE, $action dice si cada una fue INSERT, UPDATE o DELETE.",
+            "inserted tiene los valores nuevos y deleted los de antes. OUTPUT también funciona en INSERT, UPDATE y DELETE."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "MERGE INTO igual, sin OUTPUT ni NOT MATCHED BY SOURCE; el borrado va como DELETE WHERE dentro del WHEN MATCHED."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "MERGE desde la versión 15, con RETURNING y NOT MATCHED BY SOURCE desde la 17. Para lo más común se usa INSERT … ON CONFLICT."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No tienen MERGE: se usa INSERT … ON DUPLICATE KEY UPDATE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:insert",
+        "palabra:update",
+        "palabra:delete"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MERGE (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/merge-transact-sql"
+        },
+        {
+          "titulo": "Cláusula OUTPUT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/queries/output-clause-transact-sql"
         }
       ]
     },
@@ -2242,6 +2718,804 @@
       ]
     },
     {
+      "id": "palabra:funciones-texto",
+      "categoria": "palabra",
+      "titulo": "Funciones de texto: LEN, SUBSTRING, REPLACE y otras",
+      "alias": [
+        "funciones de texto",
+        "len",
+        "substring",
+        "charindex",
+        "replace",
+        "upper",
+        "lower",
+        "ltrim",
+        "rtrim",
+        "trim",
+        "concat",
+        "concat_ws",
+        "string_split",
+        "replicate",
+        "texto",
+        "cadena"
+      ],
+      "resumen": "Sirven para medir, cortar, buscar, cambiar y unir textos.",
+      "secciones": [
+        {
+          "titulo": "Medir, cortar y buscar",
+          "parrafos": [
+            "LEN cuenta los caracteres, sin los espacios del final.",
+            "SUBSTRING(texto, inicio, largo) saca un pedazo; el primer carácter es el 1.",
+            "CHARINDEX(buscado, texto) dice en qué posición aparece algo, o 0 si no está."
+          ],
+          "ejemplo": "SELECT Nombre,\n    LEN(Nombre) AS Largo,\n    SUBSTRING(Nombre, 1, 5) AS Inicio,\n    CHARINDEX(N'braille', Nombre) AS PosicionBraille\nFROM Productos;"
+        },
+        {
+          "titulo": "Cambiar",
+          "parrafos": [
+            "UPPER pasa a mayúsculas y LOWER a minúsculas.",
+            "REPLACE(texto, buscado, nuevo) cambia todas las veces que aparece.",
+            "TRIM quita los espacios de los dos lados; LTRIM solo los de la izquierda y RTRIM los de la derecha.",
+            "REPLICATE(texto, n) repite un texto n veces."
+          ],
+          "ejemplo": "SELECT UPPER(Nombre) AS Mayusculas,\n    REPLACE(Correo, N'@ejemplo.com', N'@tienda.com') AS CorreoNuevo\nFROM Clientes;\n\nSELECT N'[' + TRIM(N'   hola   ') + N']' AS SinEspacios, REPLICATE(N'-', 10) AS Linea;"
+        },
+        {
+          "titulo": "Unir y separar",
+          "parrafos": [
+            "CONCAT une varios valores y trata los NULL como texto vacío. Con el signo +, un solo NULL deja todo en NULL.",
+            "CONCAT_WS pone un separador entre cada valor: CONCAT_WS(N', ', a, b, c).",
+            "STRING_SPLIT(texto, separador) hace lo contrario: devuelve una fila por cada pedazo, en la columna value.",
+            "Para unir los textos de varias filas en uno solo, como todos los productos de una categoría, se usa STRING_AGG; está en la ficha de GROUP BY."
+          ],
+          "ejemplo": "SELECT CONCAT(Nombre, N' <', Correo, N'>') AS Contacto,\n    CONCAT_WS(N' | ', Nombre, Correo, FechaRegistro) AS Ficha\nFROM Clientes;\n\nSELECT value AS Color FROM STRING_SPLIT(N'rojo,verde,azul', N',');"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "LENGTH en lugar de LEN, SUBSTR, e INSTR en lugar de CHARINDEX. Se une con || porque CONCAT solo acepta dos valores."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "length, substring, position o strpos, replace, trim y concat_ws; se une con ||."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CHAR_LENGTH en lugar de LEN, SUBSTRING, LOCATE, REPLACE, CONCAT y CONCAT_WS. El signo + no une textos."
+        }
+      ],
+      "relacionadas": [
+        "tipo:nvarchar",
+        "palabra:group-by",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SUBSTRING (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/substring-transact-sql"
+        },
+        {
+          "titulo": "CHARINDEX (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/charindex-transact-sql"
+        },
+        {
+          "titulo": "CONCAT_WS (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/concat-ws-transact-sql"
+        },
+        {
+          "titulo": "STRING_SPLIT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/string-split-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:fechas",
+      "categoria": "palabra",
+      "titulo": "Funciones de fecha: GETDATE, DATEADD, DATEDIFF y otras",
+      "alias": [
+        "funciones de fecha",
+        "getdate",
+        "sysdatetime",
+        "current_timestamp",
+        "dateadd",
+        "datediff",
+        "datepart",
+        "datename",
+        "year",
+        "month",
+        "day",
+        "eomonth",
+        "format",
+        "fecha actual",
+        "hoy"
+      ],
+      "resumen": "Sirven para obtener la fecha de hoy, sumar o restar tiempo, calcular cuánto pasó entre dos fechas y sacar partes como el año o el mes.",
+      "secciones": [
+        {
+          "titulo": "La fecha de hoy",
+          "parrafos": [
+            "GETDATE() da la fecha y la hora actuales como datetime. SYSDATETIME() las da como datetime2, con más precisión.",
+            "Para quedarte solo con la fecha: CAST(GETDATE() AS date).",
+            "Para escribir una fecha a mano, el formato '20260715', con año, mes y día sin guiones, se entiende igual sea cual sea el idioma de la sesión."
+          ],
+          "ejemplo": "SELECT GETDATE() AS Ahora, CAST(GETDATE() AS date) AS Hoy;"
+        },
+        {
+          "titulo": "Sumar y restar",
+          "parrafos": [
+            "DATEADD(parte, cantidad, fecha) suma tiempo: DATEADD(day, 30, Fecha) da la fecha 30 días después. Con un número negativo, resta. Las partes más usadas son year, month, day, hour y minute.",
+            "DATEDIFF(parte, inicio, fin) cuenta los cambios de esa parte entre las dos fechas, no el tiempo completo: del 31 de diciembre al 1 de enero, DATEDIFF(year, …) da 1.",
+            "EOMONTH(fecha) da el último día del mes."
+          ],
+          "ejemplo": "SELECT Id, Fecha,\n    DATEADD(day, 30, Fecha) AS Vence,\n    DATEDIFF(day, Fecha, '20260901') AS DiasHastaSeptiembre,\n    EOMONTH(Fecha) AS FinDeMes\nFROM Pedidos;"
+        },
+        {
+          "titulo": "Partes de una fecha",
+          "parrafos": [
+            "YEAR, MONTH y DAY devuelven el año, el mes y el día como números. DATEPART hace lo mismo con cualquier parte, como week o hour.",
+            "DATENAME devuelve el nombre, como el del mes o el del día de la semana, en el idioma de la sesión.",
+            "FORMAT(fecha, 'dd/MM/yyyy') da la fecha como texto con el formato que quieras; con un tercer valor, como 'es-ES', usa ese idioma. Es lento: evítalo en tablas grandes."
+          ],
+          "ejemplo": "SELECT Fecha,\n    YEAR(Fecha) AS Anio,\n    MONTH(Fecha) AS Mes,\n    DATENAME(month, Fecha) AS NombreMes,\n    FORMAT(Fecha, 'dd/MM/yyyy') AS Texto,\n    FORMAT(Fecha, 'MMMM', 'es-ES') AS MesEnEspanol\nFROM Pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "SYSDATE, ADD_MONTHS, LAST_DAY, EXTRACT y TO_CHAR; restar dos fechas da los días entre ellas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "now(), current_date, intervalos como Fecha + interval '30 days', extract, age y to_char."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "NOW, CURDATE, DATE_ADD, DATEDIFF, que solo cuenta días, LAST_DAY y DATE_FORMAT."
+        }
+      ],
+      "relacionadas": [
+        "tipo:date",
+        "tipo:datetime2",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Funciones de fecha y hora (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/date-and-time-data-types-and-functions-transact-sql"
+        },
+        {
+          "titulo": "DATEADD (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/dateadd-transact-sql"
+        },
+        {
+          "titulo": "DATEDIFF (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/datediff-transact-sql"
+        },
+        {
+          "titulo": "FORMAT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/format-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:conversion",
+      "categoria": "palabra",
+      "titulo": "CAST, CONVERT y TRY_CAST: cambiar de tipo",
+      "alias": [
+        "cast",
+        "convert",
+        "try_cast",
+        "try_convert",
+        "conversión",
+        "convertir",
+        "cambiar de tipo"
+      ],
+      "resumen": "Convierten un valor de un tipo a otro, por ejemplo un texto en número o una fecha en texto.",
+      "secciones": [
+        {
+          "titulo": "CAST y CONVERT",
+          "parrafos": [
+            "CAST(valor AS tipo) es la forma estándar.",
+            "CONVERT(tipo, valor, estilo) hace lo mismo y además acepta un estilo para las fechas: 103 da dd/mm/aaaa y 23 da aaaa-mm-dd.",
+            "Al pasar un decimal a int se cortan los decimales, sin redondear: 59.90 queda en 59.",
+            "SQL Server también convierte solo, por ejemplo al comparar un número con un texto. Si el texto no es un número válido, da el error 245."
+          ],
+          "ejemplo": "SELECT Nombre, Precio, CAST(Precio AS int) AS PrecioEntero\nFROM Productos;\n\nSELECT Id, CONVERT(nvarchar(10), Fecha, 103) AS FechaTexto\nFROM Pedidos;"
+        },
+        {
+          "titulo": "TRY_CAST y TRY_CONVERT",
+          "parrafos": [
+            "Si la conversión no se puede hacer, devuelven NULL en lugar de un error. Sirven para revisar datos dudosos, como textos que deberían ser números."
+          ],
+          "ejemplo": "SELECT TRY_CAST(N'123' AS int) AS Bien, TRY_CAST(N'12a' AS int) AS Mal;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "CAST, TO_NUMBER, TO_CHAR y TO_DATE. CAST(… AS tipo DEFAULT NULL ON CONVERSION ERROR) hace lo de TRY_CAST."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CAST y el operador ::, como '123'::int. No hay TRY_CAST."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CAST y CONVERT, con otros nombres de tipo: SIGNED, DECIMAL, CHAR. No hay TRY_CAST, y una conversión dudosa no da error: convierte lo que puede, como 12 de '12a', con una advertencia."
+        }
+      ],
+      "relacionadas": [
+        "palabra:fechas",
+        "tipo:decimal",
+        "palabra:funciones-texto"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CAST y CONVERT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/cast-and-convert-transact-sql"
+        },
+        {
+          "titulo": "TRY_CAST (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/try-cast-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-nulos",
+      "categoria": "palabra",
+      "titulo": "ISNULL, COALESCE y NULLIF: trabajar con nulos",
+      "alias": [
+        "isnull",
+        "coalesce",
+        "nullif",
+        "nvl",
+        "ifnull",
+        "reemplazar nulos"
+      ],
+      "resumen": "Sirven para reemplazar un NULL por otro valor, o para convertir un valor en NULL.",
+      "secciones": [
+        {
+          "titulo": "ISNULL y COALESCE",
+          "parrafos": [
+            "ISNULL(valor, reemplazo) devuelve el reemplazo si el valor es NULL.",
+            "COALESCE(a, b, c…) devuelve el primero que no sea NULL, y acepta muchos valores. Es estándar y funciona igual en los otros motores.",
+            "ISNULL toma el tipo del primer valor: si el reemplazo es más largo, se corta. COALESCE toma el tipo más amplio de todos."
+          ],
+          "ejemplo": "SELECT c.Nombre,\n    COUNT(p.Id) AS Pedidos,\n    COALESCE(CONVERT(nvarchar(10), MAX(p.Fecha), 103), N'Sin pedidos') AS UltimoPedido\nFROM Clientes c\nLEFT JOIN Pedidos p ON p.ClienteId = c.Id\nGROUP BY c.Nombre;"
+        },
+        {
+          "titulo": "NULLIF",
+          "parrafos": [
+            "NULLIF(a, b) devuelve NULL si a y b son iguales, y a si no lo son.",
+            "Se usa para evitar la división entre cero: x / NULLIF(y, 0) da NULL en lugar del error 8134."
+          ],
+          "ejemplo": "DECLARE @Pedidos int = 0;\nSELECT 100 / NULLIF(@Pedidos, 0) AS Promedio;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "NVL en lugar de ISNULL, y NVL2; COALESCE y NULLIF igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "COALESCE y NULLIF igual; no hay ISNULL."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IFNULL en lugar de ISNULL; COALESCE y NULLIF igual. ISNULL(x) existe, pero solo dice si x es NULL."
+        }
+      ],
+      "relacionadas": [
+        "concepto:null",
+        "palabra:case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ISNULL (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/isnull-transact-sql"
+        },
+        {
+          "titulo": "COALESCE (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/coalesce-transact-sql"
+        },
+        {
+          "titulo": "NULLIF (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/nullif-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-numericas",
+      "categoria": "palabra",
+      "titulo": "Funciones numéricas: ROUND, ABS, CEILING y otras",
+      "alias": [
+        "funciones numéricas",
+        "funciones matemáticas",
+        "round",
+        "abs",
+        "ceiling",
+        "floor",
+        "power",
+        "sqrt",
+        "rand",
+        "redondear",
+        "al azar"
+      ],
+      "resumen": "Sirven para redondear, quitar el signo, calcular potencias y raíces, y obtener números al azar.",
+      "secciones": [
+        {
+          "titulo": "Redondear",
+          "parrafos": [
+            "ROUND(número, decimales) redondea: ROUND(18.56, 1) da 18.60. Con un tercer valor distinto de 0, corta en lugar de redondear: ROUND(18.56, 1, 1) da 18.50.",
+            "CEILING sube al entero siguiente y FLOOR baja al anterior: CEILING(18.2) da 19 y FLOOR(18.9) da 18.",
+            "Dividir dos enteros da un entero: 7 / 2 da 3. Escribe 7 / 2.0 para obtener los decimales."
+          ],
+          "ejemplo": "SELECT Nombre, Precio,\n    ROUND(Precio * 1.13, 2) AS ConImpuesto,\n    CEILING(Precio) AS HaciaArriba,\n    FLOOR(Precio) AS HaciaAbajo\nFROM Productos;\n\nSELECT 7 / 2 AS Entera, 7 / 2.0 AS ConDecimales;"
+        },
+        {
+          "titulo": "Otras",
+          "parrafos": [
+            "ABS quita el signo: ABS(-5) da 5.",
+            "POWER(2, 10) eleva 2 a la 10, y SQRT(81) saca la raíz cuadrada.",
+            "RAND() da un número al azar entre 0 y 1, pero en un SELECT da el mismo en todas las filas. Para ordenar filas al azar se usa ORDER BY NEWID()."
+          ],
+          "ejemplo": "SELECT ABS(-5) AS Absoluto, POWER(2, 10) AS Potencia, SQRT(81) AS Raiz, RAND() AS AlAzar;\n\nSELECT TOP 2 Nombre FROM Productos ORDER BY NEWID();"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "ROUND, ABS, CEIL en lugar de CEILING, FLOOR, POWER, SQRT y MOD; para el azar, DBMS_RANDOM.VALUE."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "round, abs, ceil, floor, power, sqrt, mod y random(). 7 / 2 también da 3."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "ROUND, ABS, CEIL, FLOOR, POWER, SQRT, MOD y RAND(). 7 / 2 da 3.5000, y DIV hace la división entera."
+        }
+      ],
+      "relacionadas": [
+        "tipo:decimal",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Funciones matemáticas (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/mathematical-functions-transact-sql"
+        },
+        {
+          "titulo": "ROUND (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/round-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "tsql:variables",
+      "categoria": "plsql",
+      "titulo": "Variables: DECLARE y SET",
+      "alias": [
+        "declare",
+        "variable",
+        "variables",
+        "@",
+        "select @",
+        "variable de tabla",
+        "declare table"
+      ],
+      "resumen": "Una variable guarda un valor mientras dura el script. Su nombre empieza con @, se crea con DECLARE y cambia con SET o con SELECT.",
+      "secciones": [
+        {
+          "titulo": "Declarar y asignar",
+          "parrafos": [
+            "DECLARE @Total decimal(10, 2); crea la variable. Vale NULL hasta que le des un valor, o puedes dárselo al declararla: DECLARE @Limite int = 50;",
+            "SET @Total = 10; le asigna un valor. SELECT @Total = SUM(Precio) FROM Productos; lo toma de una consulta.",
+            "Si ese SELECT devuelve varias filas, la variable se queda con la última; si no devuelve ninguna, conserva el valor que tenía."
+          ],
+          "ejemplo": "DECLARE @Limite decimal(10, 2) = 50;\nDECLARE @Cantidad int;\n\nSELECT @Cantidad = COUNT(*) FROM Productos WHERE Precio > @Limite;\nPRINT CONCAT(N'Productos de más de ', @Limite, N': ', @Cantidad);"
+        },
+        {
+          "titulo": "Cuánto dura",
+          "parrafos": [
+            "Una variable existe hasta el final del lote: después de un GO ya no está y SQL Server da el error 137, «Must declare the scalar variable».",
+            "En esta aplicación cada ejecución empieza de cero, así que declara las variables en el mismo script que las usa."
+          ]
+        },
+        {
+          "titulo": "Variables de tabla",
+          "parrafos": [
+            "DECLARE @Lista TABLE (…) crea una tabla que dura lo mismo que una variable. Para muchas filas conviene una tabla temporal, con # delante del nombre."
+          ],
+          "ejemplo": "DECLARE @Caros TABLE (Nombre nvarchar(100), Precio decimal(10, 2));\n\nINSERT INTO @Caros\nSELECT Nombre, Precio FROM Productos WHERE Precio > 50;\n\nSELECT * FROM @Caros;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "Las variables van en la sección DECLARE de un bloque PL/SQL, sin @, y se asignan con :=."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Solo dentro de un bloque DO o de una función, en su sección DECLARE, y se asignan con :=."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DECLARE dentro de procedimientos, sin @. Fuera de ellos hay variables de sesión con @, que duran toda la conexión: SET @total = 10."
+        }
+      ],
+      "relacionadas": [
+        "tsql:control",
+        "tsql:print",
+        "palabra:go"
+      ],
+      "fuentes": [
+        {
+          "titulo": "DECLARE @local_variable (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/declare-local-variable-transact-sql"
+        },
+        {
+          "titulo": "SET @local_variable (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/set-local-variable-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "tsql:control",
+      "categoria": "plsql",
+      "titulo": "Control del flujo: BEGIN … END, IF, WHILE y RETURN",
+      "alias": [
+        "begin",
+        "begin end",
+        "if",
+        "if else",
+        "while",
+        "break",
+        "continue",
+        "return",
+        "control del flujo",
+        "bucle"
+      ],
+      "resumen": "Con IF y WHILE, un script decide qué hacer y repite pasos. BEGIN y END agrupan varias instrucciones para que cuenten como una sola.",
+      "secciones": [
+        {
+          "titulo": "IF y ELSE",
+          "parrafos": [
+            "IF condición ejecuta la instrucción siguiente solo si se cumple. ELSE ejecuta la que va después si no se cumple.",
+            "Para más de una instrucción, enciérralas entre BEGIN y END. Sin ellos, solo la primera queda dentro del IF.",
+            "La condición puede preguntar por una consulta: IF EXISTS (SELECT 1 FROM …)."
+          ],
+          "ejemplo": "IF EXISTS (SELECT 1 FROM Pedidos WHERE ClienteId = 4)\n    PRINT N'Carlos tiene pedidos.';\nELSE\nBEGIN\n    PRINT N'Carlos no tiene pedidos.';\n    PRINT N'Revisa si sigue siendo cliente.';\nEND;"
+        },
+        {
+          "titulo": "WHILE",
+          "parrafos": [
+            "WHILE condición repite el bloque mientras se cumpla. BREAK sale del bucle, y CONTINUE salta a la vuelta siguiente.",
+            "Asegúrate de que algo cambie en cada vuelta, o el bucle no termina nunca. Si pasa, el botón Cancelar ejecución lo detiene."
+          ],
+          "ejemplo": "DECLARE @i int = 0;\n\nWHILE @i < 5\nBEGIN\n    SET @i += 1;\n    IF @i = 3\n        CONTINUE;\n    PRINT CONCAT(N'Vuelta ', @i);\nEND;"
+        },
+        {
+          "titulo": "RETURN",
+          "parrafos": [
+            "RETURN termina el lote o el procedimiento en ese punto; lo que sigue no se ejecuta.",
+            "En un procedimiento puede devolver un número entero, que se recibe con EXEC @Resultado = NombreDelProcedimiento."
+          ],
+          "ejemplo": "DECLARE @Hay int = (SELECT COUNT(*) FROM Pedidos);\n\nIF @Hay = 0\nBEGIN\n    PRINT N'No hay pedidos.';\n    RETURN;\nEND;\n\nPRINT CONCAT(N'Hay ', @Hay, N' pedidos.');"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "IF … THEN … ELSIF … END IF y los bucles LOOP, WHILE y FOR, dentro de un bloque PL/SQL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "IF … THEN … ELSIF … END IF y los bucles LOOP, WHILE y FOR, dentro de un bloque DO o de una función."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "IF … THEN … END IF y WHILE … DO … END WHILE, con LEAVE e ITERATE, dentro de procedimientos y funciones. MariaDB los permite también fuera, con BEGIN NOT ATOMIC."
+        }
+      ],
+      "relacionadas": [
+        "tsql:variables",
+        "tsql:errores",
+        "palabra:case"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Lenguaje de control de flujo (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/control-of-flow"
+        },
+        {
+          "titulo": "IF...ELSE (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/if-else-transact-sql"
+        },
+        {
+          "titulo": "WHILE (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/while-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "tsql:errores",
+      "categoria": "plsql",
+      "titulo": "TRY … CATCH, THROW y RAISERROR: manejar errores",
+      "alias": [
+        "try",
+        "catch",
+        "try catch",
+        "begin try",
+        "end try",
+        "begin catch",
+        "end catch",
+        "throw",
+        "raiserror",
+        "error_message",
+        "error_number",
+        "error_line",
+        "errores"
+      ],
+      "resumen": "BEGIN TRY … END TRY agrupa instrucciones: si una falla, el script salta a BEGIN CATCH … END CATCH en lugar de detenerse con el error. THROW lanza un error propio.",
+      "secciones": [
+        {
+          "titulo": "TRY y CATCH",
+          "parrafos": [
+            "Dentro del CATCH, ERROR_MESSAGE() da el texto del error, ERROR_NUMBER() su número y ERROR_LINE() la línea.",
+            "Un error atrapado ya no aparece como error en el panel de mensajes: solo verás lo que muestre el CATCH, por ejemplo con PRINT.",
+            "Si hay una transacción abierta, el CATCH es el lugar para deshacerla con ROLLBACK."
+          ],
+          "ejemplo": "BEGIN TRY\n    INSERT INTO Productos (Nombre, Precio, CategoriaId)\n    VALUES (N'Producto sin categoría', 10.00, 99);\nEND TRY\nBEGIN CATCH\n    PRINT CONCAT(N'Error ', ERROR_NUMBER(), N': ', ERROR_MESSAGE());\nEND CATCH;"
+        },
+        {
+          "titulo": "THROW y RAISERROR",
+          "parrafos": [
+            "THROW 50001, N'mensaje', 1; lanza un error propio. El número va de 50000 en adelante, y el último valor, el estado, de 0 a 255. La instrucción anterior a THROW debe terminar en punto y coma.",
+            "Dentro de un CATCH, THROW; sin nada más vuelve a lanzar el error original.",
+            "RAISERROR es la forma antigua y todavía se ve mucho. Con gravedad 10 o menos no detiene nada: solo muestra un mensaje."
+          ],
+          "ejemplo": "DECLARE @Existencias int = 0;\n\nBEGIN TRY\n    IF @Existencias = 0\n        THROW 50001, N'No hay existencias de este producto.', 1;\n    PRINT N'Pedido registrado.';\nEND TRY\nBEGIN CATCH\n    PRINT CONCAT(N'No se pudo: ', ERROR_MESSAGE());\nEND CATCH;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "Una sección EXCEPTION al final del bloque PL/SQL, con WHEN OTHERS, y RAISE_APPLICATION_ERROR para errores propios."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Una sección EXCEPTION en el bloque PL/pgSQL, y RAISE EXCEPTION para errores propios."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "DECLARE … HANDLER dentro de procedimientos, y SIGNAL para errores propios."
+        }
+      ],
+      "relacionadas": [
+        "tsql:transacciones",
+        "tsql:control",
+        "tsql:print"
+      ],
+      "fuentes": [
+        {
+          "titulo": "TRY...CATCH (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/try-catch-transact-sql"
+        },
+        {
+          "titulo": "THROW (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/throw-transact-sql"
+        },
+        {
+          "titulo": "RAISERROR (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/raiserror-transact-sql"
+        },
+        {
+          "titulo": "ERROR_MESSAGE (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/error-message-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "tsql:transacciones",
+      "categoria": "plsql",
+      "titulo": "Transacciones: BEGIN TRANSACTION, COMMIT y ROLLBACK",
+      "alias": [
+        "transacción",
+        "transaccion",
+        "transaction",
+        "begin transaction",
+        "begin tran",
+        "commit",
+        "commit transaction",
+        "rollback",
+        "rollback transaction",
+        "@@trancount",
+        "xact_abort",
+        "set xact_abort on"
+      ],
+      "resumen": "Una transacción agrupa cambios para que se guarden todos juntos con COMMIT o se deshagan todos con ROLLBACK.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usan",
+          "parrafos": [
+            "Sin BEGIN TRANSACTION, SQL Server confirma cada sentencia sola.",
+            "Después de BEGIN TRANSACTION, los cambios quedan pendientes hasta COMMIT, que los guarda, o ROLLBACK, que los deshace.",
+            "@@TRANCOUNT dice cuántas transacciones hay abiertas: 0 si no hay ninguna.",
+            "En el ejemplo, el aumento de precios se ve dentro de la transacción y desaparece después del ROLLBACK."
+          ],
+          "ejemplo": "BEGIN TRANSACTION;\n\nUPDATE Productos SET Precio = Precio * 1.10 WHERE CategoriaId = 2;\nSELECT Nombre, Precio FROM Productos WHERE CategoriaId = 2;\n\nROLLBACK;\n\nSELECT Nombre, Precio FROM Productos WHERE CategoriaId = 2;"
+        },
+        {
+          "titulo": "Con errores",
+          "parrafos": [
+            "Un error no siempre deshace la transacción: muchas veces SQL Server sigue con la sentencia siguiente.",
+            "Para que todo se deshaga ante cualquier error, escribe SET XACT_ABORT ON; al inicio, o usa TRY … CATCH con ROLLBACK en el CATCH. El ejemplo hace las dos cosas: el segundo INSERT falla porque el producto 99 no existe, y el pedido tampoco se guarda."
+          ],
+          "ejemplo": "SET XACT_ABORT ON;\n\nBEGIN TRY\n    BEGIN TRANSACTION;\n    INSERT INTO Pedidos (ClienteId, Fecha) VALUES (2, '20260901');\n    INSERT INTO PedidoProductos (PedidoId, ProductoId, Cantidad, PrecioUnitario)\n    VALUES (SCOPE_IDENTITY(), 99, 1, 10.00);\n    COMMIT;\nEND TRY\nBEGIN CATCH\n    IF @@TRANCOUNT > 0\n        ROLLBACK;\n    PRINT CONCAT(N'Se deshizo el pedido: ', ERROR_MESSAGE());\nEND CATCH;"
+        },
+        {
+          "titulo": "En esta aplicación",
+          "parrafos": [
+            "Con SQL Server, cada ejecución usa su propia conexión. Si abres una transacción, termínala con COMMIT o ROLLBACK en el mismo script: una transacción que queda abierta al terminar la ejecución se deshace."
+          ]
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "No hace falta BEGIN: todo cambio queda pendiente hasta COMMIT o ROLLBACK, y CREATE, ALTER y DROP confirman lo pendiente."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "BEGIN o START TRANSACTION. Un error deja la transacción abortada, y solo admite ROLLBACK."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "START TRANSACTION. CREATE, ALTER y DROP confirman lo que esté pendiente."
+        }
+      ],
+      "relacionadas": [
+        "tsql:errores",
+        "palabra:update",
+        "palabra:delete"
+      ],
+      "fuentes": [
+        {
+          "titulo": "BEGIN TRANSACTION (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/begin-transaction-transact-sql"
+        },
+        {
+          "titulo": "COMMIT TRANSACTION (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/commit-transaction-transact-sql"
+        },
+        {
+          "titulo": "ROLLBACK TRANSACTION (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/rollback-transaction-transact-sql"
+        },
+        {
+          "titulo": "SET XACT_ABORT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/statements/set-xact-abort-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "tsql:print",
+      "categoria": "plsql",
+      "titulo": "PRINT: mostrar mensajes",
+      "alias": [
+        "print",
+        "mensaje",
+        "mostrar un mensaje",
+        "imprimir"
+      ],
+      "resumen": "PRINT muestra un texto en el panel de mensajes. Sirve para seguir lo que hace un script o ver el valor de una variable.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usa",
+          "parrafos": [
+            "PRINT acepta un texto, o algo que se pueda convertir en texto, de hasta 4000 caracteres Unicode.",
+            "Para mezclar textos y números usa CONCAT, que convierte los números solo. Con el signo +, un número junto a un texto da el error 245, y un NULL deja el mensaje vacío.",
+            "Los mensajes aparecen en el panel de mensajes, en orden, junto con las filas afectadas. F6 te lleva hasta allí."
+          ],
+          "ejemplo": "DECLARE @Pedidos int = (SELECT COUNT(*) FROM Pedidos);\n\nPRINT CONCAT(N'Hay ', @Pedidos, N' pedidos.');\nPRINT N'Fin del informe.';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "DBMS_OUTPUT.PUT_LINE, dentro de un bloque PL/SQL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "RAISE NOTICE, dentro de un bloque DO o de una función."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No hay PRINT: se usa un SELECT con el texto."
+        }
+      ],
+      "relacionadas": [
+        "tsql:variables",
+        "tsql:errores"
+      ],
+      "fuentes": [
+        {
+          "titulo": "PRINT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/language-elements/print-transact-sql"
+        }
+      ]
+    },
+    {
+      "id": "tsql:funciones-sistema",
+      "categoria": "plsql",
+      "titulo": "@@ROWCOUNT, OBJECT_ID y DB_NAME: información del sistema",
+      "alias": [
+        "@@rowcount",
+        "rowcount",
+        "object_id",
+        "db_name",
+        "db_id",
+        "funciones del sistema",
+        "existe la tabla"
+      ],
+      "resumen": "Dan información sobre lo que acaba de pasar y sobre la base: cuántas filas cambió la última sentencia, si existe un objeto o en qué base estás.",
+      "secciones": [
+        {
+          "titulo": "@@ROWCOUNT",
+          "parrafos": [
+            "Dice cuántas filas afectó o devolvió la última sentencia.",
+            "Léelo justo después: muchas instrucciones lo cambian, y PRINT lo deja en 0. Si lo necesitas más tarde, guárdalo en una variable."
+          ],
+          "ejemplo": "DECLARE @Filas int;\n\nUPDATE Productos SET Precio = Precio WHERE CategoriaId = 1;\nSET @Filas = @@ROWCOUNT;\n\nPRINT CONCAT(@Filas, N' productos revisados.');"
+        },
+        {
+          "titulo": "OBJECT_ID y DB_NAME",
+          "parrafos": [
+            "OBJECT_ID(N'dbo.Productos') da el número interno de un objeto, o NULL si no existe. Se usa para preguntar si algo existe antes de crearlo o borrarlo. Con un segundo valor, N'U', pregunta solo por tablas.",
+            "DB_NAME() da el nombre de la base en la que estás, y DB_ID(N'nombre') el número de una base, o NULL si no existe.",
+            "SCOPE_IDENTITY() da el último número IDENTITY que generaste; está en la ficha de IDENTITY."
+          ],
+          "ejemplo": "SELECT DB_NAME() AS BaseActual,\n    OBJECT_ID(N'dbo.Productos') AS IdProductos,\n    OBJECT_ID(N'dbo.NoExiste') AS IdNoExiste;\n\nIF OBJECT_ID(N'dbo.Productos', N'U') IS NOT NULL\n    PRINT N'La tabla Productos existe.';"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "Oracle",
+          "texto": "SQL%ROWCOUNT en PL/SQL, y las vistas USER_OBJECTS y ALL_OBJECTS para saber si algo existe."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "GET DIAGNOSTICS n = ROW_COUNT en PL/pgSQL; to_regclass('nombre') da NULL si la tabla no existe, y current_database() da la base."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "ROW_COUNT(), DATABASE() y las vistas de information_schema para saber si algo existe."
+        }
+      ],
+      "relacionadas": [
+        "concepto:identity",
+        "tsql:control",
+        "palabra:drop"
+      ],
+      "fuentes": [
+        {
+          "titulo": "@@ROWCOUNT (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/rowcount-transact-sql"
+        },
+        {
+          "titulo": "OBJECT_ID (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/object-id-transact-sql"
+        },
+        {
+          "titulo": "DB_NAME (Transact-SQL) (Microsoft Learn)",
+          "url": "https://learn.microsoft.com/es-es/sql/t-sql/functions/db-name-transact-sql"
+        }
+      ]
+    },
+    {
       "id": "atajos:aplicacion",
       "categoria": "atajos",
       "titulo": "Atajos de teclado de Mi Gestor BD Accesible",
@@ -2273,6 +3547,15 @@
             "Control+F: abre la barra para buscar y reemplazar en la consulta. Intro va a la siguiente coincidencia y Mayúsculas+Intro a la anterior; Escape vuelve al editor con el cursor sobre la coincidencia. F3 y Mayúsculas+F3 siguen buscando desde el editor.",
             "Control+B: busca un objeto por su nombre en la base (tablas, columnas, vistas, procedimientos, funciones, índices, restricciones, disparadores y secuencias). Las flechas recorren los resultados e Intro lleva al objeto en el árbol. Control+B otra vez recupera la última búsqueda.",
             "Alt o F10: activa la barra de menús (Archivo, Editar, Consulta y Ayuda), con todas las acciones principales y sus atajos. Las flechas recorren los menús, Intro elige una opción y Escape vuelve a donde estabas."
+          ]
+        },
+        {
+          "titulo": "Al escribir en el editor",
+          "parrafos": [
+            "Las sugerencias aparecen mientras escribes, tras una pausa corta: palabras de SQL, funciones y tipos de dato de este motor, y las tablas, vistas, columnas y procedimientos de la base de la pestaña. Control+Espacio las muestra en cualquier momento.",
+            "Con la lista abierta, flecha abajo y flecha arriba recorren las sugerencias; Re Pág y Av Pág saltan de ocho en ocho. Tabulador acepta la sugerencia y Control+Z la deshace. Escape cierra la lista y no vuelve a abrirla hasta la palabra siguiente. Intro sigue siendo un salto de línea.",
+            "Después de un punto, la lista se abre sola con las columnas de la tabla o del alias, o con los objetos del esquema. F1 sobre una sugerencia abre su ficha de ayuda.",
+            "Si escribes en minúsculas, la palabra se inserta en minúsculas. Los nombres de la base se insertan tal como están. En el menú Editar, la casilla «Sugerir mientras escribo» hace que la lista solo aparezca con Control+Espacio."
           ]
         },
         {

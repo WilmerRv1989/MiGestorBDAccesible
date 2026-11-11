@@ -22,7 +22,7 @@
             "NUMBER sin paréntesis guarda cualquier número, con hasta 38 dígitos de precisión. Es lo que suele usarse para las columnas Id.",
             "Si un valor tiene más decimales que la escala, Oracle lo redondea. Si tiene más dígitos enteros de los permitidos, da el error ORA-01438."
           ],
-          "ejemplo": "CREATE TABLE productos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    precio NUMBER(10, 2) NOT NULL,\n    existencias NUMBER(5) DEFAULT 0\n);"
+          "ejemplo": "CREATE TABLE ficha_productos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    precio NUMBER(10, 2) NOT NULL,\n    existencias NUMBER(5) DEFAULT 0\n);\n\nINSERT INTO ficha_productos (precio) VALUES (18.555);\nSELECT id, precio, existencias FROM ficha_productos;\n\nDROP TABLE ficha_productos PURGE;"
         },
         {
           "titulo": "Cómo se guarda",
@@ -181,7 +181,7 @@
             "Por omisión la longitud se cuenta en bytes. Una letra con tilde o una ñ ocupa 2 bytes en UTF-8, así que VARCHAR2(10) puede no admitir 10 caracteres acentuados. Para contar caracteres escribe VARCHAR2(10 CHAR).",
             "Solo ocupa el espacio del texto guardado, no el máximo."
           ],
-          "ejemplo": "CREATE TABLE clientes (\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150 CHAR)\n);"
+          "ejemplo": "CREATE TABLE ficha_clientes (\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150 CHAR)\n);\n\nINSERT INTO ficha_clientes VALUES ('Sofía Rojas', 'sofia@ejemplo.com');\nSELECT nombre, LENGTH(nombre) AS caracteres, LENGTHB(nombre) AS bytes FROM ficha_clientes;\n\nDROP TABLE ficha_clientes PURGE;"
         },
         {
           "titulo": "VARCHAR2 y la cadena vacía",
@@ -686,7 +686,7 @@
             "Cada fila es un registro: un cliente, un pedido. El orden de las filas no está garantizado; para ordenarlas se usa ORDER BY.",
             "En Oracle cada tabla pertenece a un esquema, que es el usuario dueño. TIENDA.CLIENTES es la tabla CLIENTES del esquema TIENDA."
           ],
-          "ejemplo": "CREATE TABLE clientes (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150)\n);"
+          "ejemplo": "CREATE TABLE ficha_clientes (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150)\n);\n\nINSERT INTO ficha_clientes (nombre, correo) VALUES ('Ana Mora', 'ana@ejemplo.com');\nSELECT id, nombre, correo FROM ficha_clientes;\n\nDROP TABLE ficha_clientes PURGE;"
         },
         {
           "titulo": "Ver la estructura",
@@ -796,7 +796,7 @@
             "Oracle crea automáticamente un índice único para la clave, con el nombre de la restricción.",
             "Conviene darle nombre con CONSTRAINT; si no, Oracle le pone uno automático como SYS_C008768."
           ],
-          "ejemplo": "CREATE TABLE pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    fecha DATE NOT NULL,\n    CONSTRAINT pk_pedidos PRIMARY KEY (id)\n);"
+          "ejemplo": "CREATE TABLE ficha_pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    fecha DATE NOT NULL,\n    CONSTRAINT pk_ficha_pedidos PRIMARY KEY (id)\n);\n\nSELECT index_name, uniqueness FROM user_indexes WHERE table_name = 'FICHA_PEDIDOS';\n\nDROP TABLE ficha_pedidos PURGE;"
         }
       ],
       "otrosMotores": [
@@ -848,7 +848,7 @@
             "Si la columna admite NULL, la relación es opcional: una fila puede no apuntar a nada.",
             "Oracle no crea índice para la llave foránea. Si borras a menudo en la tabla destino, conviene crear uno a mano para evitar bloqueos."
           ],
-          "ejemplo": "ALTER TABLE pedidos\n    ADD CONSTRAINT fk_pedidos_clientes FOREIGN KEY (cliente_id)\n    REFERENCES clientes (id)\n    ON DELETE CASCADE;"
+          "ejemplo": "CREATE TABLE ficha_pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    cliente_id NUMBER NOT NULL\n);\n\nALTER TABLE ficha_pedidos\n    ADD CONSTRAINT fk_ficha_pedidos_clientes FOREIGN KEY (cliente_id)\n    REFERENCES clientes (id)\n    ON DELETE CASCADE;\n\nINSERT INTO ficha_pedidos (cliente_id) VALUES (1);\nSELECT p.id, c.nombre FROM ficha_pedidos p JOIN clientes c ON c.id = p.cliente_id;\n\nDROP TABLE ficha_pedidos PURGE;"
         },
         {
           "titulo": "Filas que ya existen",
@@ -907,7 +907,7 @@
             "ON DELETE SET NULL: las filas que apuntan quedan con la columna en NULL. La columna debe admitir NULL.",
             "Oracle no tiene ON UPDATE ni SET DEFAULT. Cambiar una clave principal que tiene filas apuntándole da error; por eso las claves no deberían cambiar nunca."
           ],
-          "ejemplo": "CREATE TABLE pedido_productos (\n    pedido_id NUMBER REFERENCES pedidos (id) ON DELETE CASCADE,\n    producto_id NUMBER REFERENCES productos (id),\n    cantidad NUMBER NOT NULL\n);"
+          "ejemplo": "CREATE TABLE ficha_pedidos (id NUMBER PRIMARY KEY);\nCREATE TABLE ficha_pedido_productos (\n    pedido_id NUMBER REFERENCES ficha_pedidos (id) ON DELETE CASCADE,\n    producto_id NUMBER REFERENCES productos (id),\n    cantidad NUMBER NOT NULL\n);\n\nINSERT INTO ficha_pedidos VALUES (1);\nINSERT INTO ficha_pedido_productos VALUES (1, 1, 2);\nINSERT INTO ficha_pedido_productos VALUES (1, 3, 1);\nDELETE FROM ficha_pedidos WHERE id = 1;\nSELECT COUNT(*) AS lineas_que_quedan FROM ficha_pedido_productos;\n\nDROP TABLE ficha_pedido_productos PURGE;\nDROP TABLE ficha_pedidos PURGE;"
         }
       ],
       "otrosMotores": [
@@ -999,7 +999,7 @@
             "Puede llevar columnas propias de la relación, como la cantidad o el precio unitario.",
             "En esta aplicación, el Asistente de tabla intermedia del menú del esquema la prepara por ti."
           ],
-          "ejemplo": "CREATE TABLE pedido_productos (\n    pedido_id NUMBER NOT NULL,\n    producto_id NUMBER NOT NULL,\n    cantidad NUMBER NOT NULL,\n    CONSTRAINT pk_pedido_productos PRIMARY KEY (pedido_id, producto_id),\n    CONSTRAINT fk_pp_pedidos FOREIGN KEY (pedido_id) REFERENCES pedidos (id),\n    CONSTRAINT fk_pp_productos FOREIGN KEY (producto_id) REFERENCES productos (id)\n);"
+          "ejemplo": "CREATE TABLE ficha_pedido_productos (\n    pedido_id NUMBER NOT NULL,\n    producto_id NUMBER NOT NULL,\n    cantidad NUMBER NOT NULL,\n    CONSTRAINT pk_ficha_pedido_productos PRIMARY KEY (pedido_id, producto_id),\n    CONSTRAINT fk_ficha_pp_pedidos FOREIGN KEY (pedido_id) REFERENCES pedidos (id),\n    CONSTRAINT fk_ficha_pp_productos FOREIGN KEY (producto_id) REFERENCES productos (id)\n);\n\nINSERT INTO ficha_pedido_productos VALUES (1, 1, 1);\nINSERT INTO ficha_pedido_productos VALUES (1, 3, 2);\nSELECT x.pedido_id, p.nombre, x.cantidad\nFROM ficha_pedido_productos x\nJOIN productos p ON p.id = x.producto_id;\n\nDROP TABLE ficha_pedido_productos PURGE;"
         }
       ],
       "otrosMotores": [
@@ -1036,7 +1036,10 @@
         "identidad",
         "autoincremento",
         "auto increment",
-        "autonumérico"
+        "autonumérico",
+        "generated always as identity",
+        "generated by default as identity",
+        "generated by default on null as identity"
       ],
       "resumen": "Una columna de identidad recibe un número automático en cada INSERT. Existe desde Oracle 12c; antes se usaban secuencias con disparadores.",
       "secciones": [
@@ -1048,7 +1051,7 @@
             "BY DEFAULT ON NULL además lo genera cuando insertas NULL.",
             "Para empezar en otro número: GENERATED ALWAYS AS IDENTITY (START WITH 100 INCREMENT BY 10)."
           ],
-          "ejemplo": "CREATE TABLE categorias (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(60) NOT NULL\n);\n\nINSERT INTO categorias (nombre) VALUES ('Libros');"
+          "ejemplo": "CREATE TABLE ficha_categorias (\n    id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n    nombre VARCHAR2(60) NOT NULL\n);\n\nINSERT INTO ficha_categorias (nombre) VALUES ('Libros');\nINSERT INTO ficha_categorias (nombre) VALUES ('Audio');\nSELECT id, nombre FROM ficha_categorias;\n\nDROP TABLE ficha_categorias PURGE;"
         },
         {
           "titulo": "Detalles",
@@ -1104,7 +1107,7 @@
             "Oracle crea un índice único para la restricción.",
             "Una llave foránea puede apuntar a una columna UNIQUE, no solo a la clave principal."
           ],
-          "ejemplo": "ALTER TABLE clientes\n    ADD CONSTRAINT uq_clientes_correo UNIQUE (correo);"
+          "ejemplo": "CREATE TABLE ficha_clientes (\n    nombre VARCHAR2(100) NOT NULL,\n    correo VARCHAR2(150)\n);\n\nALTER TABLE ficha_clientes\n    ADD CONSTRAINT uq_ficha_clientes_correo UNIQUE (correo);\n\nINSERT INTO ficha_clientes VALUES ('Ana Mora', NULL);\nINSERT INTO ficha_clientes VALUES ('Luis Vargas', NULL);\nSELECT COUNT(*) AS sin_correo FROM ficha_clientes WHERE correo IS NULL;\n\nDROP TABLE ficha_clientes PURGE;"
         }
       ],
       "otrosMotores": [
@@ -1153,7 +1156,7 @@
             "Si el INSERT escribe NULL explícitamente, el DEFAULT no se aplica. DEFAULT ON NULL hace que también se use en ese caso.",
             "En un INSERT o UPDATE puedes escribir la palabra DEFAULT para pedir el valor predeterminado."
           ],
-          "ejemplo": "CREATE TABLE pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    estado VARCHAR2(20) DEFAULT 'Pendiente' NOT NULL,\n    fecha DATE DEFAULT ON NULL SYSDATE\n);"
+          "ejemplo": "CREATE TABLE ficha_pedidos (\n    id NUMBER GENERATED ALWAYS AS IDENTITY,\n    estado VARCHAR2(20) DEFAULT 'Pendiente' NOT NULL,\n    fecha DATE DEFAULT ON NULL SYSDATE\n);\n\nINSERT INTO ficha_pedidos (fecha) VALUES (NULL);\nSELECT id, estado, TRUNC(fecha) - TRUNC(SYSDATE) AS dias_desde_hoy FROM ficha_pedidos;\n\nDROP TABLE ficha_pedidos PURGE;"
         }
       ],
       "otrosMotores": [
@@ -1201,7 +1204,7 @@
             "Si la condición da NULL, Oracle la acepta: solo rechaza cuando da falso.",
             "Si una fila no la cumple, Oracle da el error ORA-02290 con el nombre de la restricción."
           ],
-          "ejemplo": "ALTER TABLE productos\n    ADD CONSTRAINT ck_productos_precio CHECK (precio >= 0);"
+          "ejemplo": "CREATE TABLE ficha_productos (\n    nombre VARCHAR2(100) NOT NULL,\n    precio NUMBER(10, 2)\n);\n\nALTER TABLE ficha_productos\n    ADD CONSTRAINT ck_ficha_productos_precio CHECK (precio >= 0);\n\nINSERT INTO ficha_productos VALUES ('Sin precio todavía', NULL);\nSELECT nombre, precio FROM ficha_productos;\n\nDROP TABLE ficha_productos PURGE;"
         }
       ],
       "otrosMotores": [
@@ -1420,7 +1423,7 @@
             "Por eso la costumbre en Oracle es usar nombres sin comillas, en mayúsculas, separados por guion bajo: FECHA_REGISTRO.",
             "Las comillas simples son para textos ('Ana'), y las dobles para nombres."
           ],
-          "ejemplo": "SELECT \"Nombre Raro\" FROM tmp;\nSELECT nombre FROM clientes;  -- lee la columna NOMBRE"
+          "ejemplo": "CREATE TABLE ficha_rara (\"Nombre Raro\" VARCHAR2(30));\nINSERT INTO ficha_rara VALUES ('se escribe con comillas');\n\nSELECT \"Nombre Raro\" FROM ficha_rara;\nSELECT nombre FROM clientes;\n\nDROP TABLE ficha_rara PURGE;"
         }
       ],
       "otrosMotores": [
@@ -2218,6 +2221,268 @@
       ]
     },
     {
+      "id": "palabra:union",
+      "categoria": "palabra",
+      "titulo": "UNION, INTERSECT y MINUS: combinar resultados",
+      "alias": [
+        "union",
+        "union all",
+        "intersect",
+        "minus",
+        "except",
+        "operadores de conjuntos"
+      ],
+      "resumen": "Juntan los resultados de dos SELECT en uno: UNION los suma, INTERSECT deja lo que está en los dos y MINUS lo que está en el primero pero no en el segundo.",
+      "secciones": [
+        {
+          "titulo": "UNION y UNION ALL",
+          "parrafos": [
+            "Los dos SELECT deben devolver la misma cantidad de columnas, con tipos compatibles; si no, Oracle da el error ORA-01790. Los nombres de las columnas salen del primero.",
+            "UNION quita las filas repetidas; UNION ALL las deja todas y es más rápido. Si sabes que no hay repetidas, usa UNION ALL.",
+            "ORDER BY va una sola vez, al final, y ordena el resultado completo."
+          ],
+          "ejemplo": "SELECT nombre, 'Cliente' AS tipo FROM clientes\nUNION ALL\nSELECT nombre, 'Categoría' FROM categorias\nORDER BY nombre;"
+        },
+        {
+          "titulo": "INTERSECT y MINUS",
+          "parrafos": [
+            "INTERSECT devuelve las filas que aparecen en los dos resultados. MINUS devuelve las del primero que no aparecen en el segundo. En el ejemplo, MINUS da los clientes que todavía no tienen pedidos.",
+            "Los dos quitan las filas repetidas. Desde la versión 21c existen también INTERSECT ALL y MINUS ALL, que las conservan, y EXCEPT, el nombre estándar de MINUS."
+          ],
+          "ejemplo": "SELECT id FROM clientes\nMINUS\nSELECT cliente_id FROM pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "UNION, UNION ALL e INTERSECT igual; en lugar de MINUS se escribe EXCEPT. No tiene INTERSECT ALL ni EXCEPT ALL."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "UNION, INTERSECT y EXCEPT, también con ALL. No tiene MINUS."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "UNION igual. INTERSECT y EXCEPT existen desde MySQL 8.0.31 y MariaDB 10.3; MariaDB acepta también MINUS en el modo Oracle."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:order-by",
+        "palabra:where"
+      ],
+      "fuentes": [
+        {
+          "titulo": "The Set Operators: UNION, INTERSECT y MINUS (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/The-UNION-ALL-INTERSECT-MINUS-Operators.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:with",
+      "categoria": "palabra",
+      "titulo": "WITH: consultas con nombre",
+      "alias": [
+        "with",
+        "cte",
+        "subquery factoring",
+        "expresión de tabla común",
+        "common table expression",
+        "consulta recursiva"
+      ],
+      "resumen": "WITH le pone nombre a una consulta para usarla después como si fuera una tabla, dentro de la misma sentencia. Ordena las consultas largas y permite recorrer jerarquías.",
+      "secciones": [
+        {
+          "titulo": "Cómo se escribe",
+          "parrafos": [
+            "WITH nombre AS (SELECT …) y, justo después, la consulta que lo usa. El nombre solo existe durante esa sentencia.",
+            "Puedes definir varias, separadas por comas, y cada una puede usar las anteriores."
+          ],
+          "ejemplo": "WITH totales AS (\n    SELECT pedido_id, SUM(cantidad * precio_unitario) AS total\n    FROM pedido_productos\n    GROUP BY pedido_id\n)\nSELECT c.nombre, t.total\nFROM totales t\nJOIN pedidos p ON p.id = t.pedido_id\nJOIN clientes c ON c.id = p.cliente_id\nORDER BY t.total DESC;"
+        },
+        {
+          "titulo": "Consultas recursivas",
+          "parrafos": [
+            "Una consulta del WITH que se nombra a sí misma repite su segunda parte hasta que ya no devuelve filas nuevas. Sirve para jerarquías o para generar series.",
+            "En Oracle no se escribe RECURSIVE, pero hay que poner la lista de columnas después del nombre: WITH numeros (n) AS …",
+            "La primera parte es el punto de partida; después va UNION ALL y la parte que se repite.",
+            "Oracle no pone un límite de vueltas: asegúrate de que la condición la detenga. Si una fila vuelve a aparecer, como en una jerarquía con un ciclo, da el error ORA-32044."
+          ],
+          "ejemplo": "WITH numeros (n) AS (\n    SELECT 1 FROM dual\n    UNION ALL\n    SELECT n + 1 FROM numeros WHERE n < 5\n)\nSELECT n FROM numeros;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "WITH igual; las recursivas no llevan RECURSIVE ni exigen la lista de columnas, y se detienen a las 100 vueltas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "WITH igual; las recursivas se escriben WITH RECURSIVE."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "WITH desde MySQL 8.0 y MariaDB 10.2; las recursivas se escriben WITH RECURSIVE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:connect-by",
+        "concepto:vistas",
+        "palabra:ventana"
+      ],
+      "fuentes": [
+        {
+          "titulo": "SELECT: subquery_factoring_clause (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SELECT.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:ventana",
+      "categoria": "palabra",
+      "titulo": "Funciones analíticas: OVER, ROW_NUMBER, RANK y LAG",
+      "alias": [
+        "over",
+        "partition by",
+        "funciones analíticas",
+        "ventana",
+        "funciones de ventana",
+        "window",
+        "row_number",
+        "rank",
+        "dense_rank",
+        "ntile",
+        "lag",
+        "lead"
+      ],
+      "resumen": "Una función analítica, o de ventana, calcula algo sobre un grupo de filas, como un número de orden o un total, sin juntar las filas como hace GROUP BY: cada fila sigue apareciendo.",
+      "secciones": [
+        {
+          "titulo": "OVER y PARTITION BY",
+          "parrafos": [
+            "OVER (…) convierte la función en analítica. Dentro, ORDER BY dice el orden y PARTITION BY divide las filas en grupos que se calculan por separado.",
+            "También sirve con SUM, COUNT y AVG: SUM(precio) OVER (PARTITION BY categoria_id) pone en cada fila el total de su categoría."
+          ],
+          "ejemplo": "SELECT nombre, categoria_id, precio,\n       SUM(precio) OVER (PARTITION BY categoria_id) AS total_categoria\nFROM productos;"
+        },
+        {
+          "titulo": "Numerar filas",
+          "parrafos": [
+            "ROW_NUMBER numera 1, 2, 3… sin repetir. RANK repite el número en los empates y deja huecos: 1, 1, 3. DENSE_RANK repite sin dejar huecos: 1, 1, 2.",
+            "NTILE(4) reparte las filas en 4 grupos de tamaño parecido.",
+            "El resultado de una función analítica no se puede usar en el WHERE de la misma consulta. Para quedarte con el primero de cada grupo, numera dentro de un WITH o de una subconsulta y filtra después, como en el ejemplo: el producto más caro de cada categoría."
+          ],
+          "ejemplo": "WITH orden AS (\n    SELECT nombre, categoria_id, precio,\n           ROW_NUMBER() OVER (PARTITION BY categoria_id ORDER BY precio DESC) AS puesto\n    FROM productos\n)\nSELECT nombre, categoria_id, precio\nFROM orden\nWHERE puesto = 1;"
+        },
+        {
+          "titulo": "LAG y LEAD",
+          "parrafos": [
+            "LAG trae un valor de la fila anterior y LEAD de la siguiente, según el ORDER BY de OVER. Sirven para comparar con el pedido anterior o calcular diferencias.",
+            "Si no hay fila anterior, LAG devuelve NULL, o el valor que le pases como tercer argumento."
+          ],
+          "ejemplo": "SELECT cliente_id, fecha,\n       LAG(fecha) OVER (PARTITION BY cliente_id ORDER BY fecha) AS pedido_anterior\nFROM pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y además FILTER (WHERE …) para que una función de agregado cuente solo algunas filas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "Igual desde MySQL 8.0 y MariaDB 10.2."
+        }
+      ],
+      "relacionadas": [
+        "palabra:group-by",
+        "palabra:with",
+        "palabra:fetch-first"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Analytic Functions (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Analytic-Functions.html"
+        },
+        {
+          "titulo": "ROW_NUMBER (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ROW_NUMBER.html"
+        },
+        {
+          "titulo": "LAG (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/LAG.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:connect-by",
+      "categoria": "palabra",
+      "titulo": "CONNECT BY: consultas jerárquicas",
+      "alias": [
+        "connect by",
+        "start with",
+        "prior",
+        "level",
+        "sys_connect_by_path",
+        "connect_by_root",
+        "nocycle",
+        "jerarquía",
+        "árbol"
+      ],
+      "resumen": "CONNECT BY recorre datos en forma de árbol, como empleados y jefes o categorías y subcategorías, siguiendo la columna que apunta al padre. Es propio de Oracle.",
+      "secciones": [
+        {
+          "titulo": "Cómo se escribe",
+          "parrafos": [
+            "START WITH dice por qué filas empieza el recorrido, normalmente las que no tienen padre: START WITH jefe_id IS NULL.",
+            "CONNECT BY PRIOR id = jefe_id dice cómo bajar: la fila anterior, PRIOR, es el jefe de la siguiente.",
+            "LEVEL da la profundidad: 1 para la raíz, 2 para sus hijos. SYS_CONNECT_BY_PATH(nombre, ' > ') arma el camino completo, que se lee bien con un lector de pantalla.",
+            "Si los datos tienen un ciclo, Oracle da el error ORA-01436; CONNECT BY NOCYCLE lo evita.",
+            "El ejemplo arma un organigrama pequeño dentro de un WITH, sin crear tablas."
+          ],
+          "ejemplo": "WITH empleados (id, nombre, jefe_id) AS (\n    SELECT 1, 'Ana', NULL FROM dual UNION ALL\n    SELECT 2, 'Luis', 1 FROM dual UNION ALL\n    SELECT 3, 'Sofía', 1 FROM dual UNION ALL\n    SELECT 4, 'Carlos', 2 FROM dual\n)\nSELECT LEVEL AS nivel, nombre, SYS_CONNECT_BY_PATH(nombre, ' > ') AS camino\nFROM empleados\nSTART WITH jefe_id IS NULL\nCONNECT BY PRIOR id = jefe_id\nORDER SIBLINGS BY nombre;"
+        },
+        {
+          "titulo": "Generar filas",
+          "parrafos": [
+            "Sin tabla, CONNECT BY LEVEL <= n genera n filas numeradas. Sirve para listas de números o de fechas."
+          ],
+          "ejemplo": "SELECT LEVEL AS n, DATE '2026-07-01' + LEVEL - 1 AS dia\nFROM dual\nCONNECT BY LEVEL <= 5;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "No tiene CONNECT BY: se usa una consulta recursiva con WITH."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "No tiene CONNECT BY: se usa WITH RECURSIVE, y generate_series para generar filas."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "No tienen CONNECT BY: se usa WITH RECURSIVE."
+        }
+      ],
+      "relacionadas": [
+        "palabra:with",
+        "concepto:dual"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Hierarchical Queries (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Hierarchical-Queries.html"
+        },
+        {
+          "titulo": "SYS_CONNECT_BY_PATH (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SYS_CONNECT_BY_PATH.html"
+        }
+      ]
+    },
+    {
       "id": "palabra:insert",
       "categoria": "palabra",
       "titulo": "INSERT: agregar filas",
@@ -2485,7 +2750,7 @@
             "Renombrar: ALTER TABLE clientes RENAME COLUMN telefono TO celular.",
             "Restricciones: ADD CONSTRAINT …, DROP CONSTRAINT nombre, y ENABLE o DISABLE CONSTRAINT nombre."
           ],
-          "ejemplo": "ALTER TABLE pedidos\n    ADD CONSTRAINT fk_pedidos_clientes FOREIGN KEY (cliente_id) REFERENCES clientes (id);"
+          "ejemplo": "CREATE TABLE ficha_pedidos (id NUMBER PRIMARY KEY, cliente_id NUMBER);\n\nALTER TABLE ficha_pedidos ADD telefono VARCHAR2(20);\nALTER TABLE ficha_pedidos MODIFY telefono VARCHAR2(30);\nALTER TABLE ficha_pedidos RENAME COLUMN telefono TO celular;\nALTER TABLE ficha_pedidos\n    ADD CONSTRAINT fk_ficha_pedidos_clientes FOREIGN KEY (cliente_id) REFERENCES clientes (id);\n\nSELECT column_name, data_type, data_length FROM user_tab_columns WHERE table_name = 'FICHA_PEDIDOS' ORDER BY column_id;\n\nDROP TABLE ficha_pedidos PURGE;"
         }
       ],
       "otrosMotores": [
@@ -2536,7 +2801,7 @@
             "Desde 23ai, DROP TABLE IF EXISTS nombre no da error si la tabla no existe.",
             "Hace COMMIT automático."
           ],
-          "ejemplo": "DROP TABLE IF EXISTS tmp_prueba PURGE;\nDROP SEQUENCE sec_facturas;"
+          "ejemplo": "CREATE TABLE ficha_prueba (id NUMBER);\nCREATE SEQUENCE ficha_facturas;\n\nDROP TABLE IF EXISTS ficha_prueba PURGE;\nDROP SEQUENCE ficha_facturas;\nDROP TABLE IF EXISTS ficha_no_existe PURGE;"
         }
       ],
       "otrosMotores": [
@@ -2688,7 +2953,8 @@
         "add_months",
         "months_between",
         "extract",
-        "current_date"
+        "current_date",
+        "last_day"
       ],
       "resumen": "Las funciones para obtener la fecha actual, convertir entre fechas y textos, y calcular con fechas.",
       "secciones": [
@@ -2708,7 +2974,8 @@
             "Sumar números a un DATE suma días: SYSDATE + 7 es dentro de una semana. Restar dos fechas da los días entre ellas.",
             "ADD_MONTHS(fecha, 3) suma meses. MONTHS_BETWEEN(a, b) da los meses entre dos fechas.",
             "TRUNC(fecha) quita la hora. TRUNC(fecha, 'MM') da el primer día del mes.",
-            "EXTRACT(YEAR FROM fecha) saca una parte: YEAR, MONTH o DAY."
+            "EXTRACT(YEAR FROM fecha) saca una parte: YEAR, MONTH o DAY.",
+            "LAST_DAY(fecha) da el último día de su mes: LAST_DAY(DATE '2026-02-10') es el 28 de febrero."
           ],
           "ejemplo": "SELECT id, fecha, TRUNC(SYSDATE) - TRUNC(fecha) AS dias_desde_el_pedido\nFROM pedidos\nWHERE fecha >= ADD_MONTHS(TRUNC(SYSDATE), -1);"
         }
@@ -2744,6 +3011,275 @@
         {
           "titulo": "TO_DATE (Oracle SQL Language Reference 26ai)",
           "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TO_DATE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-texto",
+      "categoria": "palabra",
+      "titulo": "Funciones de texto: LENGTH, SUBSTR, INSTR, REGEXP y otras",
+      "alias": [
+        "funciones de texto",
+        "length",
+        "substr",
+        "instr",
+        "upper",
+        "lower",
+        "initcap",
+        "trim",
+        "ltrim",
+        "rtrim",
+        "lpad",
+        "rpad",
+        "replace",
+        "concat",
+        "||",
+        "regexp_like",
+        "regexp_substr",
+        "regexp_replace",
+        "regexp_instr",
+        "expresiones regulares",
+        "texto",
+        "cadena"
+      ],
+      "resumen": "Sirven para medir, cortar, buscar, cambiar y unir textos. Las que empiezan por REGEXP buscan con expresiones regulares.",
+      "secciones": [
+        {
+          "titulo": "Medir, cortar y buscar",
+          "parrafos": [
+            "LENGTH cuenta los caracteres. Como Oracle guarda el texto vacío como NULL, LENGTH('') da NULL, no 0.",
+            "SUBSTR(texto, inicio, largo) saca un pedazo; el primer carácter es el 1. Con un inicio negativo cuenta desde el final: SUBSTR(texto, -3) da los tres últimos.",
+            "INSTR(texto, buscado) dice en qué posición aparece algo, o 0 si no está."
+          ],
+          "ejemplo": "SELECT nombre,\n       LENGTH(nombre) AS largo,\n       SUBSTR(nombre, 1, 5) AS inicio,\n       SUBSTR(nombre, -3) AS final,\n       INSTR(nombre, 'braille') AS posicion_braille\nFROM productos;"
+        },
+        {
+          "titulo": "Cambiar y rellenar",
+          "parrafos": [
+            "UPPER pasa a mayúsculas, LOWER a minúsculas e INITCAP pone en mayúscula la primera letra de cada palabra.",
+            "REPLACE(texto, buscado, nuevo) cambia todas las veces que aparece.",
+            "TRIM quita los espacios de los dos lados; LTRIM solo los de la izquierda y RTRIM los de la derecha.",
+            "LPAD(texto, largo, relleno) rellena por la izquierda hasta el largo: LPAD(id, 5, '0') da 00001. RPAD rellena por la derecha."
+          ],
+          "ejemplo": "SELECT INITCAP('libro de sql') AS titulo,\n       REPLACE(correo, '@ejemplo.com', '@tienda.com') AS correo_nuevo,\n       LPAD(id, 5, '0') AS codigo\nFROM clientes;"
+        },
+        {
+          "titulo": "Unir",
+          "parrafos": [
+            "Para unir textos se usa ||: nombre || ' <' || correo || '>'. Un NULL en medio se trata como texto vacío.",
+            "CONCAT existe, pero solo acepta dos valores, por eso casi no se usa."
+          ],
+          "ejemplo": "SELECT nombre || ' <' || correo || '>' AS contacto\nFROM clientes;"
+        },
+        {
+          "titulo": "Expresiones regulares",
+          "parrafos": [
+            "REGEXP_LIKE(texto, patrón) es una condición: va en el WHERE y dice si el texto cumple el patrón.",
+            "REGEXP_SUBSTR saca la parte que cumple el patrón, y REGEXP_REPLACE la cambia por otra cosa.",
+            "En el patrón, ^ es el inicio, $ el final, [^@]+ es «uno o más caracteres que no son @», y \\s+ «uno o más espacios». Un cuarto valor, 'i', no distingue mayúsculas."
+          ],
+          "ejemplo": "SELECT correo,\n       REGEXP_SUBSTR(correo, '[^@]+') AS usuario,\n       REGEXP_REPLACE('Libro   de    SQL', '\\s+', ' ') AS espacios_corregidos\nFROM clientes\nWHERE REGEXP_LIKE(correo, '^[a-z]+@ejemplo\\.com$');"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "LEN en lugar de LENGTH, SUBSTRING en lugar de SUBSTR, CHARINDEX en lugar de INSTR, y + o CONCAT para unir. No tiene expresiones regulares hasta SQL Server 2025."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "length, substring o substr, position o strpos, || y concat; las expresiones regulares con ~, regexp_replace y regexp_substr."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CHAR_LENGTH, SUBSTRING, LOCATE o INSTR, LPAD y RPAD, y CONCAT para unir, porque || no une textos. REGEXP_SUBSTR y REGEXP_REPLACE también existen, y el operador REGEXP hace lo de REGEXP_LIKE."
+        }
+      ],
+      "relacionadas": [
+        "tipo:varchar2",
+        "concepto:cadena-vacia",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "Single-Row Functions (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Single-Row-Functions.html"
+        },
+        {
+          "titulo": "SUBSTR (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SUBSTR.html"
+        },
+        {
+          "titulo": "INSTR (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/INSTR.html"
+        },
+        {
+          "titulo": "LPAD (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/LPAD.html"
+        },
+        {
+          "titulo": "Pattern-matching Conditions: REGEXP_LIKE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/Pattern-matching-Conditions.html"
+        },
+        {
+          "titulo": "REGEXP_SUBSTR (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/REGEXP_SUBSTR.html"
+        },
+        {
+          "titulo": "REGEXP_REPLACE (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/REGEXP_REPLACE.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-numericas",
+      "categoria": "palabra",
+      "titulo": "Funciones numéricas: ROUND, TRUNC, MOD y otras",
+      "alias": [
+        "funciones numéricas",
+        "funciones matemáticas",
+        "round",
+        "ceil",
+        "floor",
+        "mod",
+        "abs",
+        "power",
+        "sqrt",
+        "greatest",
+        "least",
+        "redondear",
+        "dbms_random"
+      ],
+      "resumen": "Sirven para redondear, cortar decimales, sacar el resto de una división, potencias y raíces, y para elegir el mayor o el menor de varios valores.",
+      "secciones": [
+        {
+          "titulo": "Redondear y cortar",
+          "parrafos": [
+            "ROUND(número, decimales) redondea: ROUND(18.56, 1) da 18.6. TRUNC(número, decimales) corta sin redondear: TRUNC(18.56, 1) da 18.5.",
+            "CEIL sube al entero siguiente y FLOOR baja al anterior: CEIL(18.2) da 19 y FLOOR(18.9) da 18.",
+            "Dividir dos números da los decimales: 7 / 2 da 3.5. MOD(7, 2) da el resto, 1."
+          ],
+          "ejemplo": "SELECT nombre, precio,\n       ROUND(precio * 1.13, 2) AS con_impuesto,\n       CEIL(precio) AS hacia_arriba,\n       FLOOR(precio) AS hacia_abajo\nFROM productos;\n\nSELECT 7 / 2 AS division, MOD(7, 2) AS resto, TRUNC(7 / 2) AS entera FROM dual;"
+        },
+        {
+          "titulo": "Otras",
+          "parrafos": [
+            "ABS quita el signo: ABS(-5) da 5. POWER(2, 10) eleva 2 a la 10, y SQRT(81) saca la raíz cuadrada.",
+            "GREATEST y LEAST devuelven el mayor y el menor de varios valores, también de textos y fechas. Si alguno es NULL, devuelven NULL.",
+            "Para números al azar se usa DBMS_RANDOM.VALUE, que da uno entre 0 y 1, y ORDER BY DBMS_RANDOM.VALUE ordena las filas al azar."
+          ],
+          "ejemplo": "SELECT ABS(-5) AS absoluto, POWER(2, 10) AS potencia, SQRT(81) AS raiz FROM dual;\n\nSELECT nombre, precio, GREATEST(precio, 30) AS minimo_30, LEAST(precio, 50) AS tope_50\nFROM productos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ROUND, CEILING en lugar de CEIL, FLOOR, ABS, POWER y SQRT; el resto con el operador %. Dividir dos enteros da un entero: 7 / 2 da 3. GREATEST y LEAST desde SQL Server 2022."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "round, trunc, ceil, floor, mod, abs, power, sqrt, greatest, least y random(). 7 / 2 da 3 si los dos son enteros."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "ROUND, TRUNCATE en lugar de TRUNC, CEIL, FLOOR, MOD, ABS, POWER, SQRT, GREATEST, LEAST y RAND(). 7 / 2 da 3.5000."
+        }
+      ],
+      "relacionadas": [
+        "tipo:number",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "ROUND (number) (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ROUND-number.html"
+        },
+        {
+          "titulo": "TRUNC (number) (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TRUNC-number.html"
+        },
+        {
+          "titulo": "MOD (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/MOD.html"
+        },
+        {
+          "titulo": "GREATEST (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/GREATEST.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:conversion",
+      "categoria": "palabra",
+      "titulo": "CAST, TO_NUMBER y TO_TIMESTAMP: cambiar de tipo",
+      "alias": [
+        "cast",
+        "to_number",
+        "to_timestamp",
+        "to_char",
+        "validate_conversion",
+        "conversión",
+        "convertir",
+        "cambiar de tipo",
+        "on conversion error"
+      ],
+      "resumen": "Convierten un valor de un tipo a otro: un texto en número o en fecha, o un número en texto con formato.",
+      "secciones": [
+        {
+          "titulo": "TO_NUMBER, TO_CHAR y TO_TIMESTAMP",
+          "parrafos": [
+            "TO_NUMBER(texto) convierte un texto en número. Con un formato entiende otros separadores: TO_NUMBER('1.234,56', '9G999D99', 'NLS_NUMERIC_CHARACTERS='',.''') da 1234.56.",
+            "TO_CHAR(número, formato) hace lo contrario: TO_CHAR(precio, 'FM999G990D00') da el precio con separador de miles y dos decimales.",
+            "TO_TIMESTAMP(texto, formato) convierte un texto en fecha con hora y fracciones de segundo. Para fechas sin fracciones, TO_DATE; está en la ficha de fechas.",
+            "Si el texto no es un número válido, Oracle da el error ORA-01722."
+          ],
+          "ejemplo": "SELECT TO_NUMBER('1.234,56', '9G999D99', 'NLS_NUMERIC_CHARACTERS='',.''') AS numero,\n       TO_CHAR(1234.5, 'FM999G990D00') AS texto,\n       TO_TIMESTAMP('2026-07-15 14:30:15.25', 'YYYY-MM-DD HH24:MI:SS.FF') AS momento\nFROM dual;"
+        },
+        {
+          "titulo": "CAST",
+          "parrafos": [
+            "CAST(valor AS tipo) es la forma estándar: CAST(precio AS NUMBER(5)).",
+            "Al pasar a menos decimales, Oracle redondea: 59.90 queda en 60.",
+            "CAST(texto AS NUMBER DEFAULT NULL ON CONVERSION ERROR) devuelve NULL, o el valor que digas, en lugar de dar error. VALIDATE_CONVERSION(texto AS NUMBER) da 1 si se puede convertir y 0 si no."
+          ],
+          "ejemplo": "SELECT nombre, precio, CAST(precio AS NUMBER(5)) AS sin_decimales\nFROM productos;\n\nSELECT CAST('123' AS NUMBER DEFAULT NULL ON CONVERSION ERROR) AS bien,\n       CAST('12a' AS NUMBER DEFAULT NULL ON CONVERSION ERROR) AS mal,\n       VALIDATE_CONVERSION('12a' AS NUMBER) AS se_puede\nFROM dual;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "CAST y CONVERT, con TRY_CAST y TRY_CONVERT para que un error dé NULL. Al pasar a menos decimales corta, no redondea."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "CAST y el operador ::, como '123'::numeric, y to_number y to_timestamp con formato."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "CAST y CONVERT, con otros nombres de tipo: SIGNED, DECIMAL, CHAR. Una conversión dudosa no da error: convierte lo que puede, con una advertencia."
+        }
+      ],
+      "relacionadas": [
+        "palabra:fechas",
+        "tipo:number",
+        "palabra:funciones-texto"
+      ],
+      "fuentes": [
+        {
+          "titulo": "CAST (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/CAST.html"
+        },
+        {
+          "titulo": "TO_NUMBER (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TO_NUMBER.html"
+        },
+        {
+          "titulo": "TO_TIMESTAMP (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/TO_TIMESTAMP.html"
+        },
+        {
+          "titulo": "VALIDATE_CONVERSION (Oracle SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/VALIDATE_CONVERSION.html"
         }
       ]
     },
@@ -2826,7 +3362,9 @@
         "%rowtype",
         ":=",
         "into",
-        "select into"
+        "select into",
+        "returning",
+        "returning into"
       ],
       "resumen": "Las variables guardan valores mientras corre el bloque. %TYPE y %ROWTYPE copian el tipo de una columna o de una fila entera.",
       "secciones": [
@@ -2846,6 +3384,15 @@
             "SELECT … INTO variable lee una fila hacia variables. Debe devolver exactamente una fila.",
             "Si no devuelve ninguna, lanza NO_DATA_FOUND; si devuelve varias, TOO_MANY_ROWS. Para varias filas se usa un cursor."
           ]
+        },
+        {
+          "titulo": "RETURNING INTO: el valor que acabas de escribir",
+          "parrafos": [
+            "Un INSERT, UPDATE o DELETE puede devolver valores de la fila que cambió con RETURNING columna INTO variable. Es la forma de saber qué id le dio la identidad a una fila nueva.",
+            "Se usa dentro de un bloque PL/SQL, porque necesita una variable donde dejar el valor.",
+            "El ejemplo deshace el INSERT con ROLLBACK para no cambiar tus categorías."
+          ],
+          "ejemplo": "DECLARE\n    v_id categorias.id%TYPE;\nBEGIN\n    INSERT INTO categorias (nombre) VALUES ('Juegos')\n    RETURNING id INTO v_id;\n    DBMS_OUTPUT.PUT_LINE('Nueva categoría con id ' || v_id);\n    ROLLBACK;\nEND;\n/"
         }
       ],
       "otrosMotores": [
@@ -3174,7 +3721,11 @@
         "in out",
         "call",
         "exec",
-        "execute"
+        "execute",
+        "create or replace",
+        "create or replace procedure",
+        "create or replace function",
+        "is"
       ],
       "resumen": "Un procedimiento es un bloque con nombre que se guarda en la base y se puede llamar muchas veces. Una función además devuelve un valor.",
       "secciones": [
@@ -3184,7 +3735,8 @@
             "CREATE OR REPLACE PROCEDURE nombre (parámetros) AS … BEGIN … END; y una barra / para terminar.",
             "Los parámetros son IN para recibir datos, que es lo predeterminado, OUT para devolverlos e IN OUT para ambos.",
             "Un procedimiento se llama desde un bloque: BEGIN nombre(1); END; o con CALL nombre(1).",
-            "Una función lleva RETURN tipo en la cabecera y RETURN valor en el cuerpo. Se puede usar dentro de un SELECT."
+            "Una función lleva RETURN tipo en la cabecera y RETURN valor en el cuerpo. Se puede usar dentro de un SELECT.",
+            "Después de los parámetros puede ir AS o IS: CREATE PROCEDURE nombre IS … es lo mismo."
           ],
           "ejemplo": "CREATE OR REPLACE FUNCTION precio_con_iva (p_precio NUMBER) RETURN NUMBER AS\nBEGIN\n    RETURN ROUND(p_precio * 1.13, 2);\nEND;\n/\n\nSELECT nombre, precio_con_iva(precio) FROM productos;"
         },
@@ -3227,6 +3779,68 @@
         {
           "titulo": "CREATE FUNCTION Statement (Oracle PL/SQL Language Reference 26ai)",
           "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/CREATE-FUNCTION-statement.html"
+        }
+      ]
+    },
+    {
+      "id": "plsql:execute-immediate",
+      "categoria": "plsql",
+      "titulo": "EXECUTE IMMEDIATE: SQL dinámico",
+      "alias": [
+        "execute immediate",
+        "sql dinámico",
+        "dynamic sql",
+        "using",
+        "dbms_assert"
+      ],
+      "resumen": "EXECUTE IMMEDIATE ejecuta una sentencia escrita en un texto, que puedes armar mientras el programa corre. Es la forma de ejecutar CREATE, ALTER o DROP dentro de un bloque PL/SQL.",
+      "secciones": [
+        {
+          "titulo": "Cómo se usa",
+          "parrafos": [
+            "EXECUTE IMMEDIATE 'texto de la sentencia'. Sin punto y coma dentro del texto.",
+            "Con INTO recibe el resultado de un SELECT de una fila, igual que SELECT INTO.",
+            "Los valores se pasan con variables de enlace: :c en el texto y USING 1 después. Así Oracle no mezcla datos con código, lo que evita la inyección de SQL.",
+            "Los nombres de tablas o columnas no pueden ir como variables de enlace. Si vienen de afuera, revísalos con DBMS_ASSERT.SIMPLE_SQL_NAME antes de pegarlos al texto."
+          ],
+          "ejemplo": "DECLARE\n    v_tabla VARCHAR2(30) := DBMS_ASSERT.SIMPLE_SQL_NAME('productos');\n    v_total NUMBER;\nBEGIN\n    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM ' || v_tabla || ' WHERE categoria_id = :c'\n        INTO v_total\n        USING 1;\n    DBMS_OUTPUT.PUT_LINE('Productos de la categoría 1: ' || v_total);\nEND;\n/"
+        },
+        {
+          "titulo": "CREATE y DROP dentro de un bloque",
+          "parrafos": [
+            "Dentro de un bloque PL/SQL no se puede escribir CREATE, ALTER ni DROP directamente: Oracle da el error PLS-00103. Hay que ponerlos dentro de EXECUTE IMMEDIATE.",
+            "Recuerda que estas sentencias hacen COMMIT automático de lo que tengas pendiente."
+          ],
+          "ejemplo": "BEGIN\n    EXECUTE IMMEDIATE 'CREATE TABLE ficha_dinamica (id NUMBER)';\n    EXECUTE IMMEDIATE 'INSERT INTO ficha_dinamica VALUES (:id)' USING 7;\n    DBMS_OUTPUT.PUT_LINE(SQL%ROWCOUNT || ' fila insertada');\n    EXECUTE IMMEDIATE 'DROP TABLE ficha_dinamica PURGE';\nEND;\n/"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "EXEC (texto) o, mejor, sp_executesql con parámetros. CREATE y DROP sí se pueden escribir directamente en un lote."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "EXECUTE texto USING … dentro de PL/pgSQL, con format() y %I para nombres seguros."
+        },
+        {
+          "motor": "MySQL y MariaDB",
+          "texto": "PREPARE, EXECUTE y DEALLOCATE PREPARE, con ? para los valores. MariaDB tiene también EXECUTE IMMEDIATE."
+        }
+      ],
+      "relacionadas": [
+        "plsql:bloque",
+        "plsql:procedimientos",
+        "plsql:excepciones"
+      ],
+      "fuentes": [
+        {
+          "titulo": "EXECUTE IMMEDIATE Statement (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/EXECUTE-IMMEDIATE-statement.html"
+        },
+        {
+          "titulo": "PL/SQL Dynamic SQL (Oracle PL/SQL Language Reference 26ai)",
+          "url": "https://docs.oracle.com/en/database/oracle/oracle-database/26/lnpls/dynamic-sql.html"
         }
       ]
     },
@@ -3379,6 +3993,15 @@
             "Control+F: abre la barra para buscar y reemplazar en la consulta. Intro va a la siguiente coincidencia y Mayúsculas+Intro a la anterior; Escape vuelve al editor con el cursor sobre la coincidencia. F3 y Mayúsculas+F3 siguen buscando desde el editor.",
             "Control+B: busca un objeto por su nombre en la base (tablas, columnas, vistas, procedimientos, funciones, índices, restricciones, disparadores y secuencias). Las flechas recorren los resultados e Intro lleva al objeto en el árbol. Control+B otra vez recupera la última búsqueda.",
             "Alt o F10: activa la barra de menús (Archivo, Editar, Consulta y Ayuda), con todas las acciones principales y sus atajos. Las flechas recorren los menús, Intro elige una opción y Escape vuelve a donde estabas."
+          ]
+        },
+        {
+          "titulo": "Al escribir en el editor",
+          "parrafos": [
+            "Las sugerencias aparecen mientras escribes, tras una pausa corta: palabras de SQL, funciones y tipos de dato de este motor, y las tablas, vistas, columnas y procedimientos de la base de la pestaña. Control+Espacio las muestra en cualquier momento.",
+            "Con la lista abierta, flecha abajo y flecha arriba recorren las sugerencias; Re Pág y Av Pág saltan de ocho en ocho. Tabulador acepta la sugerencia y Control+Z la deshace. Escape cierra la lista y no vuelve a abrirla hasta la palabra siguiente. Intro sigue siendo un salto de línea.",
+            "Después de un punto, la lista se abre sola con las columnas de la tabla o del alias, o con los objetos del esquema. F1 sobre una sugerencia abre su ficha de ayuda.",
+            "Si escribes en minúsculas, la palabra se inserta en minúsculas. Los nombres de la base se insertan tal como están. En el menú Editar, la casilla «Sugerir mientras escribo» hace que la lista solo aparezca con Control+Espacio."
           ]
         },
         {

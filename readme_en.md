@@ -17,10 +17,11 @@ The program and its manual are in Spanish.
 * **Five engines:** SQL Server 2017 and later, Oracle 19c and later (including Oracle Free), PostgreSQL 14 and later, MySQL 8.0 and later and MariaDB 10.6 and later.
 * **An object explorer** shaped as a tree: databases, tables, columns, keys, indexes, views, procedures, functions, sequences, triggers and, in Oracle, packages. Enter describes the item in front of you, in words.
 * **A query editor** with several tabs, results as tables you move through with your screen reader's table commands, messages with "Go to line" for errors, history, and find and replace.
+* **Suggestions as you type:** the editor offers SQL words, functions, data types and the names of your tables and columns. Your screen reader reads them while the focus stays in the editor; Tab accepts and Escape dismisses.
 * **Forms to create and modify tables,** indexes, CHECK constraints and foreign keys, which check your data before applying a change and warn you about what could break.
-* **Edit rows** in a panel with its own transaction: you commit or roll back whenever you want, in all three engines.
+* **Edit rows** in a panel with its own transaction: you commit or roll back whenever you want, in all five engines.
 * **To understand a database:** describe the whole model, with the load order and possible problems; the JOIN path between two tables; find any object by name; and see what each object uses and what uses it.
-* **Help with F1** on the SQL word under the cursor, with examples for your engine, and a complete **user manual**.
+* **Help with F1** on the SQL word under the cursor or on any suggestion, with examples tested on your engine, and a complete **user manual**.
 * **A menu bar** with Alt or F10, to discover everything the program does and its shortcuts.
 * **New version notices:** the program tells you when an update is available and installs it with your permission.
 

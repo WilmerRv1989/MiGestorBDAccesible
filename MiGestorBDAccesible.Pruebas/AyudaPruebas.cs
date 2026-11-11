@@ -1,3 +1,4 @@
+using MiGestorBDAccesible.Core.Autocompletado;
 using MiGestorBDAccesible.Core.Ayuda;
 using MiGestorBDAccesible.Core.Conexiones;
 
@@ -264,6 +265,102 @@ namespace MiGestorBDAccesible.Pruebas
                 .Select(f => f.Id);
 
             Assert.Empty(sinPostgreSql);
+        }
+
+        [Theory]
+        [InlineData(TipoMotor.SqlServer)]
+        [InlineData(TipoMotor.Oracle)]
+        [InlineData(TipoMotor.PostgreSql)]
+        [InlineData(TipoMotor.MySql)]
+        [InlineData(TipoMotor.MariaDb)]
+        public void TodaPalabraSugeridaTieneFicha(TipoMotor motor)
+        {
+            var vocabulario = AutocompletadoService.Vocabulario(motor);
+            var sinFicha = vocabulario.Palabras.Concat(vocabulario.Funciones)
+                .Where(p => _ayuda.Resolver(motor, $"{AyudaService.CategoriaPalabra}:{p}") is null)
+                .Concat(vocabulario.Tipos.Where(t => _ayuda.Resolver(motor, $"{AyudaService.CategoriaTipo}:{t}") is null));
+
+            Assert.Empty(sinFicha);
+        }
+
+        [Theory]
+        [InlineData("palabra:getdate", "palabra:fechas")]
+        [InlineData("palabra:begin try", "tsql:errores")]
+        [InlineData("palabra:else", "palabra:case")]
+        [InlineData("palabra:@@rowcount", "tsql:funciones-sistema")]
+        [InlineData("palabra:newid", "tipo:uniqueidentifier")]
+        [InlineData("palabra:string_agg", "palabra:group-by")]
+        [InlineData("palabra:delete from", "palabra:delete")]
+        public void ResuelveLasPalabrasDeTSql(string clave, string esperado)
+        {
+            Assert.Equal(esperado, _ayuda.Resolver(TipoMotor.SqlServer, clave)?.Id);
+        }
+
+        [Theory]
+        [InlineData("palabra:minus", "palabra:union")]
+        [InlineData("palabra:connect by", "palabra:connect-by")]
+        [InlineData("palabra:regexp_like", "palabra:funciones-texto")]
+        [InlineData("palabra:to_number", "palabra:conversion")]
+        [InlineData("palabra:execute immediate", "plsql:execute-immediate")]
+        [InlineData("palabra:returning", "plsql:variables")]
+        [InlineData("palabra:is", "plsql:procedimientos")]
+        [InlineData("palabra:last_day", "palabra:fechas")]
+        public void ResuelveLasPalabrasNuevasDeOracle(string clave, string esperado)
+        {
+            Assert.Equal(esperado, _ayuda.Resolver(TipoMotor.Oracle, clave)?.Id);
+        }
+
+        [Theory]
+        [InlineData("palabra:with recursive", "palabra:with")]
+        [InlineData("palabra:except", "palabra:union")]
+        [InlineData("palabra:row_number", "palabra:ventana")]
+        [InlineData("palabra:random", "palabra:funciones-numericas")]
+        [InlineData("palabra:merge into", "palabra:on-conflict")]
+        [InlineData("palabra:return query", "plpgsql:funciones")]
+        [InlineData("palabra:json_agg", "tipo:jsonb")]
+        [InlineData("palabra:create schema", "concepto:bases-esquemas")]
+        public void ResuelveLasPalabrasNuevasDePostgreSql(string clave, string esperado)
+        {
+            Assert.Equal(esperado, _ayuda.Resolver(TipoMotor.PostgreSql, clave)?.Id);
+        }
+
+        [Theory]
+        [InlineData(TipoMotor.MySql, "palabra:with recursive", "palabra:with")]
+        [InlineData(TipoMotor.MySql, "palabra:intersect", "palabra:union")]
+        [InlineData(TipoMotor.MySql, "palabra:row_number", "palabra:ventana")]
+        [InlineData(TipoMotor.MySql, "palabra:greatest", "palabra:funciones-numericas")]
+        [InlineData(TipoMotor.MySql, "palabra:with rollup", "palabra:group-by")]
+        [InlineData(TipoMotor.MySql, "palabra:exists", "palabra:where")]
+        [InlineData(TipoMotor.MySql, "palabra:str_to_date", "palabra:fechas")]
+        [InlineData(TipoMotor.MySql, "palabra:json_object", "tipo:json")]
+        [InlineData(TipoMotor.MySql, "palabra:for each row", "concepto:disparadores")]
+        [InlineData(TipoMotor.MariaDb, "palabra:create sequence", "concepto:secuencias")]
+        [InlineData(TipoMotor.MariaDb, "palabra:create or replace", "concepto:vistas")]
+        [InlineData(TipoMotor.MariaDb, "palabra:uuid", "concepto:identity")]
+        public void ResuelveLasPalabrasNuevasDeMySqlYMariaDb(TipoMotor motor, string clave, string esperado)
+        {
+            Assert.Equal(esperado, _ayuda.Resolver(motor, clave)?.Id);
+        }
+
+        [Fact]
+        public void CreateOrReplaceSeExplicaDistintoEnMySqlYMariaDb()
+        {
+            var mysql = string.Join(' ', _ayuda.Obtener(TipoMotor.MySql, "concepto:vistas")!.Secciones.SelectMany(s => s.Parrafos));
+            var mariadb = string.Join(' ', _ayuda.Obtener(TipoMotor.MariaDb, "concepto:vistas")!.Secciones.SelectMany(s => s.Parrafos));
+
+            Assert.Contains("solo existe para las vistas", mysql);
+            Assert.Contains("sirve también con tablas", mariadb);
+        }
+
+        [Fact]
+        public void LasFichasDeSqlServerAgrupanTSqlYCitanMicrosoftLearn()
+        {
+            var contenido = _ayuda.Contenido(TipoMotor.SqlServer);
+
+            Assert.Equal("T-SQL", contenido.TituloProgramacion);
+            Assert.Contains(contenido.Fichas, f => f.Categoria == AyudaService.CategoriaPlSql);
+            Assert.All(contenido.Fichas.Where(f => f.Categoria == AyudaService.CategoriaPlSql), f => Assert.StartsWith("tsql:", f.Id));
+            Assert.All(contenido.Fichas.SelectMany(f => f.Fuentes), fuente => Assert.StartsWith("https://learn.microsoft.com/es-es/", fuente.Url));
         }
 
         [Fact]

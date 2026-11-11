@@ -30,6 +30,12 @@ namespace MiGestorBDAccesible.Core.Trabajo
         public string? Archivo { get; set; }
 
         public string TextoGuardado { get; set; } = "";
+
+        public bool TextoEnArchivo { get; set; }
+
+        public bool OriginalEnArchivo { get; set; }
+
+        public bool SinCambios { get; set; }
     }
 
     public class SesionEditorService(string rutaArchivo)

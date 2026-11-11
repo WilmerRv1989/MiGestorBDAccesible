@@ -9,6 +9,8 @@ namespace MiGestorBDAccesible.Core.Actualizaciones
         public DateTimeOffset? UltimaBusqueda { get; set; }
 
         public string? VersionOmitida { get; set; }
+
+        public bool SugerirAlEscribir { get; set; } = true;
     }
 
     public class PreferenciasService

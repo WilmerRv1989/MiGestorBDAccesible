@@ -82,12 +82,96 @@ namespace MiGestorBDAccesible.Pruebas
             conjunto.Abrir("c", titulo: "Script CREATE de la vista v");
             conjunto.Activar(segunda);
 
-            var recuperado = ConjuntoPestanasModelo.Recuperar(conjunto.Guardar(Guid.NewGuid()));
+            var recuperado = ConjuntoPestanasModelo.Recuperar(conjunto.Guardar(Guid.NewGuid()), r => r.EndsWith("x.sql") ? "SELECT 2" : null);
 
             Assert.Equal(["Consulta 1", "x.sql", "Script CREATE de la vista v"], recuperado.Pestanas.Select(p => p.Nombre));
             Assert.Equal("x.sql", recuperado.Activa!.Nombre);
             Assert.False(recuperado.Activa.Modificado);
             Assert.Equal("Consulta 4", recuperado.Abrir(null).Nombre);
+        }
+
+        [Fact]
+        public void UnArchivoSinCambiosNoGuardaSuTextoEnLaSesion()
+        {
+            var conjunto = new ConjuntoPestanasModelo();
+            var ruta = Path.Combine(Path.GetTempPath(), "poblar.sql");
+            var grande = new string('x', 2_000_000);
+            conjunto.Abrir("pokemon", grande, ruta);
+
+            var guardada = Assert.Single(conjunto.Guardar(Guid.NewGuid()).Pestanas);
+
+            Assert.True(guardada.TextoEnArchivo);
+            Assert.Equal("", guardada.Texto);
+            Assert.Equal("", guardada.TextoGuardado);
+
+            var recuperada = ConjuntoPestanasModelo.Recuperar(new SesionEditorModelo { Pestanas = [guardada] }, r => r == ruta ? grande : null).Activa!;
+            Assert.Equal(grande, recuperada.Texto);
+            Assert.Equal(ruta, recuperada.Archivo);
+            Assert.False(recuperada.Modificado);
+        }
+
+        [Fact]
+        public void UnArchivoConCambiosGuardaSoloTuTexto()
+        {
+            var conjunto = new ConjuntoPestanasModelo();
+            var ruta = Path.Combine(Path.GetTempPath(), "consulta.sql");
+            var pestana = conjunto.Abrir(null, "SELECT 1", ruta);
+            pestana.Texto = "SELECT 2";
+
+            var guardada = Assert.Single(conjunto.Guardar(Guid.NewGuid()).Pestanas);
+
+            Assert.True(guardada.OriginalEnArchivo);
+            Assert.Equal("SELECT 2", guardada.Texto);
+            Assert.Equal("", guardada.TextoGuardado);
+
+            var recuperada = ConjuntoPestanasModelo.Recuperar(new SesionEditorModelo { Pestanas = [guardada] }, _ => "SELECT 1").Activa!;
+            Assert.Equal("SELECT 2", recuperada.Texto);
+            Assert.True(recuperada.Modificado);
+        }
+
+        [Fact]
+        public void UnArchivoQueYaNoExisteDejaLaPestanaVaciaYAvisa()
+        {
+            var conjunto = new ConjuntoPestanasModelo();
+            conjunto.Abrir("pokemon", "SELECT 1", Path.Combine(Path.GetTempPath(), "borrado.sql"));
+            var cambiado = conjunto.Abrir("pokemon", "SELECT 1", Path.Combine(Path.GetTempPath(), "cambiado.sql"));
+            cambiado.Texto = "SELECT 2";
+
+            var recuperado = ConjuntoPestanasModelo.Recuperar(conjunto.Guardar(Guid.NewGuid()), _ => null);
+
+            Assert.Equal(["borrado.sql", "cambiado.sql"], recuperado.ArchivosNoEncontrados);
+            Assert.Equal("borrado.sql", recuperado.Pestanas[0].Nombre);
+            Assert.Null(recuperado.Pestanas[0].Archivo);
+            Assert.Equal("", recuperado.Pestanas[0].Texto);
+            Assert.Equal("SELECT 2", recuperado.Pestanas[1].Texto);
+            Assert.True(recuperado.Pestanas[1].Modificado);
+        }
+
+        [Fact]
+        public void UnaPestanaSinArchivoNoDuplicaSuTexto()
+        {
+            var conjunto = new ConjuntoPestanasModelo();
+            var pestana = conjunto.Abrir("pokemon", titulo: "Script del historial");
+            pestana.Texto = "SELECT * FROM pokemon";
+            pestana.TextoGuardado = "SELECT * FROM pokemon";
+            var escrita = conjunto.Abrir("pokemon", "SELECT 1");
+
+            var guardadas = conjunto.Guardar(Guid.NewGuid()).Pestanas;
+
+            Assert.True(guardadas[0].SinCambios);
+            Assert.Equal("", guardadas[0].TextoGuardado);
+            Assert.False(guardadas[1].SinCambios);
+
+            var recuperado = ConjuntoPestanasModelo.Recuperar(new SesionEditorModelo { Pestanas = guardadas });
+            Assert.False(recuperado.Pestanas[0].Modificado);
+            Assert.Equal("SELECT 1", recuperado.Pestanas[1].Texto);
+            Assert.True(recuperado.Pestanas[1].Modificado);
+        }
+
+        [Fact]
+        public void LeerArchivoDevuelveNuloSiNoExiste()
+        {
+            Assert.Null(ConjuntoPestanasModelo.LeerArchivo(Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.sql")));
         }
 
         [Fact]

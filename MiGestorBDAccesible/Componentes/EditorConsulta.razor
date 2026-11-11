@@ -36,8 +36,11 @@
 <div class="campo" data-zona="editor">
     <label for="editor-sql">Editor de SQL</label>
     <textarea id="editor-sql" class="editor-sql" rows="12" spellcheck="false" autocomplete="off"
+              aria-autocomplete="list"
               value="@Texto" @oninput="CambiarTexto"></textarea>
-    <span id="ayuda-editor" class="ayuda">F5 ejecuta todo o lo seleccionado. F6 cambia entre editor, resultados y mensajes. F1 explica la palabra bajo el cursor. Control+T abre otra pestaña, Control+W la cierra y Control+Tab cambia de pestaña. Control+O abre, Control+S guarda y Control+H muestra el historial. Control+F busca y reemplaza; F3 sigue buscando.</span>
+    <ul id="sugerencias-editor" class="sugerencias" role="menu" aria-label="Sugerencias" hidden></ul>
+    <div id="estado-sugerencias" class="solo-lector" role="status" aria-live="polite"></div>
+    <span id="ayuda-editor" class="ayuda">F5 ejecuta todo o lo seleccionado. F6 cambia entre editor, resultados y mensajes. F1 explica la palabra bajo el cursor. Las sugerencias aparecen mientras escribes y Control+Espacio las pide; Tabulador acepta y Escape las descarta. Control+T abre otra pestaña, Control+W la cierra y Control+Tab cambia de pestaña. Control+O abre, Control+S guarda y Control+H muestra el historial. Control+F busca y reemplaza; F3 sigue buscando.</span>
 </div>
 
 <div class="acciones">

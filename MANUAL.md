@@ -58,7 +58,7 @@ Pulsa **Alt** o **F10** para activarla. Las flechas izquierda y derecha cambian 
 Cada opción dice su atajo de teclado, así la barra también te sirve para aprenderlos:
 
 - **Archivo**: Nueva consulta, Nueva pestaña, Abrir archivo, Guardar, Guardar como, Cerrar pestaña, Desconectar y Salir.
-- **Editar**: Buscar y reemplazar, Buscar siguiente, Buscar objeto e Historial de consultas.
+- **Editar**: Buscar y reemplazar, Buscar siguiente, Buscar objeto, Historial de consultas y la casilla Sugerir mientras escribo.
 - **Consulta**: Ejecutar y Cancelar la ejecución.
 - **Ayuda**: Ayuda, Atajos de teclado, Manual de usuario, Buscar actualizaciones y Acerca de Mi Gestor BD Accesible.
 
@@ -160,13 +160,41 @@ Puedes tener varias consultas abiertas, cada una en su pestaña:
 - **Control+W** cierra la pestaña activa. Si tiene cambios sin confirmar o texto sin guardar, pregunta antes. Si COMMIT o ROLLBACK falla, la pestaña sigue abierta y se anuncia el error; puedes volver a decidir. Si ya no quedan cambios pendientes en el servidor, la siguiente orden de cerrar no pregunta por ellos.
 - **Control+Tab** y **Control+Mayúsculas+Tab** cambian de pestaña. En la lista de pestañas, las flechas izquierda y derecha pasan de una a otra.
 
-Las pestañas se guardan solas: al volver a conectarte las encuentras como las dejaste.
+Las pestañas se guardan solas: al volver a conectarte las encuentras como las dejaste. Una pestaña abierta desde un archivo y sin cambios se vuelve a leer del archivo; si el archivo ya no existe, la aplicación te avisa y la pestaña queda vacía.
 
 ### Ejecutar
 
 Escribe tu SQL en el editor y pulsa **F5**. Se ejecuta todo el texto o, si seleccionaste una parte, solo esa parte. Mientras se ejecuta, el botón **Cancelar ejecución** detiene la consulta.
 
 Mientras escribes, **F1** explica la palabra de SQL que está bajo el cursor, con ejemplos para el motor al que estás conectado.
+
+### Sugerencias al escribir
+
+Mientras escribes, el editor te sugiere cómo terminar la palabra. Cuando haces una pausa corta aparece una lista con lo que empieza igual que lo que escribiste, y el lector de pantalla lee la primera sugerencia con su clase y su posición, por ejemplo «pokemon, tabla, 1 de 5». El foco no sale del editor: puedes seguir escribiendo y la lista se va reduciendo.
+
+- **Flecha abajo** y **flecha arriba** recorren las sugerencias; **Re Pág** y **Av Pág** saltan de ocho en ocho.
+- **Tabulador** acepta la sugerencia. **Control+Z** la deshace.
+- **Escape** cierra la lista, y no vuelve a abrirse hasta que empieces otra palabra. Escribir un espacio u otro signo también la cierra.
+- **Intro** sigue siendo un salto de línea: nunca acepta una sugerencia.
+- **Control+Espacio** muestra las sugerencias cuando quieras, aunque no hayas escrito nada.
+- **F1** sobre una sugerencia abre su ficha de ayuda: todas las palabras de SQL, funciones y tipos de dato que se sugieren tienen la suya.
+
+Lo que se sugiere depende de dónde estás escribiendo:
+
+- Después de FROM, JOIN, UPDATE o INTO, las tablas y vistas de la base de la pestaña.
+- Después de EXEC, EXECUTE o CALL, los procedimientos.
+- Después de un punto, la lista se abre sola: tras el alias o el nombre de una tabla, sus columnas con su tipo, como «nombre, columna de pokemon, nvarchar(80)»; tras un esquema, sus objetos.
+- En el resto de la sentencia, primero las columnas de las tablas que nombraste en el FROM, después las funciones de la base y al final las palabras de SQL, las funciones y los tipos de dato del motor.
+
+Las palabras de SQL son las de cada motor: por ejemplo, TOP solo aparece en SQL Server y LIMIT solo en PostgreSQL, MySQL y MariaDB. Si escribes en minúsculas, la palabra se inserta en minúsculas; si usas mayúsculas, en mayúsculas. Los nombres de la base se insertan tal como están, y los de otro esquema llevan su esquema delante.
+
+No aparecen sugerencias dentro de un texto entre comillas, en un comentario ni después de un número.
+
+La lista de tablas y columnas se lee una vez por base y se renueva sola cuando ejecutas un CREATE, ALTER, DROP o RENAME, o cuando eliges Actualizar en el explorador.
+
+Si prefieres que las sugerencias solo aparezcan cuando las pides, desmarca **Sugerir mientras escribo** en el menú **Editar**. Desde ese momento la lista solo se abre con Control+Espacio, también después de un punto. La aplicación recuerda tu elección.
+
+Si usas NVDA: con la lista abierta, Escape la cierra y sigues en modo foco. Con la lista cerrada, Escape hace lo de siempre en NVDA y pasa a modo exploración.
 
 ### Resultados y mensajes
 
@@ -185,6 +213,8 @@ Si tu script no se puede dividir en lotes o sentencias, por ejemplo porque un GO
 ### Historial de consultas
 
 **Control+H** muestra las consultas que ejecutaste en esta conexión, de la más reciente a la más antigua. Activa una para ponerla de nuevo en el editor.
+
+De un script muy grande, de más de 20 000 caracteres, el historial guarda solo sus primeras líneas, y lo dice en la lista y al abrirlo. Si necesitas el script completo, guárdalo en un archivo con Control+S.
 
 ### Buscar y reemplazar
 
@@ -340,8 +370,10 @@ Escape cierra la ayuda y te devuelve a donde estabas.
 | Control+H | Historial de consultas |
 | Control+F | Buscar y reemplazar en la consulta |
 | Control+B | Buscar un objeto en la base |
+| Control+Espacio | Muestra las sugerencias del editor |
+| Tabulador, con sugerencias | Acepta la sugerencia |
 | Tecla Aplicaciones o Mayúsculas+F10 | Menú de acciones del nodo |
-| Escape | Cierra el menú, el diálogo o la ayuda |
+| Escape | Cierra el menú, el diálogo, la ayuda o las sugerencias |
 
 ## Preguntas frecuentes
 

@@ -8,6 +8,8 @@ namespace MiGestorBDAccesible.Core.Trabajo
 
         public PestanaModelo? Activa { get; private set; }
 
+        public List<string> ArchivosNoEncontrados { get; } = [];
+
         public int Posicion(PestanaModelo pestana) => Pestanas.IndexOf(pestana) + 1;
 
         public PestanaModelo Abrir(string? baseDatos, string texto = "", string? archivo = null, string? titulo = null)
@@ -76,19 +78,50 @@ namespace MiGestorBDAccesible.Core.Trabajo
         {
             ConexionId = conexionId,
             Activa = Activa is null ? 0 : Pestanas.IndexOf(Activa),
-            Pestanas = Pestanas.Select(p => new PestanaGuardadaModelo
-            {
-                Numero = p.Numero,
-                Titulo = p.Titulo,
-                BaseDatos = p.BaseDatos,
-                Texto = p.Texto,
-                Archivo = p.Archivo,
-                TextoGuardado = p.TextoGuardado
-            }).ToList()
+            Pestanas = Pestanas.Select(Guardar).ToList()
         };
 
-        public static ConjuntoPestanasModelo Recuperar(SesionEditorModelo? sesion)
+        private static PestanaGuardadaModelo Guardar(PestanaModelo pestana)
         {
+            var guardada = new PestanaGuardadaModelo
+            {
+                Numero = pestana.Numero,
+                Titulo = pestana.Titulo,
+                BaseDatos = pestana.BaseDatos,
+                Archivo = pestana.Archivo
+            };
+
+            if (pestana.Archivo is not null)
+            {
+                guardada.TextoEnArchivo = !pestana.Modificado;
+                guardada.OriginalEnArchivo = pestana.Modificado;
+                guardada.Texto = pestana.Modificado ? pestana.Texto : "";
+            }
+            else
+            {
+                guardada.Texto = pestana.Texto;
+                guardada.SinCambios = !pestana.Modificado;
+                guardada.TextoGuardado = pestana.Modificado ? pestana.TextoGuardado : "";
+            }
+
+            return guardada;
+        }
+
+        public static string? LeerArchivo(string ruta)
+        {
+            try
+            {
+                return File.ReadAllText(ruta).Replace("\r\n", "\n");
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+            {
+                return null;
+            }
+        }
+
+        public static ConjuntoPestanasModelo Recuperar(SesionEditorModelo? sesion, Func<string, string?>? leer = null)
+        {
+            leer ??= LeerArchivo;
             var conjunto = new ConjuntoPestanasModelo();
 
             if (sesion is null)
@@ -112,15 +145,43 @@ namespace MiGestorBDAccesible.Core.Trabajo
 
             foreach (var guardada in guardadas)
             {
-                conjunto.Pestanas.Add(new PestanaModelo
+                var pestana = new PestanaModelo
                 {
                     Numero = guardada.Numero,
                     Titulo = guardada.Titulo,
                     BaseDatos = guardada.BaseDatos,
                     Texto = guardada.Texto,
                     Archivo = guardada.Archivo,
-                    TextoGuardado = guardada.TextoGuardado
-                });
+                    TextoGuardado = guardada.SinCambios ? guardada.Texto : guardada.TextoGuardado
+                };
+
+                if (guardada.Archivo is not null && (guardada.TextoEnArchivo || guardada.OriginalEnArchivo))
+                {
+                    var contenido = leer(guardada.Archivo);
+
+                    if (contenido is null)
+                    {
+                        conjunto.ArchivosNoEncontrados.Add(Path.GetFileName(guardada.Archivo));
+                    }
+
+                    if (guardada.TextoEnArchivo)
+                    {
+                        pestana.Texto = contenido ?? "";
+                        pestana.TextoGuardado = contenido ?? "";
+
+                        if (contenido is null)
+                        {
+                            pestana.Titulo = Path.GetFileName(guardada.Archivo);
+                            pestana.Archivo = null;
+                        }
+                    }
+                    else
+                    {
+                        pestana.TextoGuardado = contenido ?? "";
+                    }
+                }
+
+                conjunto.Pestanas.Add(pestana);
             }
 
             if (conjunto.Pestanas.Count > 0)

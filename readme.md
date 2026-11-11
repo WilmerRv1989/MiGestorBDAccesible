@@ -15,10 +15,11 @@ Mi Gestor BD Accesible está pensado para usarse por completo con el teclado y u
 * **Cinco motores:** SQL Server desde 2017, Oracle desde 19c (incluida Oracle Free), PostgreSQL desde 14, MySQL desde 8.0 y MariaDB desde 10.6.
 * **Un explorador de objetos** en forma de árbol: bases de datos, tablas, columnas, llaves, índices, vistas, procedimientos, funciones, secuencias, disparadores y, en Oracle, paquetes. Intro describe lo que tienes delante, en palabras.
 * **Un editor de consultas** con varias pestañas, resultados en tablas que recorres con los comandos de tu lector, mensajes con «Ir a la línea» del error, historial, y buscar y reemplazar.
+* **Sugerencias mientras escribes:** el editor te propone palabras de SQL, funciones, tipos de dato y los nombres de tus tablas y columnas. Tu lector las lee sin que el foco salga del editor; Tabulador acepta y Escape descarta.
 * **Formularios para crear y modificar tablas,** índices, restricciones CHECK y llaves foráneas, que revisan tus datos antes de aplicar un cambio y te avisan de lo que se podría romper.
 * **Editar filas** en un panel con su propia transacción: confirmas o deshaces cuando quieras, en todos los motores.
 * **Para entender una base:** describir el modelo completo, con el orden de carga y los posibles problemas; el camino de JOIN entre dos tablas; buscar cualquier objeto por su nombre; y ver qué objetos usa cada uno y quién lo usa.
-* **Ayuda con F1** sobre la palabra de SQL que tienes bajo el cursor, con ejemplos para tu motor, y un **manual de usuario** completo.
+* **Ayuda con F1** sobre la palabra de SQL que tienes bajo el cursor o sobre cualquier sugerencia, con ejemplos probados en tu motor, y un **manual de usuario** completo.
 * **Una barra de menús** con Alt o F10, para descubrir todo lo que hace el programa y sus atajos.
 * **Avisos de versiones nuevas:** el programa te dice cuándo hay una actualización y la instala con tu permiso.
 

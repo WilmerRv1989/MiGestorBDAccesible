@@ -190,6 +190,280 @@ window.miGestor = {
         this._ayuda.invokeMethodAsync("AbrirAyuda", temas);
     },
 
+    sugerencias: {
+        lista: [],
+        indice: -1,
+        inicio: 0,
+        pedido: 0,
+        alEscribir: true,
+        descartada: false,
+        temporizador: 0,
+        insertando: false,
+        anunciada: "",
+
+        palabra(c) {
+            return /[\p{L}\p{N}_$#@]/u.test(c);
+        },
+
+        programar(ms) {
+            clearTimeout(this.temporizador);
+            this.temporizador = setTimeout(() => {
+                this.temporizador = 0;
+                this.pedir(false);
+            }, ms);
+        },
+
+        alCambiar(e) {
+            if (this.insertando) {
+                return;
+            }
+
+            const editor = e.target;
+            const dato = e.inputType === "insertText" ? (e.data ?? "") : null;
+
+            if (dato && ![...dato].every(c => this.palabra(c))) {
+                this.descartada = false;
+                this.cerrar();
+                if (this.alEscribir && dato.endsWith(".")
+                    && /[\p{L}\p{N}_$#"\]`]/u.test(editor.value.charAt(editor.selectionStart - 2))) {
+                    this.programar(0);
+                }
+                return;
+            }
+
+            if (this.abierta()) {
+                if (this.filtrar(editor)) {
+                    this.programar(300);
+                }
+                return;
+            }
+
+            if (!dato || !this.alEscribir || this.descartada) {
+                return;
+            }
+
+            let inicio = editor.selectionStart;
+            while (inicio > 0 && this.palabra(editor.value.charAt(inicio - 1))) {
+                inicio--;
+            }
+
+            if (!/\p{N}/u.test(editor.value.charAt(inicio))) {
+                this.programar(300);
+            }
+        },
+
+        filtrar(editor) {
+            const cursor = editor.selectionStart;
+            const prefijo = editor.value.slice(this.inicio, cursor).toLowerCase();
+            if (cursor < this.inicio || ![...prefijo].every(c => this.palabra(c))) {
+                this.cerrar();
+                return false;
+            }
+
+            const anterior = this.activa();
+            const coincide = s => s.texto.toLowerCase().startsWith(prefijo)
+                || s.texto.slice(s.texto.lastIndexOf(".") + 1).toLowerCase().startsWith(prefijo);
+            const lista = this.lista.filter(coincide);
+            if (lista.length === 0) {
+                this.cerrar();
+                return false;
+            }
+
+            this.lista = lista;
+            const mismo = anterior ? lista.findIndex(s => s.texto === anterior.texto) : -1;
+            this.dibujar(mismo >= 0 ? mismo : 0);
+            return true;
+        },
+
+        abierta() {
+            const ul = document.getElementById("sugerencias-editor");
+            return !!ul && !ul.hidden && this.lista.length > 0;
+        },
+
+        activa() {
+            return this.abierta() ? this.lista[this.indice] : null;
+        },
+
+        async pedir(anunciarVacio) {
+            const editor = document.getElementById("editor-sql");
+            if (!editor || !miGestor._espacio) {
+                return;
+            }
+
+            const numero = ++this.pedido;
+            const resultado = await miGestor._espacio.invokeMethodAsync("Sugerencias", editor.value, editor.selectionStart);
+            if (numero !== this.pedido || document.activeElement !== editor) {
+                return;
+            }
+
+            if (!resultado || resultado.sugerencias.length === 0) {
+                this.cerrar();
+                if (anunciarVacio) {
+                    this.estado("No hay sugerencias.");
+                }
+                return;
+            }
+
+            const anterior = this.activa();
+            this.lista = resultado.sugerencias;
+            this.inicio = resultado.inicio;
+            const mismo = anterior ? this.lista.findIndex(s => s.texto === anterior.texto) : -1;
+            this.dibujar(mismo >= 0 ? mismo : 0);
+        },
+
+        dibujar(indice) {
+            const editor = document.getElementById("editor-sql");
+            const ul = document.getElementById("sugerencias-editor");
+            ul.replaceChildren(...this.lista.map((s, i) => {
+                const li = document.createElement("li");
+                li.id = `sugerencia-${i}`;
+                li.setAttribute("role", "menuitem");
+                li.setAttribute("aria-posinset", i + 1);
+                li.setAttribute("aria-setsize", this.lista.length);
+                li.textContent = `${s.texto}, ${s.tipo}`;
+                return li;
+            }));
+            ul.hidden = false;
+            editor.setAttribute("aria-controls", "sugerencias-editor");
+            this.mover(indice, true);
+        },
+
+        mover(indice, forzar) {
+            const editor = document.getElementById("editor-sql");
+            const total = this.lista.length;
+            const nuevo = ((indice % total) + total) % total;
+            if (nuevo === this.indice && !forzar) {
+                return;
+            }
+
+            const ul = document.getElementById("sugerencias-editor");
+            ul.querySelectorAll(".activa").forEach(li => li.classList.remove("activa"));
+            this.indice = nuevo;
+            const li = document.getElementById(`sugerencia-${nuevo}`);
+            li.classList.add("activa");
+            li.scrollIntoView({ block: "nearest" });
+            if (editor.getAttribute("aria-activedescendant") === li.id && this.anunciada === li.textContent) {
+                return;
+            }
+            this.anunciada = li.textContent;
+            editor.removeAttribute("aria-activedescendant");
+            editor.setAttribute("aria-activedescendant", li.id);
+        },
+
+        aceptar() {
+            const editor = document.getElementById("editor-sql");
+            const sugerencia = this.activa();
+            if (!editor || !sugerencia) {
+                return;
+            }
+
+            const fin = editor.selectionStart;
+            const escrito = editor.value.slice(this.inicio, fin);
+            const minusculas = sugerencia.ajustarMayusculas && /\p{L}/u.test(escrito) && escrito === escrito.toLowerCase();
+            this.cerrar();
+            editor.setSelectionRange(this.inicio, fin);
+            this.insertando = true;
+            try {
+                document.execCommand("insertText", false, minusculas ? sugerencia.texto.toLowerCase() : sugerencia.texto);
+            } finally {
+                this.insertando = false;
+            }
+        },
+
+        cerrar() {
+            clearTimeout(this.temporizador);
+            this.temporizador = 0;
+            this.pedido++;
+            this.lista = [];
+            this.indice = -1;
+            this.anunciada = "";
+            const ul = document.getElementById("sugerencias-editor");
+            if (ul) {
+                ul.hidden = true;
+                ul.replaceChildren();
+            }
+            const editor = document.getElementById("editor-sql");
+            if (editor) {
+                editor.removeAttribute("aria-activedescendant");
+                editor.removeAttribute("aria-controls");
+            }
+        },
+
+        estado(texto) {
+            const region = document.getElementById("estado-sugerencias");
+            if (region) {
+                region.textContent = "";
+                setTimeout(() => { region.textContent = texto; }, 50);
+            }
+        },
+
+        tecla(e) {
+            if (e.ctrlKey && !e.altKey && !e.shiftKey && e.code === "Space") {
+                e.preventDefault();
+                this.descartada = false;
+                if (!this.abierta()) {
+                    clearTimeout(this.temporizador);
+                    this.pedir(true);
+                }
+                return true;
+            }
+
+            if (!this.abierta()) {
+                if (["Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
+                    this.descartada = false;
+                    clearTimeout(this.temporizador);
+                }
+                return false;
+            }
+
+            switch (e.key) {
+                case "ArrowDown":
+                    this.mover(this.indice + 1);
+                    break;
+                case "ArrowUp":
+                    this.mover(this.indice - 1);
+                    break;
+                case "PageDown":
+                    this.mover(Math.min(this.indice + 8, this.lista.length - 1));
+                    break;
+                case "PageUp":
+                    this.mover(Math.max(this.indice - 8, 0));
+                    break;
+                case "Tab":
+                    if (e.shiftKey || e.ctrlKey) {
+                        this.cerrar();
+                        return false;
+                    }
+                    this.aceptar();
+                    break;
+                case "Escape":
+                    this.cerrar();
+                    this.descartada = true;
+                    break;
+                case "Enter":
+                case "ArrowLeft":
+                case "ArrowRight":
+                case "Home":
+                case "End":
+                    this.cerrar();
+                    return false;
+                default:
+                    return false;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            return true;
+        }
+    },
+
+    configurarSugerencias(valor) {
+        this.sugerencias.alEscribir = valor;
+        if (!valor) {
+            this.sugerencias.cerrar();
+        }
+    },
+
     registrarEspacio(referencia) {
         this._espacio = referencia;
     },
@@ -211,8 +485,12 @@ window.miGestor = {
         this._focoPrevio = activo && activo !== document.body ? activo : null;
 
         let temas = "";
+        const sugerencia = this.sugerencias.activa();
 
-        if (activo && activo.id === "editor-sql") {
+        if (sugerencia) {
+            temas = sugerencia.ayuda;
+            this.sugerencias.cerrar();
+        } else if (activo && activo.id === "editor-sql") {
             temas = this.temasEnCursor(activo);
         } else {
             const contexto = activo && activo.closest ? activo.closest("[data-ayuda]") : null;
@@ -575,3 +853,28 @@ document.addEventListener("keydown", e => {
         }
     }
 });
+
+document.addEventListener("keydown", e => {
+    if (e.target && e.target.id === "editor-sql") {
+        miGestor.sugerencias.tecla(e);
+    }
+}, true);
+
+document.addEventListener("input", e => {
+    if (e.target && e.target.id === "editor-sql") {
+        miGestor.sugerencias.alCambiar(e);
+    }
+}, true);
+
+document.addEventListener("focusout", e => {
+    if (e.target && e.target.id === "editor-sql") {
+        miGestor.sugerencias.cerrar();
+    }
+}, true);
+
+document.addEventListener("mousedown", e => {
+    if (e.target && e.target.id === "editor-sql") {
+        miGestor.sugerencias.descartada = false;
+        miGestor.sugerencias.cerrar();
+    }
+}, true);

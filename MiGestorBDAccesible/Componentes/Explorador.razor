@@ -1,3 +1,4 @@
+@using MiGestorBDAccesible.Core.Autocompletado
 @using MiGestorBDAccesible.Core.Definicion
 @using MiGestorBDAccesible.Core.Descripcion
 @using MiGestorBDAccesible.Core.Estructura
@@ -9,6 +10,7 @@
 @inject AnunciadorService anunciador
 @inject ValidadorTablaService validador
 @inject IJSRuntime js
+@inject AutocompletadoService autocompletado
 
 @if (_raiz is null)
 {
@@ -1962,6 +1964,7 @@ else
 
     private async Task RecargarAsync(NodoArbolModelo nodo)
     {
+        autocompletado.Invalidar(Conexion);
         nodo.Hijos = null;
         nodo.Expandido = false;
         await ExpandirAsync(nodo);

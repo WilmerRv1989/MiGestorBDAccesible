@@ -501,7 +501,10 @@
       "alias": [
         "json",
         "json_extract",
-        "json_valid"
+        "json_valid",
+        "json_object",
+        "json_array",
+        "json_arrayagg"
       ],
       "resumen": "Guarda documentos JSON en un formato binario y comprueba que sean válidos.",
       "secciones": [
@@ -511,6 +514,15 @@
             "JSON_EXTRACT lee un valor con una ruta como $.color. JSON_UNQUOTE le quita las comillas."
           ],
           "ejemplo": "CREATE TABLE ficha_ajustes (\n    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n    datos json NOT NULL\n);\nINSERT INTO ficha_ajustes (datos) VALUES ('{\"color\": \"azul\"}');\nSELECT JSON_UNQUOTE(JSON_EXTRACT(datos, '$.color')) AS color FROM ficha_ajustes;"
+        },
+        {
+          "titulo": "Construir JSON",
+          "parrafos": [
+            "JSON_OBJECT('clave', valor, …) arma un objeto con pares de clave y valor.",
+            "JSON_ARRAYAGG(expresión) junta las filas de un grupo en un arreglo JSON.",
+            "El ejemplo devuelve, por cada cliente, un arreglo con sus pedidos."
+          ],
+          "ejemplo": "SELECT c.nombre,\n       JSON_ARRAYAGG(JSON_OBJECT('pedido', p.id, 'fecha', p.fecha)) AS pedidos\nFROM clientes c\nJOIN pedidos p ON p.cliente_id = c.id\nGROUP BY c.nombre;"
         }
       ],
       "otrosMotores": [
@@ -647,7 +659,8 @@
         "vacío",
         "is null",
         "obligatoria",
-        "opcional"
+        "opcional",
+        "is not null"
       ],
       "resumen": "NULL significa que no hay valor. No es lo mismo que cero ni que un texto vacío.",
       "secciones": [
@@ -906,7 +919,8 @@
         "autoincrement",
         "identity",
         "número automático",
-        "last_insert_id"
+        "last_insert_id",
+        "uuid"
       ],
       "resumen": "MySQL pone solo el siguiente número en la columna al insertar una fila.",
       "secciones": [
@@ -916,7 +930,8 @@
             "Solo una columna por tabla, y tiene que ser parte de una llave, normalmente la clave principal.",
             "El valor inicial es de la tabla: AUTO_INCREMENT = 1000 al crearla.",
             "De cuánto sube no se define por columna: lo decide la variable auto_increment_increment.",
-            "LAST_INSERT_ID() devuelve el número que se acaba de generar en tu sesión."
+            "LAST_INSERT_ID() devuelve el número que se acaba de generar en tu sesión.",
+            "Si la clave no puede ser un número correlativo, UUID() genera un identificador único de 36 caracteres, que se guarda en una columna CHAR(36)."
           ],
           "ejemplo": "INSERT INTO categorias (nombre) VALUES ('Ficha AI');\nSELECT LAST_INSERT_ID() AS nuevo_id;\nDELETE FROM categorias WHERE nombre = 'Ficha AI';"
         }
@@ -1188,7 +1203,9 @@
         "view",
         "vista",
         "vistas",
-        "create view"
+        "create view",
+        "create or replace",
+        "create or replace view"
       ],
       "resumen": "Una vista es una consulta guardada con nombre. Se consulta como si fuera una tabla.",
       "secciones": [
@@ -1196,7 +1213,8 @@
           "titulo": "En MySQL",
           "parrafos": [
             "CREATE OR REPLACE VIEW la crea o la cambia.",
-            "Las vistas simples se pueden actualizar; las que usan GROUP BY no."
+            "Las vistas simples se pueden actualizar; las que usan GROUP BY no.",
+            "En MySQL, CREATE OR REPLACE solo existe para las vistas. Los procedimientos, funciones y disparadores se borran con DROP … IF EXISTS antes de volver a crearlos."
           ],
           "ejemplo": "CREATE OR REPLACE VIEW ficha_v_clientes AS\nSELECT id, nombre FROM clientes;\nSELECT * FROM ficha_v_clientes;\nDROP VIEW ficha_v_clientes;"
         }
@@ -1287,7 +1305,8 @@
         "funciones",
         "create function",
         "returns",
-        "deterministic"
+        "deterministic",
+        "return"
       ],
       "resumen": "Una función recibe parámetros y devuelve un valor. Se usa dentro de una consulta.",
       "secciones": [
@@ -1335,7 +1354,10 @@
         "disparadores",
         "create trigger",
         "new",
-        "old"
+        "old",
+        "before",
+        "after",
+        "for each row"
       ],
       "resumen": "Un disparador se ejecuta solo antes o después de un INSERT, UPDATE o DELETE, una vez por cada fila.",
       "secciones": [
@@ -1384,7 +1406,8 @@
         "secuencia",
         "secuencias",
         "nextval",
-        "lastval"
+        "lastval",
+        "create sequence"
       ],
       "resumen": "MySQL no tiene secuencias: los números automáticos se hacen con AUTO_INCREMENT.",
       "secciones": [
@@ -1812,7 +1835,11 @@
         "in",
         "and",
         "or",
-        "not"
+        "not",
+        "exists",
+        "not exists",
+        "subconsulta",
+        "subconsultas"
       ],
       "resumen": "Deja solo las filas que cumplen una condición.",
       "secciones": [
@@ -1823,6 +1850,15 @@
             "LIKE no distingue mayúsculas con las intercalaciones normales."
           ],
           "ejemplo": "SELECT nombre, precio\nFROM productos\nWHERE precio BETWEEN 20 AND 60 AND nombre LIKE '%a%';"
+        },
+        {
+          "titulo": "EXISTS y subconsultas",
+          "parrafos": [
+            "Una subconsulta es un SELECT entre paréntesis dentro de otra sentencia: WHERE precio > (SELECT AVG(precio) FROM productos).",
+            "EXISTS es verdadero si la subconsulta encuentra al menos una fila. NOT EXISTS encuentra lo que no tiene pareja, como los clientes sin pedidos del ejemplo.",
+            "NOT EXISTS es más seguro que NOT IN: si la lista de NOT IN trae un NULL, la consulta no devuelve ninguna fila."
+          ],
+          "ejemplo": "SELECT c.nombre\nFROM clientes c\nWHERE NOT EXISTS (\n    SELECT 1 FROM pedidos p WHERE p.cliente_id = c.id\n);"
         }
       ],
       "otrosMotores": [],
@@ -1847,7 +1883,8 @@
         "left join",
         "right join",
         "on",
-        "cross join"
+        "cross join",
+        "using"
       ],
       "resumen": "Une filas de dos tablas por una condición.",
       "secciones": [
@@ -1856,7 +1893,8 @@
           "parrafos": [
             "JOIN, o INNER JOIN, trae solo las filas que coinciden.",
             "LEFT JOIN trae todas las de la izquierda, con NULL donde no hay pareja.",
-            "En el menú de una base, Camino de JOIN busca cómo unir dos tablas."
+            "En el menú de una base, Camino de JOIN busca cómo unir dos tablas.",
+            "Si la columna se llama igual en las dos tablas, USING (columna) reemplaza al ON: JOIN pedidos USING (cliente_id)."
           ],
           "ejemplo": "SELECT c.nombre, p.id AS pedido\nFROM clientes c\nLEFT JOIN pedidos p ON p.cliente_id = c.id;"
         }
@@ -1896,7 +1934,9 @@
         "sum",
         "avg",
         "min",
-        "max"
+        "max",
+        "with rollup",
+        "rollup"
       ],
       "resumen": "Agrupa filas y calcula totales por grupo.",
       "secciones": [
@@ -1907,6 +1947,14 @@
             "Con ONLY_FULL_GROUP_BY, cada columna del SELECT debe estar en el GROUP BY o dentro de una de esas funciones."
           ],
           "ejemplo": "SELECT categoria_id, COUNT(*) AS cantidad, AVG(precio) AS promedio\nFROM productos\nGROUP BY categoria_id\nHAVING COUNT(*) > 1;"
+        },
+        {
+          "titulo": "WITH ROLLUP: totales",
+          "parrafos": [
+            "GROUP BY columna WITH ROLLUP agrega al final una fila con el total general. En esa fila, la columna agrupada sale en NULL.",
+            "Con varias columnas, agrega también un subtotal por cada grupo."
+          ],
+          "ejemplo": "SELECT categoria_id, COUNT(*) AS productos, SUM(precio) AS suma\nFROM productos\nGROUP BY categoria_id WITH ROLLUP;"
         }
       ],
       "otrosMotores": [],
@@ -2006,6 +2054,206 @@
       ]
     },
     {
+      "id": "palabra:union",
+      "categoria": "palabra",
+      "titulo": "UNION, INTERSECT y EXCEPT: combinar resultados",
+      "alias": [
+        "union",
+        "union all",
+        "intersect",
+        "except",
+        "operadores de conjuntos",
+        "minus"
+      ],
+      "resumen": "Juntan los resultados de dos SELECT en uno: UNION los suma, INTERSECT deja lo que está en los dos y EXCEPT lo que está en el primero pero no en el segundo.",
+      "secciones": [
+        {
+          "titulo": "UNION y UNION ALL",
+          "parrafos": [
+            "Los dos SELECT deben devolver la misma cantidad de columnas; si no, MySQL da el error 1222. Los nombres de las columnas salen del primero.",
+            "UNION quita las filas repetidas; UNION ALL las deja todas y es más rápido. Si sabes que no hay repetidas, usa UNION ALL.",
+            "ORDER BY va una sola vez, al final, y ordena el resultado completo."
+          ],
+          "ejemplo": "SELECT nombre, 'Cliente' AS tipo FROM clientes\nUNION ALL\nSELECT nombre, 'Categoría' FROM categorias\nORDER BY nombre;"
+        },
+        {
+          "titulo": "INTERSECT y EXCEPT",
+          "parrafos": [
+            "INTERSECT devuelve las filas que aparecen en los dos resultados. EXCEPT devuelve las del primero que no aparecen en el segundo. En el ejemplo, EXCEPT da los clientes que todavía no tienen pedidos.",
+            "Existen desde MySQL 8.0.31. En versiones anteriores se usa NOT IN o NOT EXISTS."
+          ],
+          "ejemplo": "SELECT id FROM clientes\nEXCEPT\nSELECT cliente_id FROM pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "UNION, INTERSECT y EXCEPT, igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "UNION e INTERSECT igual; EXCEPT se llama MINUS."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual, y además INTERSECT ALL y EXCEPT ALL."
+        }
+      ],
+      "relacionadas": [
+        "palabra:select",
+        "palabra:order-by",
+        "palabra:where"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: UNION",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/union.html"
+        },
+        {
+          "titulo": "MySQL: INTERSECT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/intersect.html"
+        },
+        {
+          "titulo": "MySQL: EXCEPT",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/except.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:with",
+      "categoria": "palabra",
+      "titulo": "WITH y WITH RECURSIVE: consultas con nombre",
+      "alias": [
+        "with",
+        "with recursive",
+        "recursive",
+        "cte",
+        "expresión de tabla común",
+        "common table expression",
+        "consulta recursiva"
+      ],
+      "resumen": "WITH le pone nombre a una consulta para usarla después como si fuera una tabla, dentro de la misma sentencia. Ordena las consultas largas y, con RECURSIVE, permite recorrer jerarquías.",
+      "secciones": [
+        {
+          "titulo": "Cómo se escribe",
+          "parrafos": [
+            "WITH nombre AS (SELECT …) y, justo después, la consulta que lo usa. El nombre solo existe durante esa sentencia.",
+            "Puedes definir varias, separadas por comas, y cada una puede usar las anteriores.",
+            "Existe desde MySQL 8.0."
+          ],
+          "ejemplo": "WITH totales AS (\n    SELECT pedido_id, SUM(cantidad * precio_unitario) AS total\n    FROM pedido_productos\n    GROUP BY pedido_id\n)\nSELECT c.nombre, t.total\nFROM totales t\nJOIN pedidos p ON p.id = t.pedido_id\nJOIN clientes c ON c.id = p.cliente_id\nORDER BY t.total DESC;"
+        },
+        {
+          "titulo": "WITH RECURSIVE",
+          "parrafos": [
+            "Una consulta que se nombra a sí misma repite su segunda parte hasta que ya no devuelve filas nuevas. Sirve para jerarquías, como empleados y jefes, o para generar series.",
+            "La primera parte es el punto de partida; después va UNION ALL y la parte que se repite.",
+            "El tipo de cada columna sale de la primera parte. Si un texto va a crecer en cada vuelta, como el camino del ejemplo, dale espacio con CAST(nombre AS CHAR(200)); si no, se corta o da el error 1406.",
+            "Para evitar bucles infinitos, MySQL se detiene a las 1000 vueltas con el error 3636. El límite es la variable cte_max_recursion_depth.",
+            "El ejemplo arma un organigrama pequeño sin crear tablas, y muestra el camino desde la raíz hasta cada persona."
+          ],
+          "ejemplo": "WITH RECURSIVE empleados AS (\n    SELECT 1 AS id, 'Ana' AS nombre, NULL AS jefe_id\n    UNION ALL SELECT 2, 'Luis', 1\n    UNION ALL SELECT 3, 'Sofía', 1\n    UNION ALL SELECT 4, 'Carlos', 2\n),\narbol AS (\n    SELECT id, nombre, 1 AS nivel, CAST(nombre AS CHAR(200)) AS camino\n    FROM empleados\n    WHERE jefe_id IS NULL\n    UNION ALL\n    SELECT e.id, e.nombre, a.nivel + 1, CONCAT(a.camino, ' > ', e.nombre)\n    FROM empleados e\n    JOIN arbol a ON e.jefe_id = a.id\n)\nSELECT nivel, nombre, camino FROM arbol ORDER BY camino;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "WITH igual; las recursivas no llevan RECURSIVE y se detienen a las 100 vueltas."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "WITH igual; las recursivas no llevan RECURSIVE pero exigen la lista de columnas. También existe CONNECT BY."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "WITH y WITH RECURSIVE igual, sin límite de vueltas; además admite INSERT, UPDATE y DELETE dentro del WITH."
+        }
+      ],
+      "relacionadas": [
+        "palabra:union",
+        "concepto:vistas",
+        "palabra:ventana"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: WITH (expresiones de tabla comunes)",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/with.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:ventana",
+      "categoria": "palabra",
+      "titulo": "Funciones de ventana: OVER, ROW_NUMBER, RANK y LAG",
+      "alias": [
+        "over",
+        "partition by",
+        "ventana",
+        "funciones de ventana",
+        "window",
+        "row_number",
+        "rank",
+        "dense_rank",
+        "ntile",
+        "lag",
+        "lead"
+      ],
+      "resumen": "Una función de ventana calcula algo sobre un grupo de filas, como un número de orden o un total, sin juntar las filas como hace GROUP BY: cada fila sigue apareciendo.",
+      "secciones": [
+        {
+          "titulo": "OVER y PARTITION BY",
+          "parrafos": [
+            "OVER (…) convierte la función en función de ventana. Dentro, ORDER BY dice el orden y PARTITION BY divide las filas en grupos que se calculan por separado.",
+            "También sirve con SUM, COUNT y AVG: SUM(precio) OVER (PARTITION BY categoria_id) pone en cada fila el total de su categoría.",
+            "Existen desde MySQL 8.0."
+          ],
+          "ejemplo": "SELECT nombre, categoria_id, precio,\n       SUM(precio) OVER (PARTITION BY categoria_id) AS total_categoria\nFROM productos;"
+        },
+        {
+          "titulo": "Numerar filas",
+          "parrafos": [
+            "ROW_NUMBER numera 1, 2, 3… sin repetir. RANK repite el número en los empates y deja huecos: 1, 1, 3. DENSE_RANK repite sin dejar huecos: 1, 1, 2.",
+            "NTILE(4) reparte las filas en 4 grupos de tamaño parecido.",
+            "El resultado de una función de ventana no se puede usar en el WHERE de la misma consulta. Para quedarte con el primero de cada grupo, numera dentro de un WITH y filtra después, como en el ejemplo: el producto más caro de cada categoría."
+          ],
+          "ejemplo": "WITH orden AS (\n    SELECT nombre, categoria_id, precio,\n           ROW_NUMBER() OVER (PARTITION BY categoria_id ORDER BY precio DESC) AS puesto\n    FROM productos\n)\nSELECT nombre, categoria_id, precio\nFROM orden\nWHERE puesto = 1;"
+        },
+        {
+          "titulo": "LAG y LEAD",
+          "parrafos": [
+            "LAG trae un valor de la fila anterior y LEAD de la siguiente, según el ORDER BY de OVER. Sirven para comparar con el pedido anterior o calcular diferencias.",
+            "Si no hay fila anterior, LAG devuelve NULL."
+          ],
+          "ejemplo": "SELECT cliente_id, fecha,\n       LAG(fecha) OVER (PARTITION BY cliente_id ORDER BY fecha) AS pedido_anterior,\n       DATEDIFF(fecha, LAG(fecha) OVER (PARTITION BY cliente_id ORDER BY fecha)) AS dias_entre_pedidos\nFROM pedidos;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "Igual."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "Igual; allí se llaman funciones analíticas."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "Igual."
+        }
+      ],
+      "relacionadas": [
+        "palabra:group-by",
+        "palabra:with",
+        "palabra:order-by"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Funciones de ventana",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/window-functions.html"
+        }
+      ]
+    },
+    {
       "id": "palabra:insert",
       "categoria": "palabra",
       "titulo": "INSERT: agregar filas",
@@ -2013,7 +2261,8 @@
         "insert",
         "insert into",
         "values",
-        "returning"
+        "returning",
+        "into"
       ],
       "resumen": "Agrega filas a una tabla.",
       "secciones": [
@@ -2063,7 +2312,8 @@
         "on duplicate key update",
         "replace",
         "insert ignore",
-        "upsert"
+        "upsert",
+        "replace into"
       ],
       "resumen": "Insertan una fila, o actualizan la que ya existe con esa clave.",
       "secciones": [
@@ -2111,7 +2361,8 @@
       "titulo": "UPDATE: cambiar filas",
       "alias": [
         "update",
-        "set"
+        "set",
+        "row_count"
       ],
       "resumen": "Cambia valores de filas existentes.",
       "secciones": [
@@ -2119,9 +2370,10 @@
           "titulo": "Cuidado",
           "parrafos": [
             "Sin WHERE se cambian todas las filas.",
-            "Se puede actualizar con un JOIN, y usar LIMIT."
+            "Se puede actualizar con un JOIN, y usar LIMIT.",
+            "ROW_COUNT() dice cuántas filas cambió el último INSERT, UPDATE o DELETE."
           ],
-          "ejemplo": "START TRANSACTION;\nUPDATE productos p\nJOIN categorias c ON c.id = p.categoria_id\nSET p.precio = p.precio * 1.1\nWHERE c.nombre = 'Audio';\nROLLBACK;"
+          "ejemplo": "START TRANSACTION;\nUPDATE productos p\nJOIN categorias c ON c.id = p.categoria_id\nSET p.precio = p.precio * 1.1\nWHERE c.nombre = 'Audio';\nSELECT ROW_COUNT() AS filas_cambiadas;\nROLLBACK;"
         }
       ],
       "otrosMotores": [],
@@ -2143,7 +2395,8 @@
       "alias": [
         "delete",
         "delete from",
-        "truncate"
+        "truncate",
+        "truncate table"
       ],
       "resumen": "DELETE borra filas. TRUNCATE vacía la tabla de golpe.",
       "secciones": [
@@ -2180,7 +2433,8 @@
         "create table",
         "create",
         "if not exists",
-        "like"
+        "like",
+        "constraint"
       ],
       "resumen": "Crea una tabla nueva.",
       "secciones": [
@@ -2190,7 +2444,8 @@
             "IF NOT EXISTS evita el error si ya existe.",
             "CREATE TABLE nueva LIKE vieja copia la estructura.",
             "ENGINE elige el motor de almacenamiento.",
-            "Confirma solo lo que tengas pendiente."
+            "Confirma solo lo que tengas pendiente.",
+            "CONSTRAINT nombre le pone nombre a una restricción, como una llave foránea o un CHECK. Con nombre es más fácil reconocerla en un mensaje de error y borrarla después."
           ],
           "ejemplo": "CREATE TABLE IF NOT EXISTS ficha_copia LIKE categorias;\nDROP TABLE ficha_copia;"
         }
@@ -2436,7 +2691,13 @@
         "trim",
         "left",
         "right",
-        "group_concat"
+        "group_concat",
+        "locate",
+        "instr",
+        "lpad",
+        "rpad",
+        "ltrim",
+        "rtrim"
       ],
       "resumen": "Trabajan con textos.",
       "secciones": [
@@ -2448,6 +2709,14 @@
             "GROUP_CONCAT une los valores de un grupo."
           ],
           "ejemplo": "SELECT CONCAT(nombre, ' <', correo, '>') AS contacto,\n       UPPER(LEFT(nombre, 3)) AS inicio\nFROM clientes;"
+        },
+        {
+          "titulo": "Buscar y rellenar",
+          "parrafos": [
+            "LOCATE(buscado, texto) dice en qué posición aparece algo, o 0 si no está. INSTR(texto, buscado) hace lo mismo con los valores al revés.",
+            "LPAD(texto, largo, relleno) rellena por la izquierda hasta el largo: LPAD(id, 5, '0') da 00001. RPAD rellena por la derecha."
+          ],
+          "ejemplo": "SELECT correo, LOCATE('@', correo) AS arroba, LPAD(id, 5, '0') AS codigo\nFROM clientes;"
         }
       ],
       "otrosMotores": [
@@ -2487,7 +2756,11 @@
         "month",
         "day",
         "timestampdiff",
-        "interval"
+        "interval",
+        "curtime",
+        "date_sub",
+        "str_to_date",
+        "last_day"
       ],
       "resumen": "Trabajan con fechas y horas.",
       "secciones": [
@@ -2499,6 +2772,16 @@
             "DATE_FORMAT da formato: '%d/%m/%Y'."
           ],
           "ejemplo": "SELECT fecha, DATE_FORMAT(fecha, '%d/%m/%Y') AS con_formato,\n       DATE_ADD(fecha, INTERVAL 30 DAY) AS vence,\n       DATEDIFF(CURDATE(), fecha) AS dias\nFROM pedidos;"
+        },
+        {
+          "titulo": "Restar, convertir y fin de mes",
+          "parrafos": [
+            "CURTIME() da solo la hora actual.",
+            "DATE_SUB resta con INTERVAL, igual que DATE_ADD suma: DATE_SUB(fecha, INTERVAL 1 MONTH).",
+            "STR_TO_DATE convierte un texto en fecha con el formato que le digas: STR_TO_DATE('15/07/2026', '%d/%m/%Y'). Es lo contrario de DATE_FORMAT.",
+            "LAST_DAY(fecha) da el último día de su mes."
+          ],
+          "ejemplo": "SELECT fecha,\n       DATE_SUB(fecha, INTERVAL 1 MONTH) AS un_mes_antes,\n       LAST_DAY(fecha) AS fin_de_mes\nFROM pedidos;\n\nSELECT STR_TO_DATE('15/07/2026', '%d/%m/%Y') AS fecha, CURTIME() AS hora;"
         }
       ],
       "otrosMotores": [
@@ -2536,7 +2819,9 @@
         "nullif",
         "if",
         "case",
-        "when"
+        "when",
+        "else",
+        "end"
       ],
       "resumen": "Eligen un valor según una condición.",
       "secciones": [
@@ -2570,6 +2855,83 @@
         {
           "titulo": "MySQL: Funciones de control de flujo",
           "url": "https://dev.mysql.com/doc/refman/8.4/en/flow-control-functions.html"
+        }
+      ]
+    },
+    {
+      "id": "palabra:funciones-numericas",
+      "categoria": "palabra",
+      "titulo": "Funciones numéricas: ROUND, TRUNCATE, MOD y otras",
+      "alias": [
+        "funciones numéricas",
+        "funciones matemáticas",
+        "round",
+        "ceil",
+        "ceiling",
+        "floor",
+        "mod",
+        "div",
+        "abs",
+        "power",
+        "pow",
+        "sqrt",
+        "rand",
+        "greatest",
+        "least",
+        "redondear",
+        "al azar"
+      ],
+      "resumen": "Sirven para redondear, cortar decimales, sacar el resto de una división, potencias y raíces, números al azar y para elegir el mayor o el menor de varios valores.",
+      "secciones": [
+        {
+          "titulo": "Redondear y cortar",
+          "parrafos": [
+            "ROUND(número, decimales) redondea: ROUND(18.56, 1) da 18.6. TRUNCATE(número, decimales) corta sin redondear: TRUNCATE(18.56, 1) da 18.5.",
+            "CEIL sube al entero siguiente y FLOOR baja al anterior: CEIL(18.2) da 19 y FLOOR(18.9) da 18."
+          ],
+          "ejemplo": "SELECT nombre, precio,\n       ROUND(precio * 1.13, 2) AS con_impuesto,\n       CEIL(precio) AS hacia_arriba,\n       FLOOR(precio) AS hacia_abajo\nFROM productos;"
+        },
+        {
+          "titulo": "Dividir",
+          "parrafos": [
+            "La barra siempre da decimales: 7 / 2 da 3.5000. Para la división entera se usa DIV: 7 DIV 2 da 3.",
+            "MOD(7, 2), o 7 % 2, da el resto: 1.",
+            "Dividir entre cero no da error en una consulta: devuelve NULL con una advertencia."
+          ],
+          "ejemplo": "SELECT 7 / 2 AS con_decimales, 7 DIV 2 AS entera, MOD(7, 2) AS resto;"
+        },
+        {
+          "titulo": "Otras",
+          "parrafos": [
+            "ABS quita el signo: ABS(-5) da 5. POWER(2, 10) eleva 2 a la 10, y SQRT(81) saca la raíz cuadrada.",
+            "GREATEST y LEAST devuelven el mayor y el menor de varios valores. Si alguno es NULL, devuelven NULL.",
+            "RAND() da un número al azar entre 0 y 1, y ORDER BY RAND() ordena las filas al azar."
+          ],
+          "ejemplo": "SELECT ABS(-5) AS absoluto, POWER(2, 10) AS potencia, SQRT(81) AS raiz;\n\nSELECT nombre, precio, GREATEST(precio, 30) AS minimo_30, LEAST(precio, 50) AS tope_50\nFROM productos;\n\nSELECT nombre FROM productos ORDER BY RAND() LIMIT 2;"
+        }
+      ],
+      "otrosMotores": [
+        {
+          "motor": "SQL Server",
+          "texto": "ROUND, CEILING, FLOOR, ABS, POWER, SQRT y RAND; allí 7 / 2 da 3, y para cortar se usa ROUND con un tercer valor."
+        },
+        {
+          "motor": "Oracle",
+          "texto": "ROUND, TRUNC en lugar de TRUNCATE, CEIL, FLOOR, MOD, ABS, POWER, SQRT, GREATEST y LEAST."
+        },
+        {
+          "motor": "PostgreSQL",
+          "texto": "round, trunc, ceil, floor, mod, abs, power, sqrt, greatest, least y random(); allí 7 / 2 da 3."
+        }
+      ],
+      "relacionadas": [
+        "tipo:decimal",
+        "palabra:conversion"
+      ],
+      "fuentes": [
+        {
+          "titulo": "MySQL: Funciones matemáticas",
+          "url": "https://dev.mysql.com/doc/refman/8.4/en/mathematical-functions.html"
         }
       ]
     },
@@ -2717,7 +3079,12 @@
         "repeat",
         "loop",
         "leave",
-        "iterate"
+        "iterate",
+        "do",
+        "end while",
+        "until",
+        "end repeat",
+        "end loop"
       ],
       "resumen": "Repiten sentencias dentro de un programa.",
       "secciones": [
@@ -2909,12 +3276,21 @@
           ]
         },
         {
-          "titulo": "En el editor con PostgreSQL",
+          "titulo": "Al escribir en el editor",
           "parrafos": [
-            "Cada sentencia termina en punto y coma. El cuerpo de las funciones y de los bloques DO va entre signos de dólar, $$ … $$, y el editor no corta en los puntos y coma de adentro.",
-            "Cada sentencia se confirma sola. Si escribes BEGIN, los cambios quedan pendientes hasta COMMIT o ROLLBACK, y verás un aviso sobre los resultados.",
-            "Cada pestaña tiene su propia sesión en cada base: un COMMIT o un ROLLBACK en una pestaña no toca a las demás. Para trabajar en otra base, ponte sobre ella en el explorador y pulsa Control+N (misma pestaña) o Control+T (pestaña nueva).",
-            "Los mensajes de RAISE NOTICE aparecen en el panel de mensajes, y los comandos de psql, como \\d, se explican sin enviarse al servidor."
+            "Las sugerencias aparecen mientras escribes, tras una pausa corta: palabras de SQL, funciones y tipos de dato de este motor, y las tablas, vistas, columnas y procedimientos de la base de la pestaña. Control+Espacio las muestra en cualquier momento.",
+            "Con la lista abierta, flecha abajo y flecha arriba recorren las sugerencias; Re Pág y Av Pág saltan de ocho en ocho. Tabulador acepta la sugerencia y Control+Z la deshace. Escape cierra la lista y no vuelve a abrirla hasta la palabra siguiente. Intro sigue siendo un salto de línea.",
+            "Después de un punto, la lista se abre sola con las columnas de la tabla o del alias, o con los objetos del esquema. F1 sobre una sugerencia abre su ficha de ayuda.",
+            "Si escribes en minúsculas, la palabra se inserta en minúsculas. Los nombres de la base se insertan tal como están. En el menú Editar, la casilla «Sugerir mientras escribo» hace que la lista solo aparezca con Control+Espacio."
+          ]
+        },
+        {
+          "titulo": "En el editor con MySQL",
+          "parrafos": [
+            "Cada sentencia termina en punto y coma. Para escribir un procedimiento, una función o un disparador, cambia el separador con DELIMITER en su propia línea, por ejemplo DELIMITER $$, y vuelve con DELIMITER ;. El editor entiende DELIMITER y no lo envía al servidor.",
+            "Cada sentencia se confirma sola. Después de START TRANSACTION o de SET autocommit = 0, los cambios quedan pendientes hasta COMMIT o ROLLBACK, y verás un aviso sobre los resultados. CREATE, ALTER, DROP y TRUNCATE confirman también lo que tengas pendiente, y la aplicación te avisa cuando pasa.",
+            "Cada pestaña tiene su propia sesión: un COMMIT o un ROLLBACK en una pestaña no toca a las demás. USE cambia la base de la pestaña; también puedes ponerte sobre otra base en el explorador y pulsar Control+N (misma pestaña) o Control+T (pestaña nueva).",
+            "Las advertencias del servidor, las mismas que muestra SHOW WARNINGS, aparecen en el panel de mensajes."
           ]
         },
         {

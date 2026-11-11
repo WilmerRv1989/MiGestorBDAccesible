@@ -1,3 +1,4 @@
+@using MiGestorBDAccesible.Core.Autocompletado
 @using MiGestorBDAccesible.Core.Ejecucion
 @using MiGestorBDAccesible.Core.Edicion
 @using MiGestorBDAccesible.Core.Trabajo
@@ -12,6 +13,7 @@
 @inject HistorialConsultasService historial
 @inject SesionEditorService sesiones
 @inject IJSRuntime js
+@inject AutocompletadoService autocompletado
 
 <div class="espacio" inert="@(_historialAbierto || _terminandoCambios || _preguntarDesconexion || _pestanaPorCerrar is not null || _joinAbierto)">
     <header class="cabecera">
@@ -333,6 +335,14 @@
             _avisoSesion = _pestanas.Pestanas.Count == 1
                 ? $"Se recuperó tu consulta anterior en {activa.BaseDatos ?? "la base predeterminada"}{archivo}."
                 : $"Se recuperaron {_pestanas.Pestanas.Count} pestañas; activa: {activa.Nombre} en {activa.BaseDatos ?? "la base predeterminada"}.";
+
+            if (_pestanas.ArchivosNoEncontrados.Count > 0)
+            {
+                var archivos = NarradorTablaService.Unir(_pestanas.ArchivosNoEncontrados);
+                _avisoSesion += _pestanas.ArchivosNoEncontrados.Count == 1
+                    ? $" No se encontró el archivo {archivos}; su pestaña quedó vacía si no tenía cambios."
+                    : $" No se encontraron los archivos {archivos}; sus pestañas quedaron vacías si no tenían cambios.";
+            }
         }
     }
 
@@ -342,13 +352,13 @@
         {
             _referencia = DotNetObjectReference.Create(this);
             await js.InvokeVoidAsync("miGestor.registrarEspacio", _referencia);
+        }
 
-            if (_avisoSesion is not null)
-            {
-                await Task.Delay(1500);
-                await anunciador.AnunciarAsync(_avisoSesion);
-                _avisoSesion = null;
-            }
+        if (_avisoSesion is { } aviso)
+        {
+            _avisoSesion = null;
+            await Task.Delay(1500);
+            await anunciador.AnunciarAsync(aviso);
         }
 
         if (_enfocarEditor)
@@ -555,6 +565,10 @@
 
         return AbrirPestana(baseDatos ?? Conexion.Conexion.BaseDatosInicial, titulo: titulo);
     }
+
+    [JSInvokable]
+    public Task<ResultadoSugerenciasModelo> Sugerencias(string texto, int cursor) =>
+        autocompletado.SugerirAsync(proveedores.Obtener(Conexion.Conexion.Motor), Conexion, _pestanas.Activa?.BaseDatos ?? Conexion.Conexion.BaseDatosInicial, texto, cursor);
 
     [JSInvokable]
     public Task NuevaConsulta(string? baseDatos)
@@ -981,7 +995,9 @@
         await GuardarSesionAsync();
 
         await Task.Delay(600);
-        await anunciador.AnunciarAsync($"Consulta del historial en {pestana.Nombre}, en {entrada.BaseDatos ?? "la base predeterminada"}, {Posicion(pestana)}. Pulsa F5 para ejecutarla.");
+        await anunciador.AnunciarAsync(entrada.Recortado
+            ? $"Inicio del script del historial en {pestana.Nombre}, en {entrada.BaseDatos ?? "la base predeterminada"}, {Posicion(pestana)}. Es solo el comienzo: el script tenía {entrada.LineasOriginales} líneas y el historial guarda únicamente el inicio de los scripts grandes."
+            : $"Consulta del historial en {pestana.Nombre}, en {entrada.BaseDatos ?? "la base predeterminada"}, {Posicion(pestana)}. Pulsa F5 para ejecutarla.");
     }
 
     private async Task BorrarHistorialAsync()
@@ -1006,7 +1022,8 @@
             primeraLinea = primeraLinea[..80] + "…";
         }
 
-        return $"{fecha}, {entrada.BaseDatos ?? "base predeterminada"}: {primeraLinea}. {entrada.Resumen}";
+        var recorte = entrada.Recortado ? $" Script grande de {entrada.LineasOriginales} líneas: se guardó solo el inicio." : "";
+        return $"{fecha}, {entrada.BaseDatos ?? "base predeterminada"}: {primeraLinea}. {entrada.Resumen}{recorte}";
     }
 
     private async Task AbrirScriptAsync(ScriptAbiertoModelo script)
@@ -1070,6 +1087,11 @@
             var resultado = await proveedores.Obtener(Conexion.Conexion.Motor)
                 .EjecutarAsync(pestana.Sesion, pestana.BaseDatos, script, lineaInicial, cancelacion.Token);
             pestana.Resultado = resultado;
+
+            if (AutocompletadoService.CambiaEstructura(script))
+            {
+                autocompletado.Invalidar(Conexion);
+            }
 
             var cambioBase = resultado.BaseDatosFinal is not null
                 && !string.Equals(resultado.BaseDatosFinal, pestana.BaseDatos, StringComparison.OrdinalIgnoreCase);
